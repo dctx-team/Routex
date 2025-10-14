@@ -1,0 +1,44 @@
+{
+  "name": "routex",
+  "version": "1.0.0",
+  "description": "Next-gen AI API router and load balancer / 下一代 AI API 路由器和负载均衡器",
+  "keywords": [
+    "ai",
+    "api",
+    "router",
+    "load-balancer",
+    "claude",
+    "anthropic",
+    "proxy"
+  ],
+  "author": "dctx-team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dctx-team/Routex.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/server.ts",
+    "start": "bun run src/server.ts",
+    "build": "bun build src/server.ts --outdir dist --target bun",
+    "test": "bun test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "strip-chinese": "bun run scripts/strip-chinese.ts"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.2.0"
+  }
+}

@@ -1,0 +1,39 @@
+# Routex deployment configuration for claw.run
+# Routex 在 claw.run 的部署配置
+
+name: routex
+runtime: bun
+
+# Build configuration / 构建配置
+build:
+  command: bun install && bun run build
+  output: dist/
+
+# Environment variables / 环境变量
+env:
+  PORT: 8080
+  NODE_ENV: production
+  LOAD_BALANCE_STRATEGY: priority
+
+# Resource limits / 资源限制
+resources:
+  memory: 512MB
+  cpu: 0.5
+
+# Health check / 健康检查
+health_check:
+  path: /health
+  interval: 30s
+  timeout: 5s
+  healthy_threshold: 2
+  unhealthy_threshold: 3
+
+# Persistent storage / 持久存储
+volumes:
+  - path: /data
+    size: 1GB
+
+# Network / 网络
+network:
+  public: true
+  port: 8080

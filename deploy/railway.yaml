@@ -1,0 +1,19 @@
+# Routex deployment configuration for Railway
+# Routex 在 Railway 的部署配置
+
+build:
+  builder: DOCKERFILE
+  dockerfilePath: Dockerfile
+
+deploy:
+  startCommand: bun run dist/server.js
+  healthcheckPath: /health
+  healthcheckTimeout: 10
+  restartPolicyType: ON_FAILURE
+  restartPolicyMaxRetries: 3
+
+# Environment variables (set in Railway dashboard)
+# 环境变量（在 Railway 仪表板中设置）
+# PORT (automatically set by Railway)
+# LOAD_BALANCE_STRATEGY=priority
+# DASHBOARD_PASSWORD=your_password

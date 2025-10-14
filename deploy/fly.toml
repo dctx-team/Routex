@@ -1,0 +1,45 @@
+# Routex deployment configuration for Fly.io
+# Routex 在 Fly.io 的部署配置
+
+app = "routex"
+primary_region = "sjc"
+
+[build]
+  builder = "dockerfile"
+
+[env]
+  PORT = "8080"
+  LOAD_BALANCE_STRATEGY = "priority"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+# Persistent volume for database / 数据库持久卷
+[[mounts]]
+  source = "routex_data"
+  destination = "/data"
