@@ -1,6 +1,6 @@
 /**
  * Configuration management with smart defaults
- * 具有智能默认值的配置管理
+ *
  */
 
 import { existsSync, mkdirSync } from 'fs';
@@ -24,7 +24,7 @@ export class ConfigManager {
 
   /**
    * Load configuration with smart defaults
-   * 加载具有智能默认值的配置
+ *
    */
   private loadConfig(): Config {
     const env = this.detectEnvironment();
@@ -54,7 +54,7 @@ export class ConfigManager {
 
   /**
    * Detect deployment environment
-   * 检测部署环境
+ *
    */
   private detectEnvironment(): 'local' | 'claw' | 'railway' | 'fly' | 'render' {
     if (process.env.CLAW_RUNTIME) return 'claw';
@@ -66,7 +66,7 @@ export class ConfigManager {
 
   /**
    * Ensure data directory exists
-   * 确保数据目录存在
+ *
    */
   private ensureDataDirectory(): string {
     const env = this.detectEnvironment();
@@ -76,7 +76,7 @@ export class ConfigManager {
     if (env === 'local') {
       dataDir = join(process.cwd(), 'data');
     } else {
-      // Use persistent volume path for cloud platforms / 为云平台使用持久卷路径
+      //// Use persistent volume path for cloud platforms
       dataDir = process.env.DATA_DIR || '/data';
     }
 
@@ -89,7 +89,7 @@ export class ConfigManager {
 
   /**
    * Get configuration
-   * 获取配置
+ *
    */
   getConfig(): Config {
     return this.config;
@@ -97,7 +97,7 @@ export class ConfigManager {
 
   /**
    * Update configuration
-   * 更新配置
+ *
    */
   updateConfig(updates: Partial<Config>) {
     this.config = {
@@ -108,7 +108,7 @@ export class ConfigManager {
 
   /**
    * Check if this is first run
-   * 检查是否为首次运行
+ *
    */
   isFirstRun(): boolean {
     return this.config.firstRun;
@@ -116,7 +116,7 @@ export class ConfigManager {
 
   /**
    * Mark first run as complete
-   * 标记首次运行完成
+ *
    */
   markFirstRunComplete() {
     this.config.firstRun = false;

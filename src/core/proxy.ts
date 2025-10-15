@@ -1,65 +1,132 @@
 /**
  * Proxy engine for forwarding requests to AI providers
- * 用于将请求转发到 AI 提供商的代理引擎
+ *  AI
  */
 
 import type { Channel, ParsedRequest, ProxyResponse, RequestLog } from '../types';
 import { Database } from '../db/database';
 import { LoadBalancer } from './loadbalancer';
+import type { SmartRouter } from './routing/smart-router';
+import type { TransformerManager } from '../transformers';
 
 export class ProxyEngine {
   private circuitBreaker = new Map<string, { failures: number; lastFailure: number }>();
   private maxRetries = 3;
   private circuitBreakerThreshold = 5;
-  private circuitBreakerTimeout = 60000; // 1 minute / 1 分钟
+  private circuitBreakerTimeout = 60000; //// 1 minute / 1
 
   constructor(
     private db: Database,
     private loadBalancer: LoadBalancer,
+    private smartRouter?: SmartRouter,
+    private transformerManager?: TransformerManager,
   ) {}
 
   /**
    * Handle incoming proxy request
-   * 处理传入的代理请求
+ *
    */
   async handle(req: Request): Promise<Response> {
     const start = Date.now();
 
     try {
-      // Parse request / 解析请求
+      //// Parse request
       const parsed = await this.parseRequest(req);
 
-      // Get available channels / 获取可用渠道
+      //// Get available channels
       const channels = this.db.getEnabledChannels();
 
-      // Filter out channels in circuit breaker state / 过滤掉处于熔断状态的渠道
+      //// Filter out channels in circuit breaker state
       const available = channels.filter((ch) => !this.isCircuitOpen(ch.id));
 
       if (available.length === 0) {
         return new Response('No available channels', { status: 503 });
       }
 
-      // Select channel / 选择渠道
-      const sessionId = req.headers.get('x-session-id') || undefined;
-      const channel = await this.loadBalancer.select(available, {
-        sessionId,
-        model: parsed.model,
-      });
+      //// Try SmartRouter first if available / SmartRouter
+      let channel: Channel;
+      let routedModel: string | undefined;
+      let matchedRuleName: string | undefined;
 
-      // Forward request with retries / 转发请求（带重试）
+      if (this.smartRouter && parsed.body) {
+        try {
+          const routerContext = {
+            model: parsed.model || '',
+            messages: (parsed.body as any).messages || [],
+            system: (parsed.body as any).system,
+            tools: (parsed.body as any).tools,
+            metadata: {
+              sessionId: req.headers.get('x-session-id') || undefined,
+            },
+          };
+
+          const routeResult = await this.smartRouter.findMatchingChannel(routerContext, available);
+
+          if (routeResult) {
+            channel = routeResult.channel;
+            routedModel = routeResult.model;
+            matchedRuleName = routeResult.rule?.name;
+            console.log(`🧠 SmartRouter matched rule: ${matchedRuleName} → ${channel.name}`);
+          } else {
+            //// Fallback to LoadBalancer / LoadBalancer
+            const sessionId = req.headers.get('x-session-id') || undefined;
+            channel = await this.loadBalancer.select(available, {
+              sessionId,
+              model: parsed.model,
+            });
+            console.log(`⚖️  LoadBalancer selected: ${channel.name}`);
+          }
+        } catch (error) {
+          console.error('SmartRouter error, falling back to LoadBalancer:', error);
+          const sessionId = req.headers.get('x-session-id') || undefined;
+          channel = await this.loadBalancer.select(available, {
+            sessionId,
+            model: parsed.model,
+          });
+        }
+      } else {
+        //// No SmartRouter, use LoadBalancer / SmartRouterLoadBalancer
+        const sessionId = req.headers.get('x-session-id') || undefined;
+        channel = await this.loadBalancer.select(available, {
+          sessionId,
+          model: parsed.model,
+        });
+      }
+
+      //// Override model if routed model is specified
+      if (routedModel && parsed.body) {
+        (parsed.body as any).model = routedModel;
+      }
+
+      //// Forward request with retries
       const response = await this.forwardWithRetries(channel, parsed, available);
 
-      // Log request / 记录请求
+      //// Log request
       const latency = Date.now() - start;
       this.logRequest(channel, parsed, response, latency, true);
 
-      // Increment usage / 增加使用次数
+      //// Increment usage
       this.db.incrementChannelUsage(channel.id, true);
 
-      // Reset circuit breaker on success / 成功时重置熔断器
+      //// Reset circuit breaker on success
       this.resetCircuitBreaker(channel.id);
 
-      return this.createResponse(response);
+      //// Add routing info to response headers
+      const responseHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Channel-Id': channel.id,
+        'X-Channel-Name': channel.name,
+        'X-Latency-Ms': latency.toString(),
+      };
+
+      if (matchedRuleName) {
+        responseHeaders['X-Routing-Rule'] = matchedRuleName;
+      }
+
+      return new Response(JSON.stringify(response.body), {
+        status: response.status,
+        headers: responseHeaders,
+      });
     } catch (error) {
       const latency = Date.now() - start;
       console.error('Proxy error:', error);
@@ -81,7 +148,7 @@ export class ProxyEngine {
 
   /**
    * Forward request with automatic retries
-   * 转发请求（自动重试）
+ *
    */
   private async forwardWithRetries(
     channel: Channel,
@@ -98,10 +165,10 @@ export class ProxyEngine {
         lastError = error as Error;
         attempts++;
 
-        // Record failure / 记录失败
+        //// Record failure
         this.recordFailure(channel.id);
 
-        // If circuit breaker is open, try another channel / 如果熔断器打开，尝试另一个渠道
+        //// If circuit breaker is open, try another channel
         if (this.isCircuitOpen(channel.id) && availableChannels.length > 1) {
           const otherChannels = availableChannels.filter((ch) => ch.id !== channel.id);
           if (otherChannels.length > 0) {
@@ -110,7 +177,7 @@ export class ProxyEngine {
           }
         }
 
-        // Wait before retry / 重试前等待
+        //// Wait before retry
         if (attempts < this.maxRetries) {
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
         }
@@ -122,29 +189,66 @@ export class ProxyEngine {
 
   /**
    * Forward request to channel
-   * 将请求转发到渠道
+ *
    */
   private async forward(channel: Channel, request: ParsedRequest): Promise<ProxyResponse> {
     const start = Date.now();
 
-    // Build URL / 构建 URL
+    //// Build URL /  URL
     const baseUrl = channel.baseUrl || this.getDefaultBaseUrl(channel.type);
     const url = `${baseUrl}${request.path}`;
 
-    // Prepare headers / 准备请求头
+    //// Apply transformers if configured / transformers
+    let transformedRequest = request.body;
+    if (this.transformerManager && channel.transformers && transformedRequest) {
+      try {
+        const transformerSpecs = channel.transformers.use || [];
+        if (transformerSpecs.length > 0) {
+          console.log(`🔄 Applying ${transformerSpecs.length} request transformer(s) for channel ${channel.name}`);
+          transformedRequest = await this.transformerManager.transformRequest(
+            transformedRequest,
+            transformerSpecs
+          );
+        }
+      } catch (error) {
+        console.error('Request transformer error:', error);
+        //// Continue with original request if transformation fails
+      }
+    }
+
+    //// Prepare headers
     const headers = this.prepareHeaders(channel, request);
 
-    // Make request / 发起请求
+    //// Make request
     const response = await fetch(url, {
       method: request.method,
       headers,
-      body: request.body ? JSON.stringify(request.body) : undefined,
+      body: transformedRequest ? JSON.stringify(transformedRequest) : undefined,
     });
 
     const latency = Date.now() - start;
 
-    // Parse response / 解析响应
-    const responseBody = await response.json();
+    //// Parse response
+    let responseBody = await response.json();
+
+    //// Apply reverse transformers if configured / transformers
+    if (this.transformerManager && channel.transformers && responseBody) {
+      try {
+        const transformerSpecs = channel.transformers.use || [];
+        if (transformerSpecs.length > 0) {
+          console.log(`🔄 Applying ${transformerSpecs.length} response transformer(s) for channel ${channel.name}`);
+          //// Reverse the transformer order for response / transformer
+          const reversedSpecs = [...transformerSpecs].reverse();
+          responseBody = await this.transformerManager.transformResponse(
+            responseBody,
+            reversedSpecs
+          );
+        }
+      } catch (error) {
+        console.error('Response transformer error:', error);
+        //// Continue with original response if transformation fails
+      }
+    }
 
     return {
       status: response.status,
@@ -157,20 +261,20 @@ export class ProxyEngine {
 
   /**
    * Parse incoming request
-   * 解析传入的请求
+ *
    */
   private async parseRequest(req: Request): Promise<ParsedRequest> {
     const url = new URL(req.url);
     const headers: Record<string, string> = {};
 
-    // Copy relevant headers / 复制相关请求头
+    //// Copy relevant headers
     for (const [key, value] of req.headers.entries()) {
       if (!key.startsWith('x-') && key !== 'host') {
         headers[key] = value;
       }
     }
 
-    // Parse body / 解析请求体
+    //// Parse body
     let body: unknown = null;
     let model: string | undefined;
 
@@ -181,7 +285,7 @@ export class ProxyEngine {
           model = (body as any).model;
         }
       } catch {
-        // Ignore parse errors / 忽略解析错误
+        //// Ignore parse errors
       }
     }
 
@@ -196,7 +300,7 @@ export class ProxyEngine {
 
   /**
    * Prepare headers for forwarding
-   * 准备转发的请求头
+ *
    */
   private prepareHeaders(channel: Channel, request: ParsedRequest): HeadersInit {
     const headers: Record<string, string> = {
@@ -204,7 +308,7 @@ export class ProxyEngine {
       'Content-Type': 'application/json',
     };
 
-    // Add authentication / 添加认证
+    //// Add authentication
     if (channel.type === 'anthropic') {
       headers['x-api-key'] = channel.apiKey || '';
       headers['anthropic-version'] = '2023-06-01';
@@ -219,7 +323,7 @@ export class ProxyEngine {
 
   /**
    * Get default base URL for channel type
-   * 获取渠道类型的默认基础 URL
+ *  URL
    */
   private getDefaultBaseUrl(type: string): string {
     switch (type) {
@@ -236,7 +340,7 @@ export class ProxyEngine {
 
   /**
    * Create response from proxy response
-   * 从代理响应创建响应
+ *
    */
   private createResponse(proxyResponse: ProxyResponse): Response {
     return new Response(JSON.stringify(proxyResponse.body), {
@@ -251,7 +355,7 @@ export class ProxyEngine {
 
   /**
    * Log request to database
-   * 将请求记录到数据库
+ *
    */
   private logRequest(
     channel: Channel,
@@ -260,7 +364,7 @@ export class ProxyEngine {
     latency: number,
     success: boolean,
   ) {
-    // Extract token usage from response / 从响应中提取 token 使用情况
+    //// Extract token usage from response /  token
     const body = response.body as any;
     const usage = body?.usage || {};
 
@@ -283,12 +387,12 @@ export class ProxyEngine {
   }
 
   // ============================================================================
-  // Circuit Breaker / 熔断器
+  //// Circuit Breaker
   // ============================================================================
 
   /**
    * Record channel failure
-   * 记录渠道失败
+ *
    */
   private recordFailure(channelId: string) {
     const state = this.circuitBreaker.get(channelId) || { failures: 0, lastFailure: 0 };
@@ -297,7 +401,7 @@ export class ProxyEngine {
     this.circuitBreaker.set(channelId, state);
 
     // Mark channel as rate limited if threshold exceeded
-    // 如果超过阈值，将渠道标记为速率受限
+    ////
     if (state.failures >= this.circuitBreakerThreshold) {
       this.db.updateChannel(channelId, { status: 'rate_limited' });
       console.log(`Circuit breaker opened for channel ${channelId}`);
@@ -306,7 +410,7 @@ export class ProxyEngine {
 
   /**
    * Check if circuit breaker is open
-   * 检查熔断器是否打开
+ *
    */
   private isCircuitOpen(channelId: string): boolean {
     const state = this.circuitBreaker.get(channelId);
@@ -314,7 +418,7 @@ export class ProxyEngine {
       return false;
     }
 
-    // Auto-reset after timeout / 超时后自动重置
+    //// Auto-reset after timeout
     if (Date.now() - state.lastFailure > this.circuitBreakerTimeout) {
       this.resetCircuitBreaker(channelId);
       return false;
@@ -325,12 +429,12 @@ export class ProxyEngine {
 
   /**
    * Reset circuit breaker
-   * 重置熔断器
+ *
    */
   private resetCircuitBreaker(channelId: string) {
     this.circuitBreaker.delete(channelId);
 
-    // Re-enable channel if it was rate limited / 如果渠道被限速，重新启用
+    //// Re-enable channel if it was rate limited
     const channel = this.db.getChannel(channelId);
     if (channel && channel.status === 'rate_limited') {
       this.db.updateChannel(channelId, { status: 'enabled' });

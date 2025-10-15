@@ -2,157 +2,274 @@
 
 > Route smarter, scale faster
 
-Next-generation AI API router and load balancer with intelligent channel management, session-aware routing, and zero-config deployment.
+Next-generation AI API router and load balancer with intelligent routing, format transformation, session-aware routing, and zero-config deployment.
 
-下一代 AI API 路由器和负载均衡器，具有智能渠道管理、会话感知路由和零配置部署。
+AI API
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Bun](https://img.shields.io/badge/Bun-≥1.2.0-orange.svg)](https://bun.sh)
+[![Version](https://img.shields.io/badge/Version-v1.1.0--beta-green.svg)](https://github.com/dctx-team/Routex/releases)
 
-## ✨ Features / 特性
+## ✨ Features
+
+### 🎯 v1.1.0 New Features / v1.1.0
+
+- 🧠 **SmartRouter - Intelligent Routing** - Route requests based on content analysis
+  - 7 routing condition types: token threshold, keywords, regex, tools, images, custom functions
+- 7 token
+  - Priority-based rule matching with automatic fallback
+
+- 🔄 **Transformers - Format Conversion** - Seamless API format transformation
+-  -  API
+  - Bidirectional conversion between Anthropic ↔ OpenAI formats
+- Anthropic ↔ OpenAI
+  - Tool calls and image content conversion
+  - Extensible transformer architecture
+-  transformer
+
+### 🔧 Core Features
 
 - 🔀 **Intelligent Load Balancing** - 4 strategies: Priority, Round Robin, Weighted, Least Used
-  - 智能负载均衡 - 4 种策略：优先级、轮询、加权、最少使用
 
 - 🎯 **Session-Aware Routing** - 5-hour session persistence for context continuity
-  - 会话感知路由 - 5 小时会话保持，确保上下文连续性
 
 - 🛡️ **Circuit Breaker** - Automatic failure detection and recovery
-  - 熔断器 - 自动故障检测和恢复
 
 - 📊 **Real-time Dashboard** - Modern React UI with live metrics
-  - 实时仪表板 - 现代化 React UI，实时指标
+-  -  React UI
 
 - 🔐 **OAuth Support** - PKCE flow with automatic token refresh
-  - OAuth 支持 - PKCE 流程，自动 token 刷新
+- OAuth  - PKCE  token
 
 - 🚀 **Zero-Config Deployment** - One-click deploy to free platforms
-  - 零配置部署 - 一键部署到免费平台
 
 - 💾 **SQLite Backend** - Lightweight, fast, no external dependencies
-  - SQLite 后端 - 轻量、快速、无外部依赖
+- SQLite
 
 - 📈 **Analytics** - Token usage tracking and cost estimation
-  - 分析 - Token 使用追踪和成本估算
+-  - Token
 
-## 🚀 Quick Start / 快速开始
+## 🚀 Quick Start
 
-### Installation / 安装
+### Installation
 
 ```bash
-# Install Bun if not already installed / 如果尚未安装 Bun，请先安装
+# Install Bun if not already installed /  Bun
 curl -fsSL https://bun.sh/install | bash
 
-# Clone the repository / 克隆仓库
+# Clone the repository
 git clone https://github.com/dctx-team/Routex.git
 cd Routex
 
-# Install dependencies / 安装依赖
+# Install dependencies
 bun install
 
-# Start the server / 启动服务器
+# Start the server
 bun start
 ```
 
-### First Run Setup / 首次运行设置
+### First Run Setup
 
 On first run, Routex will guide you through a 3-step setup wizard:
-首次运行时，Routex 将引导您完成 3 步设置向导：
+Routex  3
 
 1. Add your first AI channel (Anthropic Claude, OpenAI, etc.)
-   添加您的第一个 AI 渠道（Anthropic Claude、OpenAI 等）
+AI Anthropic ClaudeOpenAI
 
 2. Configure load balancing strategy
-   配置负载均衡策略
 
 3. Set up dashboard access credentials
-   设置仪表板访问凭据
 
-## 📖 Documentation / 文档
+## 🎯 SmartRouter Usage / SmartRouter
 
-- [Architecture Overview](./docs/architecture.md) / [架构概览](./docs/architecture.md)
-- [Configuration Guide](./docs/configuration.md) / [配置指南](./docs/configuration.md)
-- [Deployment Guide](./docs/deployment.md) / [部署指南](./docs/deployment.md)
-- [API Reference](./docs/api.md) / [API 参考](./docs/api.md)
+### Creating Routing Rules
 
-## 🎯 Use Cases / 使用场景
+Route long-context requests to Gemini automatically:
+Gemini
+
+```bash
+curl -X POST http://localhost:8080/api/routing/rules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Long Context to Gemini",
+    "type": "longContext",
+    "condition": {
+      "tokenThreshold": 60000
+    },
+    "targetChannel": "gemini-channel",
+    "targetModel": "gemini-2.5-pro",
+    "priority": 100
+  }'
+```
+
+Route code review tasks to Claude Opus:
+Claude Opus
+
+```bash
+curl -X POST http://localhost:8080/api/routing/rules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Code Review Tasks",
+    "type": "custom",
+    "condition": {
+      "keywords": ["code review", "review this code", "analyze code"]
+    },
+    "targetChannel": "claude-opus-channel",
+    "priority": 90
+  }'
+```
+
+## 🔄 Transformers Usage / Transformers
+
+### Configuring Channel Transformers /  Transformers
+
+Use OpenRouter with automatic format conversion:
+OpenRouter
+
+```bash
+curl -X POST http://localhost:8080/api/channels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "OpenRouter Channel",
+    "type": "openai",
+    "baseUrl": "https://openrouter.ai/api/v1/chat/completions",
+    "apiKey": "sk-or-xxx",
+    "models": ["anthropic/claude-opus-4"],
+    "transformers": {
+      "use": ["openai"]
+    }
+  }'
+```
+
+### Testing Transformers /  Transformers
+
+```bash
+curl -X POST http://localhost:8080/api/transformers/test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transformer": "openai",
+    "direction": "request",
+    "request": {
+      "model": "claude-opus-4",
+      "messages": [{"role": "user", "content": "Hello"}],
+      "max_tokens": 100
+    }
+  }'
+```
+
+## 📖 Documentation
+
+- [🎯 API Reference](./API_REFERENCE.md) / [API ](./API_REFERENCE.md) ⭐ NEW
+- [🗺️ Development Roadmap](./ROADMAP.md) / (./ROADMAP.md)
+- [📋 Optimization Plan](./OPTIMIZATION_PLAN.md) / (./OPTIMIZATION_PLAN.md)
+- [📊 Implementation Status](./IMPLEMENTATION_STATUS_V2.md) / (./IMPLEMENTATION_STATUS_V2.md) ⭐ NEW
+- [Architecture Overview](./docs/architecture.md) / (./docs/architecture.md)
+- [Configuration Guide](./docs/configuration.md) / (./docs/configuration.md)
+- [Deployment Guide](./docs/deployment.md) / (./docs/deployment.md)
+
+## 🎯 Use Cases
+
+### SmartRouter Scenarios / SmartRouter
+
+- **Long Context Routing** - Automatically route requests with >60K tokens to Gemini
+-  -  >60K token  Gemini
+
+- **Task-Based Routing** - Route code review, analysis, or creative tasks to specific models
+
+- **Image Processing** - Route requests with images to vision-capable models
+
+- **Tool Usage Optimization** - Route tool-calling requests to models with best function-calling support
+
+### General Scenarios
 
 - **Cost Optimization** - Route requests to channels with different pricing tiers
-  - 成本优化 - 将请求路由到不同定价层的渠道
 
 - **High Availability** - Automatic failover between multiple API providers
-  - 高可用性 - 多个 API 提供商之间自动故障转移
+-  -  API
 
 - **Rate Limit Management** - Distribute load across accounts to avoid limits
-  - 速率限制管理 - 跨账户分配负载以避免限制
 
 - **Multi-Region Routing** - Route to nearest or fastest endpoint
-  - 多区域路由 - 路由到最近或最快的端点
 
-## 🏗️ Architecture / 架构
+## 🏗️ Architecture
 
 ```
 Routex/
 ├── src/
-│   ├── server.ts          # Main server entry / 主服务器入口
-│   ├── core/              # Core business logic / 核心业务逻辑
-│   │   ├── proxy.ts       # Request proxy engine / 请求代理引擎
-│   │   ├── loadbalancer.ts # Load balancing / 负载均衡
-│   │   └── analytics.ts   # Analytics tracking / 分析追踪
-│   ├── db/                # Database layer / 数据库层
-│   │   ├── database.ts    # SQLite operations / SQLite 操作
-│   │   └── migrations.ts  # Schema migrations / 架构迁移
-│   ├── api/               # HTTP API routes / HTTP API 路由
-│   │   └── routes.ts      # Route definitions / 路由定义
-│   └── config/            # Configuration / 配置
-│       ├── config.ts      # Config management / 配置管理
-│       └── wizard.ts      # Setup wizard / 设置向导
-├── dashboard/             # React dashboard / React 仪表板
+│   ├── server.ts          # Main server entry
+│   ├── core/              # Core business logic
+│   │   ├── proxy.ts       # Request proxy engine
+│   │   ├── loadbalancer.ts # Load balancing
+│   │   ├── routing/       # SmartRouter
+│   │   │   └── smart-router.ts # Routing engine
+│   │   └── analytics.ts   # Analytics tracking
+│   ├── transformers/      # Format transformers
+│   │   ├── base.ts        # Base transformer
+│   │   ├── anthropic.ts   # Anthropic format / Anthropic
+│   │   ├── openai.ts      # OpenAI format / OpenAI
+│   │   └── index.ts       # Manager
+│   ├── db/                # Database layer
+│   │   ├── database.ts    # SQLite operations / SQLite
+│   │   └── migrations.ts  # Schema migrations
+│   ├── api/               # HTTP API routes / HTTP API
+│   │   ├── routes.ts      # Route definitions
+│   │   ├── routing.ts     # Routing rules API /  API
+│   │   └── transformers.ts # Transformers API / Transformers API
+│   └── config/            # Configuration
+│       ├── config.ts      # Config management
+│       └── wizard.ts      # Setup wizard
+├── dashboard/             # React dashboard / React
 │   └── src/
-├── public/                # Static assets / 静态资源
-├── deploy/                # Deployment configs / 部署配置
+├── public/                # Static assets
+├── deploy/                # Deployment configs
 │   ├── claw.yaml
 │   ├── railway.yaml
 │   └── fly.toml
-└── docs/                  # Documentation / 文档
+└── docs/                  # Documentation
 ```
 
-## 🌟 Why Routex? / 为什么选择 Routex？
+## 🌟 Why Routex? /  Routex
 
 Routex is built from the ground up for **simplicity and performance**:
-Routex 从头开始构建，注重**简洁性和性能**：
+Routex ****
 
 - ⚡ **66% less code** than traditional monorepo architecture
-  - 比传统 monorepo 架构少 66% 的代码
+-  monorepo  66%
 
 - 🚀 **<1s startup time** vs 5-10s for complex systems
-  - 启动时间 <1 秒，而复杂系统需要 5-10 秒
 
 - 💾 **<100MB memory** footprint in production
-  - 生产环境内存占用 <100MB
+-  <100MB
 
 - 🎁 **Free tier compatible** - runs on claw.run, Fly.io, Railway
-  - 兼容免费层 - 可在 claw.run、Fly.io、Railway 上运行
+-  -  claw.runFly.ioRailway
 
-## 🤝 Contributing / 贡献
+## 🤝 Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](./docs/contributing.md) first.
-欢迎贡献！请先阅读我们的[贡献指南](./docs/contributing.md)。
+(./docs/contributing.md)
 
-## 📄 License / 许可证
+## 📄 License
 
 MIT License - see [LICENSE](./LICENSE) for details.
 
 Based on [ccflare](https://github.com/snipeship/ccflare) by snipeship.
 
-## 🙏 Acknowledgments / 致谢
+## 🙏 Acknowledgments
 
-- Original ccflare project by [@snipeship](https://github.com/snipeship)
-- Inspired by New-API channel management pattern
-- Built with [Bun](https://bun.sh) and [Hono](https://hono.dev)
+Routex is inspired by several excellent open-source projects:
+
+- **ccflare** by [@snipeship](https://github.com/snipeship/ccflare) - Channel management concepts
+- **claude-code-router** by [@musistudio](https://github.com/musistudio/claude-code-router) - Smart routing patterns
+- **llmio** by [@atopos31](https://github.com/atopos31/llmio) - Intelligent load balancing
+- **cc-switch** by [@farion1231](https://github.com/farion1231/cc-switch) - Configuration management UI
+
+All implementations are original work by dctx-team with independent copyright.
+
+Built with [Bun](https://bun.sh) and [Hono](https://hono.dev).
 
 ---
 
 **Route smarter, scale faster with Routex** 🎯
 
-**使用 Routex 更智能地路由，更快地扩展** 🎯
+** Routex ** 🎯

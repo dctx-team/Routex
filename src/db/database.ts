@@ -1,6 +1,6 @@
 /**
  * Database layer using Bun's native SQLite
- * 使用 Bun 原生 SQLite 的数据库层
+ *  Bun  SQLite
  */
 
 import { Database as BunSQLite } from 'bun:sqlite';
@@ -10,6 +10,9 @@ import type {
   UpdateChannelInput,
   RequestLog,
   Analytics,
+  RoutingRule,
+  CreateRoutingRuleInput,
+  UpdateRoutingRuleInput,
 } from '../types';
 
 export class Database {
@@ -27,7 +30,7 @@ export class Database {
 
   /**
    * Run database migrations
-   * 运行数据库迁移
+ *
    */
   private migrate() {
     const version = this.getVersion();
@@ -38,8 +41,11 @@ export class Database {
     if (version < 2) {
       this.migrateV2();
     }
+    if (version < 3) {
+      this.migrateV3();
+    }
 
-    this.setVersion(2);
+    this.setVersion(3);
   }
 
   private getVersion(): number {
@@ -52,7 +58,7 @@ export class Database {
   }
 
   private migrateV1() {
-    // Channels table / 渠道表
+    //// Channels table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS channels (
         id TEXT PRIMARY KEY,
@@ -74,7 +80,7 @@ export class Database {
       )
     `);
 
-    // Requests table / 请求表
+    //// Requests table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS requests (
         id TEXT PRIMARY KEY,
@@ -94,19 +100,56 @@ export class Database {
       )
     `);
 
-    // Indexes / 索引
+    //// Indexes
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_requests_channel_id ON requests(channel_id)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_requests_timestamp ON requests(timestamp)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_channels_status ON channels(status)');
   }
 
   private migrateV2() {
-    // Future migrations / 未来的迁移
-    // Add new fields or tables here / 在此添加新字段或表
+    //// Add circuit breaker fields to channels
+    this.db.exec(`
+      ALTER TABLE channels ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0;
+    `);
+    this.db.exec(`
+      ALTER TABLE channels ADD COLUMN last_failure_time INTEGER;
+    `);
+    this.db.exec(`
+      ALTER TABLE channels ADD COLUMN circuit_breaker_until INTEGER;
+    `);
+    this.db.exec(`
+      ALTER TABLE channels ADD COLUMN rate_limited_until INTEGER;
+    `);
+    this.db.exec(`
+      ALTER TABLE channels ADD COLUMN transformers TEXT;
+    `);
+  }
+
+  private migrateV3() {
+    //// Routing rules table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS routing_rules (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        condition TEXT NOT NULL,
+        target_channel TEXT NOT NULL,
+        target_model TEXT,
+        priority INTEGER NOT NULL DEFAULT 50,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+
+    //// Indexes for routing rules
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_priority ON routing_rules(priority DESC)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_enabled ON routing_rules(enabled)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_type ON routing_rules(type)');
   }
 
   // ============================================================================
-  // Channel Operations / 渠道操作
+  //// Channel Operations
   // ============================================================================
 
   createChannel(input: CreateChannelInput): Channel {
@@ -219,12 +262,12 @@ export class Database {
   }
 
   // ============================================================================
-  // Request Logging / 请求日志
+  //// Request Logging
   // ============================================================================
 
   /**
    * Buffer a request log entry for batch insertion
-   * 缓冲请求日志条目以进行批量插入
+ *
    */
   logRequest(log: Omit<RequestLog, 'id'>) {
     this.requestBuffer.push({
@@ -232,7 +275,7 @@ export class Database {
       ...log,
     });
 
-    // Flush immediately if buffer is full / 如果缓冲区已满，立即刷新
+    //// Flush immediately if buffer is full
     if (this.requestBuffer.length >= 100) {
       this.flushRequests();
     }
@@ -240,7 +283,7 @@ export class Database {
 
   /**
    * Flush buffered requests to database
-   * 将缓冲的请求刷新到数据库
+ *
    */
   private flushRequests() {
     if (this.requestBuffer.length === 0) return;
@@ -278,12 +321,12 @@ export class Database {
 
   /**
    * Start periodic buffer flush
-   * 启动定期缓冲区刷新
+ *
    */
   private startBufferFlush() {
     this.flushInterval = setInterval(() => {
       this.flushRequests();
-    }, 100); // Flush every 100ms / 每 100 毫秒刷新一次
+    }, 100); //// Flush every 100ms /  100
   }
 
   getRequests(limit = 100, offset = 0): RequestLog[] {
@@ -308,7 +351,7 @@ export class Database {
   }
 
   // ============================================================================
-  // Analytics / 分析
+  //// Analytics
   // ============================================================================
 
   getAnalytics(): Analytics {
@@ -344,15 +387,15 @@ export class Database {
 
   private calculateCost(inputTokens: number, outputTokens: number, cachedTokens: number): number {
     // Simplified cost calculation (adjust based on actual pricing)
-    // 简化的成本计算（根据实际定价调整）
-    const inputCost = (inputTokens / 1_000_000) * 3.0; // $3 per 1M input tokens / 每百万输入 token 3 美元
-    const outputCost = (outputTokens / 1_000_000) * 15.0; // $15 per 1M output tokens / 每百万输出 token 15 美元
-    const cacheCost = (cachedTokens / 1_000_000) * 0.3; // $0.3 per 1M cached tokens / 每百万缓存 token 0.3 美元
+    ////
+    const inputCost = (inputTokens / 1_000_000) * 3.0; //// $3 per 1M input tokens /  token 3
+    const outputCost = (outputTokens / 1_000_000) * 15.0; //// $15 per 1M output tokens /  token 15
+    const cacheCost = (cachedTokens / 1_000_000) * 0.3; //// $0.3 per 1M cached tokens /  token 0.3
     return inputCost + outputCost + cacheCost;
   }
 
   // ============================================================================
-  // Helper Methods / 辅助方法
+  //// Helper Methods
   // ============================================================================
 
   private mapChannelRow(row: any): Channel {
@@ -370,9 +413,14 @@ export class Database {
       requestCount: row.request_count,
       successCount: row.success_count,
       failureCount: row.failure_count,
+      consecutiveFailures: row.consecutive_failures || 0,
+      lastFailureTime: row.last_failure_time || null,
+      circuitBreakerUntil: row.circuit_breaker_until || null,
+      rateLimitedUntil: row.rate_limited_until || null,
       lastUsedAt: row.last_used_at || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      transformers: row.transformers ? JSON.parse(row.transformers) : undefined,
     };
   }
 
@@ -396,14 +444,135 @@ export class Database {
 
   /**
    * Close database connection
-   * 关闭数据库连接
+ *
    */
   close() {
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
       this.flushInterval = null;
     }
-    this.flushRequests(); // Final flush / 最终刷新
+    this.flushRequests(); //// Final flush
     this.db.close();
+  }
+
+  // ============================================================================
+  //// Routing Rules Operations
+  // ============================================================================
+
+  createRoutingRule(input: CreateRoutingRuleInput): RoutingRule {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+
+    const query = this.db.prepare(`
+      INSERT INTO routing_rules (
+        id, name, type, condition, target_channel, target_model, priority, enabled, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+    `);
+
+    query.run(
+      id,
+      input.name,
+      input.type,
+      JSON.stringify(input.condition),
+      input.targetChannel,
+      input.targetModel || null,
+      input.priority || 50,
+      now,
+      now
+    );
+
+    return this.getRoutingRule(id)!;
+  }
+
+  getRoutingRule(id: string): RoutingRule | null {
+    const query = this.db.prepare('SELECT * FROM routing_rules WHERE id = ?');
+    const row = query.get(id) as any;
+    return row ? this.mapRoutingRuleRow(row) : null;
+  }
+
+  getRoutingRules(): RoutingRule[] {
+    const query = this.db.query('SELECT * FROM routing_rules ORDER BY priority DESC, name ASC');
+    const rows = query.all() as any[];
+    return rows.map(row => this.mapRoutingRuleRow(row));
+  }
+
+  getEnabledRoutingRules(): RoutingRule[] {
+    const query = this.db.query(
+      'SELECT * FROM routing_rules WHERE enabled = 1 ORDER BY priority DESC, name ASC'
+    );
+    const rows = query.all() as any[];
+    return rows.map(row => this.mapRoutingRuleRow(row));
+  }
+
+  updateRoutingRule(id: string, input: UpdateRoutingRuleInput): RoutingRule {
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (input.name !== undefined) {
+      updates.push('name = ?');
+      values.push(input.name);
+    }
+    if (input.condition !== undefined) {
+      updates.push('condition = ?');
+      values.push(JSON.stringify(input.condition));
+    }
+    if (input.targetChannel !== undefined) {
+      updates.push('target_channel = ?');
+      values.push(input.targetChannel);
+    }
+    if (input.targetModel !== undefined) {
+      updates.push('target_model = ?');
+      values.push(input.targetModel);
+    }
+    if (input.priority !== undefined) {
+      updates.push('priority = ?');
+      values.push(input.priority);
+    }
+    if (input.enabled !== undefined) {
+      updates.push('enabled = ?');
+      values.push(input.enabled ? 1 : 0);
+    }
+
+    updates.push('updated_at = ?');
+    values.push(Date.now());
+    values.push(id);
+
+    const query = this.db.prepare(`UPDATE routing_rules SET ${updates.join(', ')} WHERE id = ?`);
+    query.run(...values);
+
+    return this.getRoutingRule(id)!;
+  }
+
+  deleteRoutingRule(id: string): boolean {
+    const query = this.db.prepare('DELETE FROM routing_rules WHERE id = ?');
+    const result = query.run(id);
+    return result.changes > 0;
+  }
+
+  private mapRoutingRuleRow(row: any): RoutingRule {
+    return {
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      condition: JSON.parse(row.condition),
+      targetChannel: row.target_channel,
+      targetModel: row.target_model || undefined,
+      priority: row.priority,
+      enabled: row.enabled === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  /**
+ * Check if database is connected
+   */
+  isConnected(): boolean {
+    try {
+      this.db.query('SELECT 1').get();
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

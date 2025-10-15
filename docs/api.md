@@ -1,32 +1,31 @@
 # Routex API Reference
 
 Complete API reference for Routex.
-Routex 的完整 API 参考。
+Routex  API
 
-## Base URL / 基础 URL
+## Base URL /  URL
 
 ```
 http://localhost:8080
 ```
 
-## Authentication / 认证
+## Authentication
 
 Most API endpoints do not require authentication in the default configuration. For production deployments, consider adding authentication middleware.
 
-大多数 API 端点在默认配置中不需要认证。对于生产部署，请考虑添加认证中间件。
+API
 
-## Endpoints / 端点
+## Endpoints
 
-### Health Check / 健康检查
+### Health Check
 
 Check if the server is running and healthy.
-检查服务器是否正在运行且健康。
 
 ```http
 GET /health
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -39,18 +38,17 @@ GET /health
 
 ---
 
-## Channels API / 渠道 API
+## Channels API /  API
 
-### List Channels / 列出渠道
+### List Channels
 
 Get all channels.
-获取所有渠道。
 
 ```http
 GET /api/channels
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -76,16 +74,16 @@ GET /api/channels
 }
 ```
 
-### Get Channel / 获取渠道
+### Get Channel
 
 Get a specific channel by ID.
-通过 ID 获取特定渠道。
+ID
 
 ```http
 GET /api/channels/:id
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -98,17 +96,16 @@ GET /api/channels/:id
 }
 ```
 
-### Create Channel / 创建渠道
+### Create Channel
 
 Create a new channel.
-创建新渠道。
 
 ```http
 POST /api/channels
 Content-Type: application/json
 ```
 
-**Request Body / 请求体:**
+**Request Body / :**
 
 ```json
 {
@@ -122,19 +119,19 @@ Content-Type: application/json
 }
 ```
 
-**Fields / 字段:**
+**Fields / :**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| name | string | Yes | Channel name / 渠道名称 |
+| name | string | Yes | Channel name /  |
 | type | string | Yes | Channel type: `anthropic`, `openai`, `azure`, `zhipu`, `google`, `custom` |
-| apiKey | string | No | API key for authentication / 用于认证的 API 密钥 |
-| baseUrl | string | No | Custom base URL / 自定义基础 URL |
-| models | string[] | Yes | Supported models / 支持的模型 |
-| priority | number | No | Priority (1-100, default: 50) / 优先级（1-100，默认：50） |
-| weight | number | No | Weight for weighted strategy (default: 1) / 加权策略的权重（默认：1） |
+| apiKey | string | No | API key for authentication /  API  |
+| baseUrl | string | No | Custom base URL /  URL |
+| models | string | Yes | Supported models /  |
+| priority | number | No | Priority (1-100, default: 50) / 1-10050 |
+| weight | number | No | Weight for weighted strategy (default: 1) / 1 |
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -147,17 +144,16 @@ Content-Type: application/json
 }
 ```
 
-### Update Channel / 更新渠道
+### Update Channel
 
 Update an existing channel.
-更新现有渠道。
 
 ```http
 PUT /api/channels/:id
 Content-Type: application/json
 ```
 
-**Request Body / 请求体:**
+**Request Body / :**
 
 ```json
 {
@@ -167,7 +163,7 @@ Content-Type: application/json
 }
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -179,16 +175,15 @@ Content-Type: application/json
 }
 ```
 
-### Delete Channel / 删除渠道
+### Delete Channel
 
 Delete a channel.
-删除渠道。
 
 ```http
 DELETE /api/channels/:id
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -197,16 +192,16 @@ DELETE /api/channels/:id
 }
 ```
 
-### Export Channels / 导出渠道
+### Export Channels
 
 Export all channels as JSON.
-将所有渠道导出为 JSON。
+JSON
 
 ```http
 GET /api/channels/export
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -225,17 +220,17 @@ GET /api/channels/export
 }
 ```
 
-### Import Channels / 导入渠道
+### Import Channels
 
 Import channels from JSON.
-从 JSON 导入渠道。
+JSON
 
 ```http
 POST /api/channels/import
 Content-Type: application/json
 ```
 
-**Request Body / 请求体:**
+**Request Body / :**
 
 ```json
 {
@@ -251,7 +246,7 @@ Content-Type: application/json
 }
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -266,25 +261,24 @@ Content-Type: application/json
 
 ---
 
-## Request Logs API / 请求日志 API
+## Request Logs API /  API
 
-### List Requests / 列出请求
+### List Requests
 
 Get request logs.
-获取请求日志。
 
 ```http
 GET /api/requests?limit=100&offset=0
 ```
 
-**Query Parameters / 查询参数:**
+**Query Parameters / :**
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| limit | number | 100 | Number of results / 结果数量 |
-| offset | number | 0 | Pagination offset / 分页偏移 |
+| limit | number | 100 | Number of results /  |
+| offset | number | 0 | Pagination offset /  |
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -308,10 +302,9 @@ GET /api/requests?limit=100&offset=0
 }
 ```
 
-### Get Requests by Channel / 按渠道获取请求
+### Get Requests by Channel
 
 Get request logs for a specific channel.
-获取特定渠道的请求日志。
 
 ```http
 GET /api/requests/channel/:channelId?limit=100
@@ -319,18 +312,17 @@ GET /api/requests/channel/:channelId?limit=100
 
 ---
 
-## Analytics API / 分析 API
+## Analytics API /  API
 
-### Get Analytics / 获取分析
+### Get Analytics
 
 Get aggregated analytics.
-获取聚合分析。
 
 ```http
 GET /api/analytics
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -350,18 +342,17 @@ GET /api/analytics
 
 ---
 
-## Load Balancer API / 负载均衡器 API
+## Load Balancer API /  API
 
-### Get Strategy / 获取策略
+### Get Strategy
 
 Get current load balancing strategy.
-获取当前负载均衡策略。
 
 ```http
 GET /api/load-balancer/strategy
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -372,17 +363,16 @@ GET /api/load-balancer/strategy
 }
 ```
 
-### Update Strategy / 更新策略
+### Update Strategy
 
 Change load balancing strategy.
-更改负载均衡策略。
 
 ```http
 PUT /api/load-balancer/strategy
 Content-Type: application/json
 ```
 
-**Request Body / 请求体:**
+**Request Body / :**
 
 ```json
 {
@@ -390,21 +380,21 @@ Content-Type: application/json
 }
 ```
 
-**Available Strategies / 可用策略:**
+**Available Strategies / :**
 
-- `priority`: Highest priority first / 优先级最高者优先
-- `round_robin`: Rotate through channels / 轮流使用渠道
-- `weighted`: Weight-based selection / 基于权重选择
-- `least_used`: Least requests first / 请求最少者优先
+- `priority`: Highest priority first
+- `round_robin`: Rotate through channels
+- `weighted`: Weight-based selection
+- `least_used`: Least requests first
 
 ---
 
-## Proxy API / 代理 API
+## Proxy API /  API
 
-### Forward Request / 转发请求
+### Forward Request
 
 Forward requests to AI providers through the proxy.
-通过代理将请求转发到 AI 提供商。
+AI
 
 ```http
 POST /v1/messages
@@ -412,7 +402,7 @@ Content-Type: application/json
 X-Session-Id: optional-session-id
 ```
 
-**Request Body / 请求体:**
+**Request Body / :**
 
 ```json
 {
@@ -427,7 +417,7 @@ X-Session-Id: optional-session-id
 }
 ```
 
-**Response / 响应:**
+**Response / :**
 
 ```json
 {
@@ -447,17 +437,16 @@ X-Session-Id: optional-session-id
 }
 ```
 
-**Response Headers / 响应头:**
+**Response Headers / :**
 
-- `X-Channel-Id`: ID of the channel used / 使用的渠道 ID
-- `X-Latency-Ms`: Request latency in milliseconds / 请求延迟（毫秒）
+- `X-Channel-Id`: ID of the channel used /  ID
+- `X-Latency-Ms`: Request latency in milliseconds
 
 ---
 
-## Error Responses / 错误响应
+## Error Responses
 
 All errors follow this format:
-所有错误都遵循此格式：
 
 ```json
 {
@@ -469,31 +458,29 @@ All errors follow this format:
 }
 ```
 
-**Common Error Codes / 常见错误代码:**
+**Common Error Codes / :**
 
 | Code | Status | Description |
 |------|--------|-------------|
-| VALIDATION_ERROR | 400 | Invalid input / 无效输入 |
-| NOT_FOUND | 404 | Resource not found / 资源未找到 |
-| SERVICE_UNAVAILABLE | 503 | No available channels / 无可用渠道 |
-| INTERNAL_ERROR | 500 | Server error / 服务器错误 |
+| VALIDATION_ERROR | 400 | Invalid input /  |
+| NOT_FOUND | 404 | Resource not found /  |
+| SERVICE_UNAVAILABLE | 503 | No available channels /  |
+| INTERNAL_ERROR | 500 | Server error /  |
 
 ---
 
-## Rate Limits / 速率限制
+## Rate Limits
 
 There are no built-in rate limits. Configure rate limiting based on your deployment needs.
 
-没有内置速率限制。根据您的部署需求配置速率限制。
-
 ---
 
-## Examples / 示例
+## Examples
 
-### Create and Use a Channel / 创建并使用渠道
+### Create and Use a Channel
 
 ```bash
-# 1. Create channel / 创建渠道
+# 1. Create channel
 curl -X POST http://localhost:8080/api/channels \
   -H "Content-Type: application/json" \
   -d '{
@@ -504,7 +491,7 @@ curl -X POST http://localhost:8080/api/channels \
     "priority": 100
   }'
 
-# 2. Send request / 发送请求
+# 2. Send request
 curl -X POST http://localhost:8080/v1/messages \
   -H "Content-Type: application/json" \
   -d '{
@@ -513,7 +500,7 @@ curl -X POST http://localhost:8080/v1/messages \
     "messages": [{"role": "user", "content": "Hello!"}]
   }'
 
-# 3. Check analytics / 检查分析
+# 3. Check analytics
 curl http://localhost:8080/api/analytics
 ```
 
@@ -521,4 +508,4 @@ curl http://localhost:8080/api/analytics
 
 For more information, visit the [Routex documentation](https://github.com/dctx-team/Routex).
 
-更多信息，请访问 [Routex 文档](https://github.com/dctx-team/Routex)。
+[Routex ](https://github.com/dctx-team/Routex)

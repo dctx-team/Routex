@@ -1,41 +1,41 @@
 # Deployment Guide
 
 Complete guide for deploying Routex to various platforms.
-在各种平台上部署 Routex 的完整指南。
+Routex
 
-## Quick Start / 快速开始
+## Quick Start
 
-### Local Development / 本地开发
+### Local Development
 
 ```bash
-# Clone repository / 克隆仓库
+# Clone repository
 git clone https://github.com/dctx-team/Routex.git
 cd Routex
 
-# Install dependencies / 安装依赖
+# Install dependencies
 bun install
 
-# Start development server / 启动开发服务器
+# Start development server
 bun run dev
 
-# Or start production server / 或启动生产服务器
+# Or start production server
 bun start
 ```
 
 Server will be available at `http://localhost:8080`.
-服务器将在 `http://localhost:8080` 可用。
+`http://localhost:8080`
 
 ---
 
-## Docker Deployment / Docker 部署
+## Docker Deployment / Docker
 
-### Build and Run / 构建并运行
+### Build and Run
 
 ```bash
-# Build image / 构建镜像
+# Build image
 docker build -t routex .
 
-# Run container / 运行容器
+# Run container
 docker run -d \
   --name routex \
   -p 8080:8080 \
@@ -67,91 +67,91 @@ docker-compose up -d
 
 ---
 
-## Platform Deployments / 平台部署
+## Platform Deployments
 
-### claw.run (Free Tier Available / 提供免费层)
+### claw.run (Free Tier Available / )
 
 claw.run offers free credits for eligible users.
-claw.run 为符合条件的用户提供免费积分。
+claw.run
 
-**Prerequisites / 先决条件:**
-- claw.run account / claw.run 账户
-- claw CLI installed / 已安装 claw CLI
+**Prerequisites / :**
+- claw.run account / claw.run
+- claw CLI installed /  claw CLI
 
-**Steps / 步骤:**
+**Steps / :**
 
 ```bash
-# 1. Login to claw.run / 登录到 claw.run
+# 1. Login to claw.run /  claw.run
 claw login
 
-# 2. Deploy / 部署
+# 2. Deploy
 claw deploy
 
 # Configuration is in deploy/claw.yaml
-# 配置在 deploy/claw.yaml 中
+#  deploy/claw.yaml
 ```
 
-**Configuration / 配置:**
+**Configuration / :**
 
 The deployment uses `deploy/claw.yaml`:
-部署使用 `deploy/claw.yaml`：
+`deploy/claw.yaml`
 
 ```yaml
 name: routex
 runtime: bun
 resources:
-  memory: 512MB  # Free tier compatible / 兼容免费层
+memory: 512MB  # Free tier compatible
   cpu: 0.5
 volumes:
   - path: /data
     size: 1GB
 ```
 
-**Cost / 成本:**
-- Free tier: $0/month (with credits / 使用积分)
-- Paid: ~$3/month after credits / 积分用完后约 $3/月
+**Cost / :**
+- Free tier: $0/month (with credits / )
+- Paid: ~$3/month after credits /  $3/
 
 ---
 
-### Railway (Free Trial / 免费试用)
+### Railway (Free Trial / )
 
 Railway offers $5 free credits per month.
-Railway 每月提供 $5 免费积分。
+Railway  $5
 
-**Prerequisites / 先决条件:**
-- Railway account / Railway 账户
-- Railway CLI or GitHub integration / Railway CLI 或 GitHub 集成
+**Prerequisites / :**
+- Railway account / Railway
+- Railway CLI or GitHub integration / Railway CLI  GitHub
 
-**Steps / 步骤:**
+**Steps / :**
 
-**Method 1: Using CLI / 使用 CLI**
+**Method 1: Using CLI /  CLI**
 
 ```bash
-# 1. Install Railway CLI / 安装 Railway CLI
+# 1. Install Railway CLI /  Railway CLI
 npm install -g @railway/cli
 
-# 2. Login / 登录
+# 2. Login
 railway login
 
-# 3. Initialize project / 初始化项目
+# 3. Initialize project
 railway init
 
-# 4. Deploy / 部署
+# 4. Deploy
 railway up
 ```
 
-**Method 2: GitHub Integration / GitHub 集成**
+**Method 2: GitHub Integration / GitHub **
 
-1. Push code to GitHub / 将代码推送到 GitHub
-2. Go to [railway.app](https://railway.app) / 访问 [railway.app](https://railway.app)
-3. Click "New Project" → "Deploy from GitHub" / 点击"新项目"→"从 GitHub 部署"
-4. Select your repository / 选择您的仓库
-5. Railway will auto-detect Dockerfile / Railway 将自动检测 Dockerfile
+1. Push code to GitHub /  GitHub
+2. Go to [railway.app](https://railway.app) /  [railway.app](https://railway.app)
+3. Click New Project → Deploy from GitHub / → GitHub
+4. Select your repository
+5. Railway will auto-detect Dockerfile / Railway  Dockerfile
 
-**Environment Variables / 环境变量:**
+**Environment Variables / :**
 
 Set in Railway dashboard:
-在 Railway 仪表板中设置：
+Railway
 
 ```
 PORT=8080 (automatically set)
@@ -159,48 +159,48 @@ LOAD_BALANCE_STRATEGY=priority
 DASHBOARD_PASSWORD=your_password
 ```
 
-**Cost / 成本:**
-- Free: $5 credits/month / 每月 $5 积分
-- After credits: ~$8/month for 1GB RAM / 积分用完后 1GB RAM 约 $8/月
+**Cost / :**
+- Free: $5 credits/month /  $5
+- After credits: ~$8/month for 1GB RAM /  1GB RAM  $8/
 
 ---
 
-### Fly.io (Free Tier Available / 提供免费层)
+### Fly.io (Free Tier Available / )
 
 Fly.io offers 3 free VMs with 256MB RAM each.
-Fly.io 提供 3 个免费虚拟机，每个 256MB RAM。
+Fly.io  3  256MB RAM
 
-**Prerequisites / 先决条件:**
-- Fly.io account / Fly.io 账户
-- flyctl CLI installed / 已安装 flyctl CLI
+**Prerequisites / :**
+- Fly.io account / Fly.io
+- flyctl CLI installed /  flyctl CLI
 
-**Steps / 步骤:**
+**Steps / :**
 
 ```bash
-# 1. Install flyctl / 安装 flyctl
+# 1. Install flyctl /  flyctl
 curl -L https://fly.io/install.sh | sh
 
-# 2. Login / 登录
+# 2. Login
 fly auth login
 
-# 3. Launch app (uses deploy/fly.toml) / 启动应用（使用 deploy/fly.toml）
+# 3. Launch app (uses deploy/fly.toml) /  deploy/fly.toml
 fly launch
 
-# 4. Create volume for database / 为数据库创建卷
+# 4. Create volume for database
 fly volumes create routex_data --size 1
 
-# 5. Deploy / 部署
+# 5. Deploy
 fly deploy
 ```
 
-**Configuration / 配置:**
+**Configuration / :**
 
 Edit `deploy/fly.toml` if needed:
-如需要，编辑 `deploy/fly.toml`：
+`deploy/fly.toml`
 
 ```toml
 [[vm]]
-  memory = '512mb'  # Adjust based on needs / 根据需要调整
+memory = '512mb'  # Adjust based on needs
   cpu_kind = 'shared'
   cpus = 1
 
@@ -209,77 +209,76 @@ Edit `deploy/fly.toml` if needed:
   destination = "/data"
 ```
 
-**Cost / 成本:**
-- Free: 3 × 256MB VMs / 3 个 256MB 虚拟机
-- Paid: $5/month for 1GB VM / 1GB 虚拟机 $5/月
+**Cost / :**
+- Free: 3 × 256MB VMs / 3  256MB
+- Paid: $5/month for 1GB VM / 1GB  $5/
 
 ---
 
-### Render (Free Tier Available / 提供免费层)
+### Render (Free Tier Available / )
 
 Render offers free tier for web services.
-Render 为 Web 服务提供免费层。
+Render  Web
 
-**Steps / 步骤:**
+**Steps / :**
 
-1. Push code to GitHub / 将代码推送到 GitHub
-2. Go to [render.com](https://render.com) / 访问 [render.com](https://render.com)
-3. Click "New +" → "Web Service" / 点击"新建 +"→"Web 服务"
-4. Connect your repository / 连接您的仓库
+1. Push code to GitHub /  GitHub
+2. Go to [render.com](https://render.com) /  [render.com](https://render.com)
+3. Click New + → Web Service /  +→Web
+4. Connect your repository
 5. Configure:
    - **Environment**: Docker / Docker
-   - **Build Command**: (auto-detected) / （自动检测）
+- **Build Command**: (auto-detected)
    - **Start Command**: `bun run dist/server.js`
 
-**Environment Variables / 环境变量:**
+**Environment Variables / :**
 
 ```
 PORT=8080
 LOAD_BALANCE_STRATEGY=priority
 ```
 
-**Limitations / 限制:**
-- Free tier spins down after inactivity / 免费层在不活动后休眠
-- 512MB RAM limit / 512MB RAM 限制
+**Limitations / :**
+- Free tier spins down after inactivity
+- 512MB RAM limit / 512MB RAM
 
-**Cost / 成本:**
-- Free tier: $0/month / 免费层：$0/月
-- Starter: $7/month / 入门版：$7/月
+**Cost / :**
+- Free tier: $0/month / $0/
+- Starter: $7/month / $7/
 
 ---
 
-### Self-Hosted VPS / 自托管 VPS
+### Self-Hosted VPS /  VPS
 
 Best for production with full control.
-最适合完全控制的生产环境。
 
-**Recommended Providers / 推荐提供商:**
-- Hetzner: $3.5/month (2GB RAM) / $3.5/月（2GB RAM）
-- DigitalOcean: $6/month (1GB RAM) / $6/月（1GB RAM）
-- Vultr: $5/month (1GB RAM) / $5/月（1GB RAM）
-- Linode: $5/month (1GB RAM) / $5/月（1GB RAM）
+**Recommended Providers / :**
+- Hetzner: $3.5/month (2GB RAM) / $3.5/2GB RAM
+- DigitalOcean: $6/month (1GB RAM) / $6/1GB RAM
+- Vultr: $5/month (1GB RAM) / $5/1GB RAM
+- Linode: $5/month (1GB RAM) / $5/1GB RAM
 
-**Steps (Ubuntu 22.04+) / 步骤（Ubuntu 22.04+）:**
+**Steps (Ubuntu 22.04+) / Ubuntu 22.04+:**
 
 ```bash
-# 1. Install Bun / 安装 Bun
+# 1. Install Bun /  Bun
 curl -fsSL https://bun.sh/install | bash
 
-# 2. Clone repository / 克隆仓库
+# 2. Clone repository
 git clone https://github.com/dctx-team/Routex.git
 cd Routex
 
-# 3. Install dependencies / 安装依赖
+# 3. Install dependencies
 bun install
 
-# 4. Build / 构建
+# 4. Build
 bun run build
 
-# 5. Create systemd service / 创建 systemd 服务
+# 5. Create systemd service /  systemd
 sudo nano /etc/systemd/system/routex.service
 ```
 
-**systemd service file / systemd 服务文件:**
+**systemd service file / systemd :**
 
 ```ini
 [Unit]
@@ -301,15 +300,15 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-# 6. Enable and start service / 启用并启动服务
+# 6. Enable and start service
 sudo systemctl enable routex
 sudo systemctl start routex
 
-# 7. Check status / 检查状态
+# 7. Check status
 sudo systemctl status routex
 ```
 
-**Nginx Reverse Proxy / Nginx 反向代理:**
+**Nginx Reverse Proxy / Nginx :**
 
 ```nginx
 server {
@@ -329,7 +328,7 @@ server {
 }
 ```
 
-**SSL with Certbot / 使用 Certbot 配置 SSL:**
+**SSL with Certbot /  Certbot  SSL:**
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
@@ -338,21 +337,21 @@ sudo certbot --nginx -d your-domain.com
 
 ---
 
-## Environment Variables / 环境变量
+## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | Server port / 服务器端口 | 8080 |
-| `LOAD_BALANCE_STRATEGY` | Load balancing strategy / 负载均衡策略 | priority |
-| `DASHBOARD_PASSWORD` | Dashboard password / 仪表板密码 | (none) |
-| `DATA_DIR` | Data directory path / 数据目录路径 | ./data |
+| `PORT` | Server port /  | 8080 |
+| `LOAD_BALANCE_STRATEGY` | Load balancing strategy /  | priority |
+| `DASHBOARD_PASSWORD` | Dashboard password /  | (none) |
+| `DATA_DIR` | Data directory path /  | ./data |
 
 ---
 
-## Persistent Storage / 持久存储
+## Persistent Storage
 
 Routex uses SQLite for data storage. Ensure the database is persisted:
-Routex 使用 SQLite 进行数据存储。确保数据库被持久化：
+Routex  SQLite
 
 ### Docker
 ```bash
@@ -360,15 +359,14 @@ Routex 使用 SQLite 进行数据存储。确保数据库被持久化：
 ```
 
 ### Cloud Platforms
-- Most platforms support volume mounts / 大多数平台支持卷挂载
-- Configure in platform dashboard or config files / 在平台仪表板或配置文件中配置
+- Most platforms support volume mounts
+- Configure in platform dashboard or config files
 
 ---
 
-## Health Checks / 健康检查
+## Health Checks
 
 All platforms should use:
-所有平台应使用：
 
 ```
 Path: /health
@@ -378,9 +376,9 @@ Expected Status: 200
 
 ---
 
-## Monitoring / 监控
+## Monitoring
 
-### Logs / 日志
+### Logs
 
 **Docker:**
 ```bash
@@ -392,10 +390,10 @@ docker logs -f routex
 sudo journalctl -u routex -f
 ```
 
-### Metrics / 指标
+### Metrics
 
 Access analytics via API:
-通过 API 访问分析：
+API
 
 ```bash
 curl http://localhost:8080/api/analytics
@@ -403,12 +401,11 @@ curl http://localhost:8080/api/analytics
 
 ---
 
-## Scaling / 扩展
+## Scaling
 
-### Vertical Scaling / 垂直扩展
+### Vertical Scaling
 
 Increase resources based on load:
-根据负载增加资源：
 
 | Users | RAM | CPU | Cost/month |
 |-------|-----|-----|------------|
@@ -416,40 +413,39 @@ Increase resources based on load:
 | 100-1000 | 1GB | 1 | $5-10 |
 | 1000-10000 | 2GB | 2 | $10-20 |
 
-### Horizontal Scaling / 水平扩展
+### Horizontal Scaling
 
 For high availability, run multiple instances with:
-为实现高可用性，运行多个实例：
 
-- Load balancer (Nginx/HAProxy) / 负载均衡器（Nginx/HAProxy）
-- Shared database volume / 共享数据库卷
-- Session affinity / 会话亲和性
+- Load balancer (Nginx/HAProxy) / Nginx/HAProxy
+- Shared database volume
+- Session affinity
 
 ---
 
-## Troubleshooting / 故障排除
+## Troubleshooting
 
-### Port Already in Use / 端口已被占用
+### Port Already in Use
 
 ```bash
-# Change port / 更改端口
+# Change port
 PORT=3000 bun start
 ```
 
-### Database Locked / 数据库锁定
+### Database Locked
 
 ```bash
-# Check if another instance is running / 检查是否有其他实例正在运行
+# Check if another instance is running
 ps aux | grep routex
 
-# Stop all instances / 停止所有实例
+# Stop all instances
 pkill -f routex
 ```
 
-### No Channels Available / 无可用渠道
+### No Channels Available
 
 ```bash
-# Add a channel via API / 通过 API 添加渠道
+# Add a channel via API /  API
 curl -X POST http://localhost:8080/api/channels \
   -H "Content-Type: application/json" \
   -d '{
@@ -462,25 +458,25 @@ curl -X POST http://localhost:8080/api/channels \
 
 ---
 
-## Security Best Practices / 安全最佳实践
+## Security Best Practices
 
-1. **Use HTTPS**: Always use SSL/TLS in production / 生产环境中始终使用 SSL/TLS
-2. **Firewall**: Restrict access to necessary ports / 限制对必要端口的访问
-3. **API Keys**: Store API keys securely (environment variables) / 安全存储 API 密钥（环境变量）
-4. **Updates**: Keep dependencies up to date / 保持依赖最新
-5. **Backup**: Regularly backup database / 定期备份数据库
+1. **Use HTTPS**: Always use SSL/TLS in production /  SSL/TLS
+2. **Firewall**: Restrict access to necessary ports
+3. **API Keys**: Store API keys securely (environment variables) /  API
+4. **Updates**: Keep dependencies up to date
+5. **Backup**: Regularly backup database
 
 ---
 
-## Performance Tips / 性能提示
+## Performance Tips
 
-1. **Database**: Use SSD for better SQLite performance / 使用 SSD 以获得更好的 SQLite 性能
-2. **Memory**: Allocate at least 512MB RAM / 分配至少 512MB RAM
-3. **Caching**: Bun has built-in optimizations / Bun 具有内置优化
-4. **Monitoring**: Use `/health` endpoint for uptime checks / 使用 `/health` 端点进行正常运行时间检查
+1. **Database**: Use SSD for better SQLite performance /  SSD  SQLite
+2. **Memory**: Allocate at least 512MB RAM /  512MB RAM
+3. **Caching**: Bun has built-in optimizations / Bun
+4. **Monitoring**: Use `/health` endpoint for uptime checks /  `/health`
 
 ---
 
 For more information, see the [API Reference](./api.md) or visit [GitHub](https://github.com/dctx-team/Routex).
 
-更多信息，请参阅 [API 参考](./api.md) 或访问 [GitHub](https://github.com/dctx-team/Routex)。
+[API ](./api.md)  [GitHub](https://github.com/dctx-team/Routex)

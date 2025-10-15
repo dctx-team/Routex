@@ -1,6 +1,6 @@
 /**
  * Main server entry point for Routex
- * Routex 的主服务器入口
+ * Routex
  */
 
 import { serve } from 'bun';
@@ -9,36 +9,49 @@ import { LoadBalancer } from './core/loadbalancer';
 import { ProxyEngine } from './core/proxy';
 import { createAPI } from './api/routes';
 import { ConfigManager } from './config/config';
+import { SmartRouter } from './core/routing/smart-router';
+import { createTransformerManager } from './transformers';
 
 async function main() {
   console.log('🎯 Starting Routex...');
   console.log('🎯 启动 Routex...\n');
 
-  // Load configuration / 加载配置
+  //// Load configuration
   const configManager = ConfigManager.getInstance();
   const config = configManager.getConfig();
 
-  // Initialize database / 初始化数据库
+  //// Initialize database
   console.log('📦 Initializing database...');
   console.log('📦 初始化数据库...');
   const db = new Database(config.database.path);
 
-  // Initialize load balancer / 初始化负载均衡器
+  //// Initialize load balancer
   console.log('⚖️  Initializing load balancer...');
   console.log('⚖️  初始化负载均衡器...');
   const loadBalancer = new LoadBalancer(config.strategy);
 
-  // Initialize proxy engine / 初始化代理引擎
+  //// Initialize SmartRouter
+  console.log('🧠 Initializing SmartRouter...');
+  console.log('🧠 初始化智能路由器...');
+  const routingRules = db.getEnabledRoutingRules();
+  const smartRouter = new SmartRouter(routingRules);
+
+  //// Initialize TransformerManager / Transformer
+  console.log('🔄 Initializing TransformerManager...');
+  console.log('🔄 初始化Transformer管理器...');
+  const transformerManager = createTransformerManager();
+
+  //// Initialize proxy engine
   console.log('🔀 Initializing proxy engine...');
   console.log('🔀 初始化代理引擎...');
-  const proxy = new ProxyEngine(db, loadBalancer);
+  const proxy = new ProxyEngine(db, loadBalancer, smartRouter, transformerManager);
 
-  // Create API / 创建 API
+  //// Create API /  API
   console.log('🛣️  Setting up routes...');
   console.log('🛣️  设置路由...');
-  const app = createAPI(db, proxy, loadBalancer);
+  const app = createAPI(db, proxy, loadBalancer, transformerManager);
 
-  // Start server / 启动服务器
+  //// Start server
   const server = serve({
     port: config.server.port,
     hostname: config.server.host,
@@ -51,9 +64,13 @@ async function main() {
   console.log(`🏥 Health: http://${config.server.host}:${config.server.port}/health`);
   console.log(`🔀 Proxy: http://${config.server.host}:${config.server.port}/v1/messages`);
   console.log(`\n⚖️  Load Balance Strategy: ${config.strategy}`);
-  console.log(`⚖️  负载均衡策略: ${config.strategy}\n`);
+  console.log(`⚖️  负载均衡策略: ${config.strategy}`);
+  console.log(`🧠 Routing Rules: ${routingRules.length} enabled`);
+  console.log(`🧠 路由规则: ${routingRules.length} 条已启用`);
+  console.log(`🔄 Transformers: ${transformerManager.list().length} available`);
+  console.log(`🔄 Transformers: ${transformerManager.list().length} 个可用\n`);
 
-  // Check if first run / 检查是否为首次运行
+  //// Check if first run
   if (configManager.isFirstRun()) {
     console.log('👋 Welcome to Routex!');
     console.log('👋 欢迎使用 Routex！\n');
@@ -71,7 +88,7 @@ async function main() {
     configManager.markFirstRunComplete();
   }
 
-  // Display channel stats / 显示渠道统计
+  //// Display channel stats
   const channels = db.getChannels();
   const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
 
@@ -87,7 +104,7 @@ async function main() {
     console.log('   添加渠道以开始路由请求。\n');
   }
 
-  // Graceful shutdown / 优雅关闭
+  //// Graceful shutdown
   const shutdown = () => {
     console.log('\n🛑 Shutting down Routex...');
     console.log('🛑 关闭 Routex...');
@@ -104,7 +121,7 @@ async function main() {
   process.on('SIGTERM', shutdown);
 }
 
-// Start server / 启动服务器
+//// Start server
 main().catch((error) => {
   console.error('❌ Failed to start Routex:', error);
   console.error('❌ 启动 Routex 失败:', error);

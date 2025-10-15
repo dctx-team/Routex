@@ -1,14 +1,14 @@
 /**
  * Core type definitions for Routex
- * Routex 的核心类型定义
+ * Routex
  */
 
-// Channel Types / 渠道类型
+//// Channel Types
 // ============================================================================
 
 export type ChannelType = 'anthropic' | 'openai' | 'azure' | 'zhipu' | 'google' | 'custom';
 
-export type ChannelStatus = 'enabled' | 'disabled' | 'rate_limited';
+export type ChannelStatus = 'enabled' | 'disabled' | 'rate_limited' | 'circuit_breaker';
 
 export interface Channel {
   id: string;
@@ -24,9 +24,15 @@ export interface Channel {
   requestCount: number;
   successCount: number;
   failureCount: number;
+  consecutiveFailures: number;
+  lastFailureTime: number | null;
+  circuitBreakerUntil: number | null;
+  rateLimitedUntil: number | null;
   lastUsedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  //// Transformer configuration / Transformer
+  transformers?: TransformerConfig;
 }
 
 export interface CreateChannelInput {
@@ -49,7 +55,7 @@ export interface UpdateChannelInput {
   status?: ChannelStatus;
 }
 
-// Load Balancing / 负载均衡
+//// Load Balancing
 // ============================================================================
 
 export type LoadBalanceStrategy = 'priority' | 'round_robin' | 'weighted' | 'least_used';
@@ -60,7 +66,7 @@ export interface LoadBalancerContext {
   requestCount?: number;
 }
 
-// Request Types / 请求类型
+//// Request Types
 // ============================================================================
 
 export interface ParsedRequest {
@@ -79,7 +85,7 @@ export interface ProxyResponse {
   latency: number;
 }
 
-// Analytics / 分析
+//// Analytics
 // ============================================================================
 
 export interface RequestLog {
@@ -109,7 +115,7 @@ export interface Analytics {
   estimatedCost: number;
 }
 
-// Configuration / 配置
+//// Configuration
 // ============================================================================
 
 export interface ServerConfig {
@@ -137,7 +143,7 @@ export interface Config {
   firstRun: boolean;
 }
 
-// Errors / 错误
+//// Errors
 // ============================================================================
 
 export class RoutexError extends Error {
@@ -170,4 +176,117 @@ export class ServiceUnavailableError extends RoutexError {
     super(message, 'SERVICE_UNAVAILABLE', 503);
     this.name = 'ServiceUnavailableError';
   }
+}
+
+//// Routing Types
+// ============================================================================
+
+export type RoutingRuleType =
+  | 'default'
+  | 'background'
+  | 'think'
+  | 'longContext'
+  | 'webSearch'
+  | 'image'
+  | 'custom';
+
+export interface RoutingCondition {
+  //// Token threshold for long context / token
+  tokenThreshold?: number;
+  //// Keywords to match in user message
+  keywords?: string[];
+  //// Regex pattern for user message
+  userPattern?: string;
+  //// Custom JavaScript function path / JS
+  customFunction?: string;
+  //// Model name pattern
+  modelPattern?: string;
+  //// Check if has tools
+  hasTools?: boolean;
+  //// Check if has images
+  hasImages?: boolean;
+}
+
+export interface RoutingRule {
+  id: string;
+  name: string;
+  type: RoutingRuleType;
+  condition: RoutingCondition;
+  targetChannel: string; //// Channel name or ID / ID
+  targetModel?: string; //// Optional specific model
+  priority: number; //// Higher priority rules execute first
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateRoutingRuleInput {
+  name: string;
+  type: RoutingRuleType;
+  condition: RoutingCondition;
+  targetChannel: string;
+  targetModel?: string;
+  priority?: number;
+}
+
+export interface UpdateRoutingRuleInput {
+  name?: string;
+  condition?: RoutingCondition;
+  targetChannel?: string;
+  targetModel?: string;
+  priority?: number;
+  enabled?: boolean;
+}
+
+//// Transformer Types / Transformer
+// ============================================================================
+
+export interface TransformerConfig {
+  //// Global transformers for all models / transformer
+  use?: (string | [string, Record<string, any>])[];
+  //// Model-specific transformers / transformer
+  [modelName: string]:
+    | {
+        use?: (string | [string, Record<string, any>])[];
+      }
+    | undefined;
+}
+
+export interface Transformer {
+  name: string;
+  transformRequest(request: any, options?: any): Promise<any>;
+  transformResponse(response: any, options?: any): Promise<any>;
+}
+
+//// Message Types
+// ============================================================================
+
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string | ContentBlock[];
+}
+
+export interface ContentBlock {
+  type: 'text' | 'image' | 'tool_use' | 'tool_result';
+  text?: string;
+  source?: ImageSource;
+  id?: string;
+  name?: string;
+  input?: any;
+  tool_use_id?: string;
+  content?: any;
+  [key: string]: any;
+}
+
+export interface ImageSource {
+  type: 'base64' | 'url';
+  media_type?: string;
+  data?: string;
+  url?: string;
+}
+
+export interface Tool {
+  name: string;
+  description?: string;
+  input_schema: Record<string, any>;
 }
