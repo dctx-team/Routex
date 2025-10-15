@@ -1,7 +1,7 @@
 {
   "name": "routex",
-  "version": "1.0.0",
-  "description": "Next-gen AI API router and load balancer / 下一代 AI API 路由器和负载均衡器",
+  "version": "1.1.0-beta",
+  "description": "Next-gen AI API router and load balancer",
   "keywords": [
     "ai",
     "api",
@@ -9,6 +9,9 @@
     "load-balancer",
     "claude",
     "anthropic",
+    "openai",
+    "smart-routing",
+    "transformers",
     "proxy"
   ],
   "author": "dctx-team",
