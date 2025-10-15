@@ -38,7 +38,9 @@ export class SmartRouter {
   private customRouters: Map<string, Function> = new Map();
 
   constructor(rules: RoutingRule[] = []) {
-    this.rules = rules.sort((a, b) => b.priority - a.priority); //// Higher priority first
+    this.rules = rules
+      .filter((r) => r.enabled)
+      .sort((a, b) => b.priority - a.priority);
   }
 
   /**
