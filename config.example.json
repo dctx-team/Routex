@@ -1,0 +1,26 @@
+{
+  "server": {
+    "port": 8080,
+    "host": "0.0.0.0"
+  },
+  "database": {
+    "path": "~/.config/routex/routex.db"
+  },
+  "loadBalancer": {
+    "strategy": "priority",
+    "sessionTimeout": 300000
+  },
+  "circuitBreaker": {
+    "failureThreshold": 3,
+    "timeout": 60000,
+    "resetTimeout": 300000
+  },
+  "rateLimit": {
+    "enabled": true,
+    "maxRequestsPerMinute": 60
+  },
+  "logging": {
+    "level": "info",
+    "requestLogging": true
+  }
+}

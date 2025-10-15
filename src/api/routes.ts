@@ -9,7 +9,14 @@ import type { Database } from '../db/database';
 import type { ProxyEngine } from '../core/proxy';
 import type { LoadBalancer } from '../core/loadbalancer';
 import type { TransformerManager } from '../transformers';
-import { ValidationError, NotFoundError } from '../types';
+import {
+  ValidationError,
+  NotFoundError,
+  RoutexError,
+  errorHandler,
+  validateRequired,
+  validateTypes
+} from '../core/errors';
 import { createRoutingAPI } from './routing';
 import { createTransformersAPI } from './transformers';
 
@@ -252,28 +259,23 @@ export function createAPI(
   app.onError((err, c) => {
     console.error('API Error:', err);
 
-    if (err instanceof ValidationError || err instanceof NotFoundError) {
+    if (err instanceof RoutexError) {
       return c.json(
         {
           success: false,
-          error: {
-            code: err.code,
-            message: err.message,
-          },
+          ...err.toJSON(),
         },
         err.statusCode,
       );
     }
 
+    const handled = errorHandler(err);
     return c.json(
       {
         success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'An unexpected error occurred',
-        },
+        ...handled.body,
       },
-      500,
+      handled.status,
     );
   });
 

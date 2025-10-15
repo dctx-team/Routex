@@ -1,6 +1,5 @@
 /**
  * Proxy engine for forwarding requests to AI providers
- *  AI
  */
 
 import type { Channel, ParsedRequest, ProxyResponse, RequestLog } from '../types';
@@ -8,6 +7,13 @@ import { Database } from '../db/database';
 import { LoadBalancer } from './loadbalancer';
 import type { SmartRouter } from './routing/smart-router';
 import type { TransformerManager } from '../transformers';
+import {
+  NoAvailableChannelError,
+  CircuitBreakerError,
+  ChannelError,
+  TransformerError,
+  RoutexError
+} from './errors';
 
 export class ProxyEngine {
   private circuitBreaker = new Map<string, { failures: number; lastFailure: number }>();
@@ -40,7 +46,7 @@ export class ProxyEngine {
       const available = channels.filter((ch) => !this.isCircuitOpen(ch.id));
 
       if (available.length === 0) {
-        return new Response('No available channels', { status: 503 });
+        throw new NoAvailableChannelError();
       }
 
       //// Try SmartRouter first if available / SmartRouter
@@ -131,17 +137,15 @@ export class ProxyEngine {
       const latency = Date.now() - start;
       console.error('Proxy error:', error);
 
-      return new Response(
-        JSON.stringify({
-          error: {
-            message: error instanceof Error ? error.message : 'Unknown error',
-            type: 'proxy_error',
-          },
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        },
+      // If it's already a RoutexError, rethrow it
+      if (error instanceof RoutexError) {
+        throw error;
+      }
+
+      // Wrap unknown errors
+      throw new ChannelError(
+        error instanceof Error ? error.message : 'Unknown proxy error',
+        { latency }
       );
     }
   }
