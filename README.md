@@ -253,13 +253,11 @@ Contributions are welcome! Please read our [Contributing Guide](./docs/contribut
 
 MIT License - see [LICENSE](./LICENSE) for details.
 
-Based on [ccflare](https://github.com/snipeship/ccflare) by snipeship.
-
 ## 🙏 Acknowledgments
 
 Routex is inspired by several excellent open-source projects:
 
-- **ccflare** by [@snipeship](https://github.com/snipeship/ccflare) - Channel management concepts
+- **ccflare** by [@snipeship](https://github.com/snipeship/ccflare) - Project architecture inspiration
 - **claude-code-router** by [@musistudio](https://github.com/musistudio/claude-code-router) - Smart routing patterns
 - **llmio** by [@atopos31](https://github.com/atopos31/llmio) - Intelligent load balancing
 - **cc-switch** by [@farion1231](https://github.com/farion1231/cc-switch) - Configuration management UI
