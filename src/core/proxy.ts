@@ -115,7 +115,7 @@ export class ProxyEngine {
       this.db.incrementChannelUsage(channel.id, true);
 
       //// Reset circuit breaker on success
-      this.resetCircuitBreaker(channel.id);
+      this.resetCircuitBreaker(channel);
 
       //// Add routing info to response headers
       const responseHeaders: Record<string, string> = {
@@ -435,14 +435,13 @@ export class ProxyEngine {
    * Reset circuit breaker
  *
    */
-  private resetCircuitBreaker(channelId: string) {
-    this.circuitBreaker.delete(channelId);
+  private resetCircuitBreaker(channel: Channel) {
+    this.circuitBreaker.delete(channel.id);
 
     //// Re-enable channel if it was rate limited
-    const channel = this.db.getChannel(channelId);
-    if (channel && channel.status === 'rate_limited') {
-      this.db.updateChannel(channelId, { status: 'enabled' });
-      console.log(`Circuit breaker reset for channel ${channelId}`);
+    if (channel.status === 'rate_limited') {
+      this.db.updateChannel(channel.id, { status: 'enabled' });
+      console.log(`Circuit breaker reset for channel ${channel.id}`);
     }
   }
 }

@@ -67,6 +67,152 @@ docker-compose up -d
 
 ---
 
+## Kubernetes Deployment
+
+### Prerequisites
+
+- Kubernetes cluster (v1.19+)
+- kubectl configured
+- (Optional) Helm 3 installed
+
+### Quick Deploy with Kubectl
+
+```bash
+# Deploy using full configuration
+kubectl apply -f deploy/kubernetes.yaml
+
+# Or use minimal configuration
+kubectl apply -f deploy/kubernetes-minimal.yaml
+
+# Check deployment status
+kubectl get all -n routex
+
+# View logs
+kubectl logs -f -n routex -l app=routex
+```
+
+### Deploy with Helm
+
+```bash
+# Install Routex with Helm
+helm install routex ./deploy/helm/routex -n routex --create-namespace
+
+# Upgrade existing deployment
+helm upgrade routex ./deploy/helm/routex -n routex
+
+# Customize with values
+helm install routex ./deploy/helm/routex \
+  -n routex \
+  --create-namespace \
+  --set image.tag=1.1.0-beta \
+  --set service.type=LoadBalancer \
+  --set persistence.size=5Gi
+```
+
+### Access the Service
+
+**Port Forward (Development):**
+```bash
+kubectl port-forward -n routex svc/routex 8080:8080
+```
+
+**NodePort / LoadBalancer (Production):**
+```bash
+# Get service details
+kubectl get svc -n routex
+```
+
+**Ingress (with SSL):**
+Configure in `values.yaml` or `kubernetes.yaml`:
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: routex.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: routex-tls
+      hosts:
+        - routex.yourdomain.com
+```
+
+### Configuration
+
+**Environment Variables:**
+```yaml
+env:
+  PORT: "8080"
+  HOST: "0.0.0.0"
+  NODE_ENV: "production"
+  DB_PATH: "/data/routex.db"
+```
+
+**Persistent Storage:**
+```yaml
+persistence:
+  enabled: true
+  storageClass: "standard"
+  size: 1Gi
+```
+
+**Resource Limits:**
+```yaml
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+```
+
+### Monitoring
+
+```bash
+# Check pod status
+kubectl get pods -n routex
+
+# View detailed pod info
+kubectl describe pod -n routex -l app=routex
+
+# Check events
+kubectl get events -n routex
+
+# Access logs
+kubectl logs -f -n routex -l app=routex
+```
+
+### Backup & Restore
+
+```bash
+# Backup database
+kubectl cp routex/<pod-name>:/data/routex.db ./routex-backup.db -n routex
+
+# Restore database
+kubectl cp ./routex-backup.db routex/<pod-name>:/data/routex.db -n routex
+kubectl rollout restart deployment/routex -n routex
+```
+
+### Uninstall
+
+```bash
+# With kubectl
+kubectl delete -f deploy/kubernetes.yaml
+
+# With Helm
+helm uninstall routex -n routex
+
+# Delete namespace
+kubectl delete namespace routex
+```
+
+For detailed Kubernetes deployment guide, see [deploy/KUBERNETES.md](../deploy/KUBERNETES.md).
+
+---
+
 ## Platform Deployments
 
 ### claw.run (Free Tier Available / )

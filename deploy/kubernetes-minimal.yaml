@@ -1,0 +1,80 @@
+---
+# Minimal Kubernetes Deployment for Routex
+# 适用于快速部署和测试环境
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: routex
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: routex-data
+  namespace: routex
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: routex
+  namespace: routex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: routex
+  template:
+    metadata:
+      labels:
+        app: routex
+    spec:
+      containers:
+      - name: routex
+        image: ghcr.io/dctx-team/routex:1.1.0-beta
+        command: ["/bin/sh", "-c"]
+        args: ["bun run dist/server.js"]
+        env:
+        - name: PORT
+          value: "8080"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: DB_PATH
+          value: "/data/routex.db"
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: routex-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: routex
+  namespace: routex
+spec:
+  type: ClusterIP
+  selector:
+    app: routex
+  ports:
+  - port: 8080
+    targetPort: 8080

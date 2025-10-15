@@ -1,0 +1,224 @@
+---
+# Namespace (可选)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: routex
+  labels:
+    name: routex
+
+---
+# PersistentVolumeClaim - 数据持久化
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: routex-data
+  namespace: routex
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard  # 根据您的集群修改
+
+---
+# ConfigMap - 应用配置 (可选)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: routex-config
+  namespace: routex
+data:
+  config.json: |
+    {
+      "server": {
+        "port": 8080,
+        "host": "0.0.0.0"
+      },
+      "database": {
+        "path": "/data/routex.db"
+      },
+      "loadBalancer": {
+        "strategy": "priority",
+        "sessionTimeout": 300000
+      },
+      "circuitBreaker": {
+        "failureThreshold": 3,
+        "timeout": 60000,
+        "resetTimeout": 300000
+      },
+      "rateLimit": {
+        "enabled": true,
+        "maxRequestsPerMinute": 60
+      },
+      "logging": {
+        "level": "info",
+        "requestLogging": true
+      }
+    }
+
+---
+# Deployment - 应用部署
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: routex
+  namespace: routex
+  labels:
+    app: routex
+    version: 1.1.0-beta
+spec:
+  replicas: 1  # 单实例部署（SQLite 限制）
+  selector:
+    matchLabels:
+      app: routex
+  template:
+    metadata:
+      labels:
+        app: routex
+        version: 1.1.0-beta
+    spec:
+      containers:
+      - name: routex
+        image: ghcr.io/dctx-team/routex:1.1.0-beta
+        imagePullPolicy: Always
+
+        # 启动命令
+        command: ["/bin/sh"]
+        args: ["-c", "bun run dist/server.js"]
+
+        # 环境变量
+        env:
+        - name: PORT
+          value: "8080"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: NODE_ENV
+          value: "production"
+        - name: DB_PATH
+          value: "/data/routex.db"
+
+        # 端口配置
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+
+        # 健康检查
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # 资源限制
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+        # 卷挂载
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: config
+          mountPath: /app/config.json
+          subPath: config.json
+          readOnly: true
+
+      # 卷定义
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: routex-data
+      - name: config
+        configMap:
+          name: routex-config
+
+---
+# Service - 服务暴露
+apiVersion: v1
+kind: Service
+metadata:
+  name: routex
+  namespace: routex
+  labels:
+    app: routex
+spec:
+  type: ClusterIP  # 或改为 LoadBalancer/NodePort
+  selector:
+    app: routex
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+    protocol: TCP
+
+---
+# Ingress - 外部访问 (可选)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: routex
+  namespace: routex
+  annotations:
+    # 根据您的 Ingress Controller 修改
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx  # 根据您的集群修改
+  rules:
+  - host: routex.example.com  # 修改为您的域名
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: routex
+            port:
+              number: 8080
+  # TLS 配置 (可选)
+  # tls:
+  # - hosts:
+  #   - routex.example.com
+  #   secretName: routex-tls
+
+---
+# HorizontalPodAutoscaler - 自动扩缩容 (可选，需要 metrics-server)
+# 注意：由于使用 SQLite，不建议多副本部署
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: routex
+#   namespace: routex
+# spec:
+#   scaleTargetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: routex
+#   minReplicas: 1
+#   maxReplicas: 3
+#   metrics:
+#   - type: Resource
+#     resource:
+#       name: cpu
+#       target:
+#         type: Utilization
+#         averageUtilization: 70

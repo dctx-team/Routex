@@ -20,12 +20,20 @@ export class Database {
   private requestBuffer: RequestLog[] = [];
   private flushInterval: Timer | null = null;
 
+  // Query cache
+  private channelCache = new Map<string, { data: Channel[], timestamp: number }>();
+  private singleChannelCache = new Map<string, { data: Channel, timestamp: number }>();
+  private routingRuleCache: { data: RoutingRule[], timestamp: number } | null = null;
+  private readonly CACHE_TTL = 30000; // 30 seconds
+  private cacheCleanupInterval: Timer | null = null;
+
   constructor(path: string) {
     this.db = new BunSQLite(path);
     this.db.exec('PRAGMA journal_mode = WAL');
     this.db.exec('PRAGMA synchronous = NORMAL');
     this.migrate();
     this.startBufferFlush();
+    this.startCacheCleanup();
   }
 
   /**
@@ -180,23 +188,67 @@ export class Database {
   }
 
   getChannel(id: string): Channel | null {
+    // Check cache first
+    const cached = this.singleChannelCache.get(id);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
+    }
+
     const query = this.db.prepare('SELECT * FROM channels WHERE id = ?');
     const row = query.get(id) as any;
-    return row ? this.mapChannelRow(row) : null;
+    const channel = row ? this.mapChannelRow(row) : null;
+
+    // Cache the result
+    if (channel) {
+      this.singleChannelCache.set(id, {
+        data: channel,
+        timestamp: Date.now(),
+      });
+    }
+
+    return channel;
   }
 
   getChannels(): Channel[] {
+    // Check cache first
+    const cached = this.channelCache.get('all');
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
+    }
+
     const query = this.db.query('SELECT * FROM channels ORDER BY priority DESC, name ASC');
     const rows = query.all() as any[];
-    return rows.map((row) => this.mapChannelRow(row));
+    const channels = rows.map((row) => this.mapChannelRow(row));
+
+    // Cache the result
+    this.channelCache.set('all', {
+      data: channels,
+      timestamp: Date.now(),
+    });
+
+    return channels;
   }
 
   getEnabledChannels(): Channel[] {
+    // Check cache first
+    const cached = this.channelCache.get('enabled');
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.data;
+    }
+
     const query = this.db.query(
       "SELECT * FROM channels WHERE status = 'enabled' ORDER BY priority DESC, name ASC",
     );
     const rows = query.all() as any[];
-    return rows.map((row) => this.mapChannelRow(row));
+    const channels = rows.map((row) => this.mapChannelRow(row));
+
+    // Cache the result
+    this.channelCache.set('enabled', {
+      data: channels,
+      timestamp: Date.now(),
+    });
+
+    return channels;
   }
 
   updateChannel(id: string, input: UpdateChannelInput): Channel {
@@ -240,12 +292,21 @@ export class Database {
     const query = this.db.prepare(`UPDATE channels SET ${updates.join(', ')} WHERE id = ?`);
     query.run(...values);
 
+    // Invalidate all channel caches
+    this.invalidateChannelCache();
+
     return this.getChannel(id)!;
   }
 
   deleteChannel(id: string): boolean {
     const query = this.db.prepare('DELETE FROM channels WHERE id = ?');
     const result = query.run(id);
+
+    // Invalidate all channel caches
+    if (result.changes > 0) {
+      this.invalidateChannelCache();
+    }
+
     return result.changes > 0;
   }
 
@@ -265,6 +326,9 @@ export class Database {
   //// Request Logging
   // ============================================================================
 
+  private readonly BATCH_SIZE = 500; // Increased from 100
+  private readonly FLUSH_INTERVAL = 1000; // Increased from 100ms
+
   /**
    * Buffer a request log entry for batch insertion
  *
@@ -276,7 +340,7 @@ export class Database {
     });
 
     //// Flush immediately if buffer is full
-    if (this.requestBuffer.length >= 100) {
+    if (this.requestBuffer.length >= this.BATCH_SIZE) {
       this.flushRequests();
     }
   }
@@ -326,7 +390,7 @@ export class Database {
   private startBufferFlush() {
     this.flushInterval = setInterval(() => {
       this.flushRequests();
-    }, 100); //// Flush every 100ms /  100
+    }, this.FLUSH_INTERVAL); //// Flush every 1000ms (1s) / 1000ms (1)
   }
 
   getRequests(limit = 100, offset = 0): RequestLog[] {
@@ -451,8 +515,94 @@ export class Database {
       clearInterval(this.flushInterval);
       this.flushInterval = null;
     }
+    if (this.cacheCleanupInterval) {
+      clearInterval(this.cacheCleanupInterval);
+      this.cacheCleanupInterval = null;
+    }
     this.flushRequests(); //// Final flush
     this.db.close();
+  }
+
+  // ============================================================================
+  // Cache Management / 缓存管理
+  // ============================================================================
+
+  /**
+   * Invalidate all channel caches
+   */
+  private invalidateChannelCache() {
+    this.channelCache.clear();
+    this.singleChannelCache.clear();
+  }
+
+  /**
+   * Start periodic cache cleanup
+   */
+  private startCacheCleanup() {
+    // Run cleanup every minute
+    this.cacheCleanupInterval = setInterval(() => {
+      this.cleanupExpiredCache();
+    }, 60 * 1000);
+  }
+
+  /**
+   * Clean up expired cache entries
+   */
+  private cleanupExpiredCache() {
+    const now = Date.now();
+    let cleaned = 0;
+
+    // Clean channel caches
+    for (const [key, entry] of this.channelCache.entries()) {
+      if (now - entry.timestamp > this.CACHE_TTL) {
+        this.channelCache.delete(key);
+        cleaned++;
+      }
+    }
+
+    for (const [key, entry] of this.singleChannelCache.entries()) {
+      if (now - entry.timestamp > this.CACHE_TTL) {
+        this.singleChannelCache.delete(key);
+        cleaned++;
+      }
+    }
+
+    // Clean routing rule cache
+    if (this.routingRuleCache && now - this.routingRuleCache.timestamp > this.CACHE_TTL) {
+      this.routingRuleCache = null;
+      cleaned++;
+    }
+
+    if (cleaned > 0) {
+      console.log(`🧹 Cleaned ${cleaned} expired cache entries`);
+    }
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats() {
+    return {
+      channelCache: {
+        size: this.channelCache.size,
+        entries: Array.from(this.channelCache.keys()),
+      },
+      singleChannelCache: {
+        size: this.singleChannelCache.size,
+      },
+      routingRuleCache: {
+        cached: this.routingRuleCache !== null,
+      },
+    };
+  }
+
+  /**
+   * Clear all caches manually
+   */
+  clearAllCaches() {
+    this.invalidateChannelCache();
+    this.routingRuleCache = null;
+    console.log('✅ All caches cleared');
   }
 
   // ============================================================================
@@ -497,11 +647,24 @@ export class Database {
   }
 
   getEnabledRoutingRules(): RoutingRule[] {
+    // Check cache first
+    if (this.routingRuleCache && Date.now() - this.routingRuleCache.timestamp < this.CACHE_TTL) {
+      return this.routingRuleCache.data;
+    }
+
     const query = this.db.query(
       'SELECT * FROM routing_rules WHERE enabled = 1 ORDER BY priority DESC, name ASC'
     );
     const rows = query.all() as any[];
-    return rows.map(row => this.mapRoutingRuleRow(row));
+    const rules = rows.map(row => this.mapRoutingRuleRow(row));
+
+    // Cache the result
+    this.routingRuleCache = {
+      data: rules,
+      timestamp: Date.now(),
+    };
+
+    return rules;
   }
 
   updateRoutingRule(id: string, input: UpdateRoutingRuleInput): RoutingRule {
@@ -540,12 +703,21 @@ export class Database {
     const query = this.db.prepare(`UPDATE routing_rules SET ${updates.join(', ')} WHERE id = ?`);
     query.run(...values);
 
+    // Invalidate routing rule cache
+    this.routingRuleCache = null;
+
     return this.getRoutingRule(id)!;
   }
 
   deleteRoutingRule(id: string): boolean {
     const query = this.db.prepare('DELETE FROM routing_rules WHERE id = ?');
     const result = query.run(id);
+
+    // Invalidate routing rule cache
+    if (result.changes > 0) {
+      this.routingRuleCache = null;
+    }
+
     return result.changes > 0;
   }
 

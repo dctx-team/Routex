@@ -1,0 +1,20 @@
+apiVersion: v2
+name: routex
+description: Next-gen AI API router and load balancer
+type: application
+version: 1.1.0-beta
+appVersion: "1.1.0-beta"
+keywords:
+  - ai
+  - api
+  - router
+  - load-balancer
+  - claude
+  - openai
+home: https://github.com/dctx-team/Routex
+sources:
+  - https://github.com/dctx-team/Routex
+maintainers:
+  - name: dctx-team
+    email: b150w4942@163.com
+icon: https://raw.githubusercontent.com/dctx-team/Routex/main/public/logo.png

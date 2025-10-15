@@ -1,0 +1,128 @@
+# Default values for routex
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/dctx-team/routex
+  pullPolicy: Always
+  tag: "1.1.0-beta"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1001
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: routex.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: routex-tls
+  #    hosts:
+  #      - routex.example.com
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Persistent storage configuration
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  # existingClaim: ""
+
+# Environment variables
+env:
+  PORT: "8080"
+  HOST: "0.0.0.0"
+  NODE_ENV: "production"
+  DB_PATH: "/data/routex.db"
+
+# ConfigMap for application configuration
+config:
+  enabled: true
+  data:
+    server:
+      port: 8080
+      host: "0.0.0.0"
+    database:
+      path: "/data/routex.db"
+    loadBalancer:
+      strategy: "priority"
+      sessionTimeout: 300000
+    circuitBreaker:
+      failureThreshold: 3
+      timeout: 60000
+      resetTimeout: 300000
+    rateLimit:
+      enabled: true
+      maxRequestsPerMinute: 60
+    logging:
+      level: "info"
+      requestLogging: true

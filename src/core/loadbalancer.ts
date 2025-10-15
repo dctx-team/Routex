@@ -6,12 +6,22 @@
 import type { Channel, LoadBalanceStrategy, LoadBalancerContext } from '../types';
 import { ServiceUnavailableError } from '../types';
 
+interface SessionCacheEntry {
+  channelId: string;
+  timestamp: number;
+}
+
 export class LoadBalancer {
   private roundRobinIndex = 0;
-  private sessionMap = new Map<string, string>(); // sessionId -> channelId
+  private sessionCache = new Map<string, SessionCacheEntry>(); // sessionId -> {channelId, timestamp}
   private sessionExpiry = 5 * 60 * 60 * 1000; //// 5 hours / 5
+  private maxCacheSize = 10000; // Maximum number of sessions to cache
+  private cleanupInterval: Timer | null = null;
 
-  constructor(private strategy: LoadBalanceStrategy = 'priority') {}
+  constructor(private strategy: LoadBalanceStrategy = 'priority') {
+    // Start periodic cleanup of expired sessions
+    this.startCleanup();
+  }
 
   /**
    * Select a channel based on the configured strategy
@@ -114,12 +124,18 @@ export class LoadBalancer {
  *
    */
   private getSessionChannel(channels: Channel[], sessionId: string): Channel | null {
-    const channelId = this.sessionMap.get(sessionId);
-    if (!channelId) return null;
+    const entry = this.sessionCache.get(sessionId);
+    if (!entry) return null;
 
-    const channel = channels.find((ch) => ch.id === channelId);
+    // Check if session has expired
+    if (Date.now() - entry.timestamp > this.sessionExpiry) {
+      this.sessionCache.delete(sessionId);
+      return null;
+    }
+
+    const channel = channels.find((ch) => ch.id === entry.channelId);
     if (!channel || channel.status !== 'enabled') {
-      this.sessionMap.delete(sessionId);
+      this.sessionCache.delete(sessionId);
       return null;
     }
 
@@ -131,21 +147,84 @@ export class LoadBalancer {
  *
    */
   private setSessionChannel(sessionId: string, channelId: string) {
-    this.sessionMap.set(sessionId, channelId);
+    // Check cache size and remove oldest entries if needed
+    if (this.sessionCache.size >= this.maxCacheSize) {
+      this.evictOldestSessions();
+    }
 
-    //// Auto-expire after 5 hours / 5
-    setTimeout(() => {
-      this.sessionMap.delete(sessionId);
-    }, this.sessionExpiry);
+    this.sessionCache.set(sessionId, {
+      channelId,
+      timestamp: Date.now(),
+    });
   }
 
   /**
-   * Clear expired sessions (optional periodic cleanup)
+   * Evict oldest sessions when cache is full
+   */
+  private evictOldestSessions() {
+    const entriesToRemove = Math.floor(this.maxCacheSize * 0.1); // Remove 10% of entries
+    const entries = Array.from(this.sessionCache.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)
+      .slice(0, entriesToRemove);
+
+    for (const [sessionId] of entries) {
+      this.sessionCache.delete(sessionId);
+    }
+  }
+
+  /**
+   * Start periodic cleanup of expired sessions
+   */
+  private startCleanup() {
+    // Run cleanup every 10 minutes
+    this.cleanupInterval = setInterval(() => {
+      this.clearExpiredSessions();
+    }, 10 * 60 * 1000);
+  }
+
+  /**
+   * Clear expired sessions (periodic cleanup)
  *
    */
   clearExpiredSessions() {
-    // Sessions are auto-expired via setTimeout
-    ////  setTimeout
+    const now = Date.now();
+    const expiredSessions: string[] = [];
+
+    for (const [sessionId, entry] of this.sessionCache.entries()) {
+      if (now - entry.timestamp > this.sessionExpiry) {
+        expiredSessions.push(sessionId);
+      }
+    }
+
+    for (const sessionId of expiredSessions) {
+      this.sessionCache.delete(sessionId);
+    }
+
+    if (expiredSessions.length > 0) {
+      console.log(`🧹 Cleared ${expiredSessions.length} expired sessions`);
+    }
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats() {
+    return {
+      size: this.sessionCache.size,
+      maxSize: this.maxCacheSize,
+      utilizationPercent: (this.sessionCache.size / this.maxCacheSize) * 100,
+    };
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.sessionCache.clear();
   }
 
   /**
