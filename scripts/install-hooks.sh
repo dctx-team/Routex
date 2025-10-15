@@ -100,24 +100,38 @@ def main():
         run_command('git commit -m "chore: remove Chinese text for GitHub push [auto]"')
         print("✅ Changes committed to temporary branch")
 
+    # Use --no-verify to bypass this hook when pushing from temp branch
     remote = "origin"
     print(f"🚀 Pushing to {remote}/{current_branch}...")
-    result = subprocess.run(f"git push {remote} {temp_branch}:{current_branch}", shell=True, capture_output=True, text=True)
+    result = subprocess.run(f"git push --no-verify {remote} {temp_branch}:{current_branch}", shell=True, capture_output=True, text=True)
 
-    print(f"🔄 Switching back to {current_branch}...")
-    run_command(f"git checkout {current_branch}")
-    print(f"🗑️  Deleting temporary branch...")
-    run_command(f"git branch -D {temp_branch}")
-
+    # Check result before cleanup
     if result.returncode != 0:
         print("❌ Push failed!")
         print(result.stderr)
+        # Cleanup before exit
+        print(f"🔄 Switching back to {current_branch}...")
+        run_command(f"git checkout {current_branch}", check=False)
+        print(f"🗑️  Deleting temporary branch...")
+        run_command(f"git branch -D {temp_branch}", check=False)
         sys.exit(1)
 
+    # Success - cleanup
     print("✅ Push successful!")
-    print("📍 Your local branch still contains Chinese text")
     print(result.stdout)
-    sys.exit(1)
+
+    # Switch back to original branch
+    print(f"🔄 Switching back to {current_branch}...")
+    run_command(f"git checkout {current_branch}")
+
+    # Delete temp branch
+    print(f"🗑️  Deleting temporary branch...")
+    run_command(f"git branch -D {temp_branch}")
+
+    print("📍 Your local branch still contains Chinese text")
+
+    # Exit with 0 since we already successfully pushed from temp branch
+    sys.exit(0)
 
 if __name__ == '__main__':
     main()
