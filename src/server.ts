@@ -46,10 +46,10 @@ async function main() {
   console.log('🔀 初始化代理引擎...');
   const proxy = new ProxyEngine(db, loadBalancer, smartRouter, transformerManager);
 
-  //// Create API /  API
+  // Create API
   console.log('🛣️  Setting up routes...');
   console.log('🛣️  设置路由...');
-  const app = createAPI(db, proxy, loadBalancer, transformerManager);
+  const app = createAPI(db, proxy, loadBalancer, smartRouter, transformerManager);
 
   //// Start server
   const server = serve({

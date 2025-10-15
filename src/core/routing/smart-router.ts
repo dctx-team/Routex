@@ -17,7 +17,8 @@ import type {
   Message,
   ContentBlock,
   Tool,
-} from '../types';
+} from '../../types';
+import { estimateMessageTokens } from '../token-counter';
 
 export interface RouterContext {
   model: string;
@@ -220,27 +221,10 @@ export class SmartRouter {
   }
 
   /**
-   * Estimate token count (rough approximation)
- * token
+   * Estimate token count using improved token counter
    */
-  private estimateTokenCount(messages: Message[]): number {
-    let totalChars = 0;
-
-    for (const msg of messages) {
-      if (typeof msg.content === 'string') {
-        totalChars += msg.content.length;
-      } else if (Array.isArray(msg.content)) {
-        for (const block of msg.content) {
-          if (block.type === 'text' && block.text) {
-            totalChars += block.text.length;
-          }
-        }
-      }
-    }
-
-    // Rough estimate: 1 token ≈ 4 characters for English
-    //// 1token ≈ 4
-    return Math.ceil(totalChars / 4);
+  private estimateTokenCount(messages: Message[], model: string = 'claude'): number {
+    return estimateMessageTokens(messages, model);
   }
 
   /**

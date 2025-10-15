@@ -1,14 +1,14 @@
 /**
  * Routing Rules API endpoints
- * API
  */
 
 import { Hono } from 'hono';
 import type { Database } from '../db/database';
+import type { SmartRouter } from '../core/routing/smart-router';
 import type { CreateRoutingRuleInput, UpdateRoutingRuleInput } from '../types';
-import { ValidationError, NotFoundError } from '../types';
+import { ValidationError, NotFoundError } from '../core/errors';
 
-export function createRoutingAPI(db: Database) {
+export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
   const app = new Hono();
 
   /**
@@ -78,6 +78,13 @@ export function createRoutingAPI(db: Database) {
 
     const rule = db.createRoutingRule(input);
 
+    // Auto-reload routing rules if SmartRouter is provided
+    if (smartRouter) {
+      const allRules = db.getEnabledRoutingRules();
+      smartRouter.setRules(allRules);
+      console.log('🔄 Routing rules reloaded after create');
+    }
+
     return c.json(
       {
         success: true,
@@ -112,6 +119,13 @@ export function createRoutingAPI(db: Database) {
 
     const rule = db.updateRoutingRule(id, input);
 
+    // Auto-reload routing rules if SmartRouter is provided
+    if (smartRouter) {
+      const allRules = db.getEnabledRoutingRules();
+      smartRouter.setRules(allRules);
+      console.log('🔄 Routing rules reloaded after update');
+    }
+
     return c.json({
       success: true,
       data: rule,
@@ -128,6 +142,13 @@ export function createRoutingAPI(db: Database) {
     const deleted = db.deleteRoutingRule(id);
     if (!deleted) {
       throw new NotFoundError(`Routing rule not found: ${id}`);
+    }
+
+    // Auto-reload routing rules if SmartRouter is provided
+    if (smartRouter) {
+      const allRules = db.getEnabledRoutingRules();
+      smartRouter.setRules(allRules);
+      console.log('🔄 Routing rules reloaded after delete');
     }
 
     return c.json({
@@ -150,6 +171,13 @@ export function createRoutingAPI(db: Database) {
 
     const rule = db.updateRoutingRule(id, { enabled: true });
 
+    // Auto-reload routing rules if SmartRouter is provided
+    if (smartRouter) {
+      const allRules = db.getEnabledRoutingRules();
+      smartRouter.setRules(allRules);
+      console.log('🔄 Routing rules reloaded after enable');
+    }
+
     return c.json({
       success: true,
       data: rule,
@@ -170,6 +198,13 @@ export function createRoutingAPI(db: Database) {
 
     const rule = db.updateRoutingRule(id, { enabled: false });
 
+    // Auto-reload routing rules if SmartRouter is provided
+    if (smartRouter) {
+      const allRules = db.getEnabledRoutingRules();
+      smartRouter.setRules(allRules);
+      console.log('🔄 Routing rules reloaded after disable');
+    }
+
     return c.json({
       success: true,
       data: rule,
@@ -178,13 +213,10 @@ export function createRoutingAPI(db: Database) {
 
   /**
    * POST /api/routing/test
- * Test routing with a mock request
    */
   app.post('/test', async (c) => {
     const body = await c.req.json();
 
-    // This endpoint will be implemented when integrating with SmartRouter
-    //// SmartRouter
     return c.json({
       success: true,
       message: 'Test routing endpoint (to be implemented)',
@@ -192,6 +224,35 @@ export function createRoutingAPI(db: Database) {
         request: body,
         matchedRule: null,
         selectedChannel: null,
+      },
+    });
+  });
+
+  /**
+   * POST /api/routing/reload
+   * Manually reload routing rules from database
+   */
+  app.post('/reload', (c) => {
+    if (!smartRouter) {
+      return c.json({
+        success: false,
+        error: {
+          message: 'SmartRouter not initialized',
+        },
+      }, 503);
+    }
+
+    const allRules = db.getEnabledRoutingRules();
+    smartRouter.setRules(allRules);
+
+    console.log(`🔄 Manually reloaded ${allRules.length} routing rules`);
+
+    return c.json({
+      success: true,
+      message: 'Routing rules reloaded successfully',
+      data: {
+        rulesCount: allRules.length,
+        timestamp: new Date().toISOString(),
       },
     });
   });

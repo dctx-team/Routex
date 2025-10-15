@@ -8,6 +8,7 @@ import { cors } from 'hono/cors';
 import type { Database } from '../db/database';
 import type { ProxyEngine } from '../core/proxy';
 import type { LoadBalancer } from '../core/loadbalancer';
+import type { SmartRouter } from '../core/routing/smart-router';
 import type { TransformerManager } from '../transformers';
 import {
   ValidationError,
@@ -24,6 +25,7 @@ export function createAPI(
   db: Database,
   proxy: ProxyEngine,
   loadBalancer: LoadBalancer,
+  smartRouter?: SmartRouter,
   transformerManager?: TransformerManager,
 ): Hono {
   const app = new Hono();
@@ -205,10 +207,10 @@ export function createAPI(
   });
 
   // ============================================================================
-  //// Routing API /  API
+  // Routing API
   // ============================================================================
 
-  const routingAPI = createRoutingAPI(db);
+  const routingAPI = createRoutingAPI(db, smartRouter);
   app.route('/api/routing', routingAPI);
 
   // ============================================================================
