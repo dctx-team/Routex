@@ -204,15 +204,29 @@ export class ProxyEngine {
 
     //// Apply transformers if configured / transformers
     let transformedRequest = request.body;
+    let transformerHeaders: Record<string, string> = {};
+
     if (this.transformerManager && channel.transformers && transformedRequest) {
       try {
         const transformerSpecs = channel.transformers.use || [];
         if (transformerSpecs.length > 0) {
           console.log(`🔄 Applying ${transformerSpecs.length} request transformer(s) for channel ${channel.name}`);
-          transformedRequest = await this.transformerManager.transformRequest(
+
+          // Pass baseUrl to transformers as options
+          const transformResult = await this.transformerManager.transformRequest(
             transformedRequest,
-            transformerSpecs
+            transformerSpecs.map(spec =>
+              Array.isArray(spec)
+                ? [spec[0], { ...spec[1], baseUrl }]
+                : [spec, { baseUrl }]
+            )
           );
+
+          transformedRequest = transformResult.body;
+          if (transformResult.headers) {
+            transformerHeaders = transformResult.headers;
+            console.log(`🔧 Transformer provided headers:`, Object.keys(transformResult.headers));
+          }
         }
       } catch (error) {
         console.error('Request transformer error:', error);
@@ -220,8 +234,8 @@ export class ProxyEngine {
       }
     }
 
-    //// Prepare headers
-    const headers = this.prepareHeaders(channel, request);
+    //// Prepare headers (merge with transformer headers)
+    const headers = this.prepareHeaders(channel, request, transformerHeaders);
 
     //// Make request
     const response = await fetch(url, {
@@ -305,8 +319,13 @@ export class ProxyEngine {
   /**
    * Prepare headers for forwarding
  *
+   * @param transformerHeaders - Headers provided by transformers (highest priority)
    */
-  private prepareHeaders(channel: Channel, request: ParsedRequest): HeadersInit {
+  private prepareHeaders(
+    channel: Channel,
+    request: ParsedRequest,
+    transformerHeaders: Record<string, string> = {}
+  ): HeadersInit {
     const headers: Record<string, string> = {
       ...request.headers,
       'Content-Type': 'application/json',
@@ -321,6 +340,9 @@ export class ProxyEngine {
     } else if (channel.apiKey) {
       headers['Authorization'] = `Bearer ${channel.apiKey}`;
     }
+
+    //// Merge transformer headers (they override existing headers)
+    Object.assign(headers, transformerHeaders);
 
     return headers;
   }

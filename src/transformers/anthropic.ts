@@ -6,16 +6,20 @@
  * Anthropic Claude APIMessages API
  */
 
-import { BaseTransformer } from './base';
+import { BaseTransformer, type TransformResult } from './base';
 
 export class AnthropicTransformer extends BaseTransformer {
   name = 'anthropic';
 
   /**
-   * Transform request to Anthropic format
- * Anthropic
+   * Transform request to Anthropic format with special adaptations for public welfare sites
+   * Anthropic 格式，并针对公益站点进行特殊适配
+   *
+   * Supports:
+   * - agentrouter.org: Requires user-agent header 'claude-cli/2.0.14 (external, cli)'
+   * - anyrouter.top, q.quuvv.cn, etc.: Requires system[0] to contain "You are Claude Code"
    */
-  async transformRequest(request: any, options?: any): Promise<any> {
+  async transformRequest(request: any, options?: any): Promise<TransformResult> {
     // Anthropic format is our base format, so minimal transformation needed
     //// Anthropic
 
@@ -36,7 +40,50 @@ export class AnthropicTransformer extends BaseTransformer {
     if (request.tool_choice) transformed.tool_choice = request.tool_choice;
     if (request.stream !== undefined) transformed.stream = request.stream;
 
-    return transformed;
+    // Prepare headers for public welfare sites adaptations
+    const headers: Record<string, string> = {};
+    const baseUrl = options?.baseUrl || '';
+
+    // agentrouter.org: Set user-agent header
+    if (['agentrouter.org'].some((host) => baseUrl.includes(host))) {
+      console.log('🔧 Adapting for agentrouter.org: Setting VS Code extension user-agent');
+      headers['user-agent'] = 'claude-cli/2.0.14 (external, cli)';
+    }
+
+    // anyrouter.top and related sites: Inject required system prompt
+    if (['anyrouter.top', 'q.quuvv.cn', 'pmpjfbhq.cn-nb1.rainapp.top'].some((host) => baseUrl.includes(host))) {
+      console.log('🔧 Adapting for anyrouter.top: Injecting Claude Code system prompt');
+
+      const requiredPrompt = "You are Claude Code, Anthropic's official CLI for Claude.";
+
+      if (transformed.system && Array.isArray(transformed.system) && transformed.system.length > 0) {
+        // Check if the first system prompt already contains the required text
+        if (transformed.system[0].text !== requiredPrompt) {
+          // If it contains "Claude Agent SDK", replace it
+          if (transformed.system[0].text.includes("Claude Agent SDK")) {
+            transformed.system[0].text = requiredPrompt;
+          } else {
+            // Otherwise, prepend the required prompt
+            transformed.system.unshift({
+              type: "text",
+              text: requiredPrompt,
+              cache_control: transformed.system[0].cache_control
+            });
+          }
+        }
+      } else if (!transformed.system) {
+        // If no system prompt exists, create one
+        transformed.system = [{
+          type: "text",
+          text: requiredPrompt
+        }];
+      }
+    }
+
+    return {
+      body: transformed,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
+    };
   }
 
   /**

@@ -9,6 +9,14 @@
 import type { Transformer } from '../types';
 
 /**
+ * Result of request transformation with optional headers
+ */
+export interface TransformResult {
+  body: any;
+  headers?: Record<string, string>;
+}
+
+/**
  * Abstract base class for all transformers
  * transformer
  */
@@ -18,8 +26,9 @@ export abstract class BaseTransformer implements Transformer {
   /**
    * Transform request before sending to provider
  * provider
+   * @returns Transformed body or {body, headers} object
    */
-  async transformRequest(request: any, options?: any): Promise<any> {
+  async transformRequest(request: any, options?: any): Promise<any | TransformResult> {
     return request;
   }
 
@@ -87,12 +96,14 @@ export class TransformerManager {
   /**
    * Apply multiple transformers to a request
  * transformers
+   * @returns {body, headers} object with transformed body and merged headers
    */
   async transformRequest(
     request: any,
     transformerSpecs: (string | [string, Record<string, any>])[]
-  ): Promise<any> {
-    let result = request;
+  ): Promise<{ body: any; headers?: Record<string, string> }> {
+    let resultBody = request;
+    let mergedHeaders: Record<string, string> = {};
 
     for (const spec of transformerSpecs) {
       const [name, options] = Array.isArray(spec) ? spec : [spec, undefined];
@@ -104,14 +115,27 @@ export class TransformerManager {
       }
 
       try {
-        result = await transformer.transformRequest(result, options);
+        const result = await transformer.transformRequest(resultBody, options);
+
+        // Handle both simple body return and {body, headers} return
+        if (result && typeof result === 'object' && 'body' in result) {
+          resultBody = result.body;
+          if (result.headers) {
+            mergedHeaders = { ...mergedHeaders, ...result.headers };
+          }
+        } else {
+          resultBody = result;
+        }
       } catch (error) {
         console.error(`Transformer "${name}" failed on request:`, error);
         throw error;
       }
     }
 
-    return result;
+    return {
+      body: resultBody,
+      headers: Object.keys(mergedHeaders).length > 0 ? mergedHeaders : undefined,
+    };
   }
 
   /**
