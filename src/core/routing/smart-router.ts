@@ -20,6 +20,11 @@ import type {
 } from '../../types';
 import { estimateMessageTokens } from '../token-counter';
 import { ContentAnalyzer, type ContentAnalysis } from './content-analyzer';
+import {
+  CustomRouterRegistry,
+  type CustomRouterFunction,
+  globalRouterRegistry,
+} from './custom-routers';
 
 export interface RouterContext {
   model: string;
@@ -40,14 +45,18 @@ export interface RouterResult {
 
 export class SmartRouter {
   private rules: RoutingRule[] = [];
-  private customRouters: Map<string, Function> = new Map();
+  private customRouters: Map<string, Function> = new Map(); // Legacy support
   private contentAnalyzer: ContentAnalyzer;
+  private routerRegistry: CustomRouterRegistry;
 
-  constructor(rules: RoutingRule[] = []) {
+  constructor(rules: RoutingRule[] = [], useGlobalRegistry: boolean = true) {
     this.rules = rules
       .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
     this.contentAnalyzer = new ContentAnalyzer();
+    this.routerRegistry = useGlobalRegistry
+      ? globalRouterRegistry
+      : new CustomRouterRegistry();
   }
 
   /**
@@ -61,11 +70,39 @@ export class SmartRouter {
   }
 
   /**
-   * Register a custom routing function
- *
+   * Register a custom routing function (legacy method)
+   * 注册自定义路由函数（传统方法）
    */
   registerCustomRouter(name: string, fn: Function) {
     this.customRouters.set(name, fn);
+  }
+
+  /**
+   * Register a custom routing function with metadata
+   * 注册带元数据的自定义路由函数
+   */
+  registerRouter(
+    name: string,
+    fn: CustomRouterFunction,
+    info?: { description?: string; version?: string; author?: string }
+  ) {
+    this.routerRegistry.register(name, fn, info);
+  }
+
+  /**
+   * Get router registry
+   * 获取路由器注册表
+   */
+  getRegistry(): CustomRouterRegistry {
+    return this.routerRegistry;
+  }
+
+  /**
+   * List all registered custom routers
+   * 列出所有注册的自定义路由器
+   */
+  listCustomRouters() {
+    return this.routerRegistry.list();
   }
 
   /**
@@ -216,12 +253,29 @@ export class SmartRouter {
 
     //// Check custom function
     if (condition.customFunction) {
-      const customFn = this.customRouters.get(condition.customFunction);
+      // Try new registry first
+      let customFn = this.routerRegistry.get(condition.customFunction);
+
+      // Fallback to legacy map
+      if (!customFn) {
+        customFn = this.customRouters.get(condition.customFunction) as CustomRouterFunction;
+      }
+
       if (customFn) {
         try {
-          const result = await customFn(context);
-          if (!result) {
-            return false;
+          const result = await customFn(context, analysis);
+
+          // Handle boolean result
+          if (typeof result === 'boolean') {
+            if (!result) {
+              return false;
+            }
+          }
+          // Handle channel result (router selected a specific channel)
+          else if (typeof result === 'object' && result !== null) {
+            // Custom router can return a channel directly
+            // This will be handled in findMatchingChannel
+            return true;
           }
         } catch (error) {
           console.error(
