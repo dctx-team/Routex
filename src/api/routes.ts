@@ -33,6 +33,41 @@ export function createAPI(
   //// CORS middleware / CORS
   app.use('/*', cors());
 
+  //// Root endpoint - Welcome page
+  app.get('/', (c) => {
+    const channels = db.getChannels();
+    const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
+    const routingRules = db.getEnabledRoutingRules();
+
+    return c.json({
+      name: 'Routex',
+      version: '1.1.0-beta',
+      description: 'Next-generation AI API router and load balancer',
+      status: 'running',
+      uptime: process.uptime(),
+      stats: {
+        totalChannels: channels.length,
+        enabledChannels: enabledChannels.length,
+        routingRules: routingRules.length,
+        transformers: transformerManager ? transformerManager.list().length : 0,
+      },
+      loadBalancer: {
+        strategy: loadBalancer.getStrategy(),
+        cacheStats: loadBalancer.getCacheStats(),
+      },
+      endpoints: {
+        health: '/health',
+        api: '/api',
+        proxy: '/v1/messages',
+        channels: '/api/channels',
+        routing: '/api/routing/rules',
+        analytics: '/api/analytics',
+      },
+      documentation: 'https://github.com/dctx-team/Routex',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   //// Health check
   app.get('/health', (c) => {
     return c.json({
