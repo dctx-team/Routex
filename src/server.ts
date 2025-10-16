@@ -60,6 +60,7 @@ async function main() {
 
   console.log('\n✅ Routex is running! / Routex 正在运行！\n');
   console.log(`🌐 Server: http://${config.server.host}:${config.server.port}`);
+  console.log(`🎨 Dashboard: http://${config.server.host}:${config.server.port}/dashboard`);
   console.log(`📊 API: http://${config.server.host}:${config.server.port}/api`);
   console.log(`🏥 Health: http://${config.server.host}:${config.server.port}/health`);
   console.log(`🔀 Proxy: http://${config.server.host}:${config.server.port}/v1/messages`);

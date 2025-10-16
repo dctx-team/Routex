@@ -5,6 +5,7 @@
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { serveStatic } from 'hono/bun';
 import type { Database } from '../db/database';
 import type { ProxyEngine } from '../core/proxy';
 import type { LoadBalancer } from '../core/loadbalancer';
@@ -33,8 +34,17 @@ export function createAPI(
   //// CORS middleware / CORS
   app.use('/*', cors());
 
-  //// Root endpoint - Welcome page
+  //// Serve dashboard from /dashboard
+  app.get('/dashboard', serveStatic({ path: './public/index.html' }));
+  app.get('/dashboard/*', serveStatic({ root: './public' }));
+
+  //// Root endpoint - Redirect to dashboard
   app.get('/', (c) => {
+    return c.redirect('/dashboard');
+  });
+
+  //// API info endpoint
+  app.get('/api', (c) => {
     const channels = db.getChannels();
     const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
     const routingRules = db.getEnabledRoutingRules();
