@@ -34,13 +34,17 @@ export function createAPI(
   //// CORS middleware / CORS
   app.use('/*', cors());
 
-  //// Serve dashboard from /dashboard
+  //// Serve dashboards
+  // Enhanced dashboard with CRUD operations
+  app.get('/dashboard/enhanced', serveStatic({ path: './public/dashboard-enhanced.html' }));
+
+  // Standard dashboard (read-only)
   app.get('/dashboard', serveStatic({ path: './public/index.html' }));
   app.get('/dashboard/*', serveStatic({ root: './public' }));
 
-  //// Root endpoint - Redirect to dashboard
+  //// Root endpoint - Redirect to enhanced dashboard
   app.get('/', (c) => {
-    return c.redirect('/dashboard');
+    return c.redirect('/dashboard/enhanced');
   });
 
   //// API info endpoint
@@ -279,6 +283,24 @@ export function createAPI(
 
   //// Update strategy
   app.put('/api/load-balancer/strategy', async (c) => {
+    const body = await c.req.json();
+    const { strategy } = body;
+
+    if (!strategy || !['priority', 'round_robin', 'weighted', 'least_used'].includes(strategy)) {
+      throw new ValidationError('Invalid strategy');
+    }
+
+    loadBalancer.setStrategy(strategy);
+    return c.json({ success: true, data: { strategy } });
+  });
+
+  //// Shortcut endpoints for strategy (for dashboard compatibility)
+  app.get('/api/strategy', (c) => {
+    const strategy = loadBalancer.getStrategy();
+    return c.json({ success: true, data: { strategy } });
+  });
+
+  app.put('/api/strategy', async (c) => {
     const body = await c.req.json();
     const { strategy } = body;
 
