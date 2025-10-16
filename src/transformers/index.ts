@@ -10,6 +10,7 @@ export { BaseTransformer, TransformerManager } from './base';
 export { AnthropicTransformer } from './anthropic';
 export { OpenAITransformer } from './openai';
 export * from './builtin';
+export * from './pipeline';
 
 import { TransformerManager } from './base';
 import { AnthropicTransformer } from './anthropic';
