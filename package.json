@@ -30,7 +30,9 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
-    "strip-chinese": "bun run scripts/strip-chinese.ts"
+    "strip-chinese": "bun run scripts/strip-chinese.ts",
+    "select-model": "bun run src/cli/model-selector.ts",
+    "cli": "bun run src/cli/model-selector.ts"
   },
   "dependencies": {
     "hono": "^4.0.0"
