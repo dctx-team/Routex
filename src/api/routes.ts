@@ -21,6 +21,7 @@ import {
 } from '../core/errors';
 import { createRoutingAPI } from './routing';
 import { createTransformersAPI } from './transformers';
+import { ChannelTester } from '../services/channel-tester';
 
 export function createAPI(
   db: Database,
@@ -30,6 +31,7 @@ export function createAPI(
   transformerManager?: TransformerManager,
 ): Hono {
   const app = new Hono();
+  const channelTester = new ChannelTester();
 
   //// CORS middleware / CORS
   app.use('/*', cors());
@@ -221,6 +223,53 @@ export function createAPI(
     }
 
     return c.json({ success: true, data: results });
+  });
+
+  // ============================================================================
+  //// Channel Testing API /  API
+  // ============================================================================
+
+  //// Test a single channel
+  app.post('/api/channels/:id/test', async (c) => {
+    const id = c.req.param('id');
+    const channel = db.getChannel(id);
+
+    if (!channel) {
+      throw new NotFoundError(`Channel ${id} not found`);
+    }
+
+    const result = await channelTester.testChannel(channel);
+    return c.json({ success: true, data: result });
+  });
+
+  //// Test all channels
+  app.post('/api/channels/test/all', async (c) => {
+    const channels = db.getChannels();
+    const results = await channelTester.testChannels(channels);
+    const summary = channelTester.getTestSummary(results);
+
+    return c.json({
+      success: true,
+      data: {
+        results,
+        summary,
+      },
+    });
+  });
+
+  //// Test enabled channels only
+  app.post('/api/channels/test/enabled', async (c) => {
+    const channels = db.getChannels().filter((ch) => ch.status === 'enabled');
+    const results = await channelTester.testChannels(channels);
+    const summary = channelTester.getTestSummary(results);
+
+    return c.json({
+      success: true,
+      data: {
+        results,
+        summary,
+      },
+    });
   });
 
   // ============================================================================
