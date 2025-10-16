@@ -160,6 +160,8 @@ curl -X POST http://localhost:8080/api/transformers/test \
 ## 📖 Documentation
 
 - [🎯 API Reference](./API_REFERENCE.md) / [API ](./API_REFERENCE.md) ⭐ NEW
+- [🛠️ Function Calling Guide](./docs/function-calling.md) / [Function Calling ](./docs/function-calling.md) ⭐ NEW
+- [📝 Function Calling Examples](./examples/function-calling.md) / [](./examples/function-calling.md) ⭐ NEW
 - [🗺️ Development Roadmap](./ROADMAP.md) / (./ROADMAP.md)
 - [📋 Optimization Plan](./OPTIMIZATION_PLAN.md) / (./OPTIMIZATION_PLAN.md)
 - [📊 Implementation Status](./IMPLEMENTATION_STATUS_V2.md) / (./IMPLEMENTATION_STATUS_V2.md) ⭐ NEW
