@@ -9,10 +9,16 @@
 export { BaseTransformer, TransformerManager } from './base';
 export { AnthropicTransformer } from './anthropic';
 export { OpenAITransformer } from './openai';
+export * from './builtin';
 
 import { TransformerManager } from './base';
 import { AnthropicTransformer } from './anthropic';
 import { OpenAITransformer } from './openai';
+import {
+  MaxTokenTransformer,
+  SamplingTransformer,
+  CleanCacheTransformer,
+} from './builtin';
 
 /**
  * Create and initialize default transformer manager
@@ -21,9 +27,14 @@ import { OpenAITransformer } from './openai';
 export function createTransformerManager(): TransformerManager {
   const manager = new TransformerManager();
 
-  //// Register built-in transformers / transformers
+  //// Register format transformers / transformers
   manager.register(new AnthropicTransformer());
   manager.register(new OpenAITransformer());
+
+  //// Register built-in utility transformers / transformers
+  manager.register(new MaxTokenTransformer());
+  manager.register(new SamplingTransformer());
+  manager.register(new CleanCacheTransformer());
 
   return manager;
 }
