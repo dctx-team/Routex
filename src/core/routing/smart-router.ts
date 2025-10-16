@@ -19,12 +19,15 @@ import type {
   Tool,
 } from '../../types';
 import { estimateMessageTokens } from '../token-counter';
+import { ContentAnalyzer, type ContentAnalysis } from './content-analyzer';
 
 export interface RouterContext {
   model: string;
   messages: Message[];
   tools?: Tool[];
   sessionId?: string;
+  system?: string;
+  metadata?: Record<string, any>;
   [key: string]: any;
 }
 
@@ -32,16 +35,19 @@ export interface RouterResult {
   channel: Channel;
   model?: string; //// Override model if specified in rule
   rule?: RoutingRule; //// The rule that matched
+  analysis?: ContentAnalysis; //// Content analysis result
 }
 
 export class SmartRouter {
   private rules: RoutingRule[] = [];
   private customRouters: Map<string, Function> = new Map();
+  private contentAnalyzer: ContentAnalyzer;
 
   constructor(rules: RoutingRule[] = []) {
     this.rules = rules
       .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
+    this.contentAnalyzer = new ContentAnalyzer();
   }
 
   /**
@@ -70,9 +76,12 @@ export class SmartRouter {
     context: RouterContext,
     availableChannels: Channel[]
   ): Promise<RouterResult | null> {
+    //// Perform content analysis
+    const analysis = this.contentAnalyzer.analyze(context.messages, context.tools);
+
     //// 1. Try to match routing rules
     for (const rule of this.rules) {
-      if (await this.matchesRule(rule, context)) {
+      if (await this.matchesRule(rule, context, analysis)) {
         //// Find the target channel
         const channel = availableChannels.find(
           (c) =>
@@ -85,6 +94,7 @@ export class SmartRouter {
             channel,
             model: rule.targetModel,
             rule,
+            analysis,
           };
         }
       }
@@ -95,12 +105,60 @@ export class SmartRouter {
   }
 
   /**
+   * Get content analysis for a request
+   * 获取请求的内容分析
+   */
+  analyzeContent(messages: Message[], tools?: Tool[]): ContentAnalysis {
+    return this.contentAnalyzer.analyze(messages, tools);
+  }
+
+  /**
+   * Find best channel based on content analysis
+   * 基于内容分析查找最佳渠道
+   */
+  findChannelByContent(
+    analysis: ContentAnalysis,
+    availableChannels: Channel[]
+  ): Channel | null {
+    //// Strategy: Match channel capabilities with content requirements
+
+    //// 1. For coding tasks, prefer channels with better code generation
+    if (analysis.category === 'coding' || analysis.hasCode) {
+      // Could be configured per channel
+      const codingChannels = availableChannels.filter(c =>
+        c.models.some(m => /claude-3.*opus|gpt-4|claude-sonnet/i.test(m))
+      );
+      if (codingChannels.length > 0) {
+        return codingChannels[0];
+      }
+    }
+
+    //// 2. For complex tasks, prefer high-capability models
+    if (analysis.complexity === 'very_complex' || analysis.complexity === 'complex') {
+      const highCapChannels = availableChannels.filter(c =>
+        c.models.some(m => /opus|gpt-4|pro/i.test(m))
+      );
+      if (highCapChannels.length > 0) {
+        return highCapChannels[0];
+      }
+    }
+
+    //// 3. For simple conversations, any channel is fine
+    if (analysis.complexity === 'simple' && analysis.category === 'conversation') {
+      return availableChannels[0];
+    }
+
+    return null;
+  }
+
+  /**
    * Check if a request matches a routing rule
  *
    */
   private async matchesRule(
     rule: RoutingRule,
-    context: RouterContext
+    context: RouterContext,
+    analysis?: ContentAnalysis
   ): Promise<boolean> {
     const { condition } = rule;
 
@@ -170,6 +228,58 @@ export class SmartRouter {
             `Custom router function "${condition.customFunction}" failed:`,
             error
           );
+          return false;
+        }
+      }
+    }
+
+    //// Content-based conditions (if analysis is available)
+    if (analysis) {
+      //// Check content category
+      if ((condition as any).contentCategory) {
+        if (analysis.category !== (condition as any).contentCategory) {
+          return false;
+        }
+      }
+
+      //// Check complexity level
+      if ((condition as any).complexityLevel) {
+        if (analysis.complexity !== (condition as any).complexityLevel) {
+          return false;
+        }
+      }
+
+      //// Check if has code
+      if ((condition as any).hasCode !== undefined) {
+        if (analysis.hasCode !== (condition as any).hasCode) {
+          return false;
+        }
+      }
+
+      //// Check programming language
+      if ((condition as any).programmingLanguage) {
+        const requiredLang = (condition as any).programmingLanguage;
+        if (!analysis.languages.includes(requiredLang)) {
+          return false;
+        }
+      }
+
+      //// Check intent
+      if ((condition as any).intent) {
+        if (analysis.intent !== (condition as any).intent) {
+          return false;
+        }
+      }
+
+      //// Check word count threshold
+      if ((condition as any).minWordCount !== undefined) {
+        if (analysis.wordCount < (condition as any).minWordCount) {
+          return false;
+        }
+      }
+
+      if ((condition as any).maxWordCount !== undefined) {
+        if (analysis.wordCount > (condition as any).maxWordCount) {
           return false;
         }
       }
