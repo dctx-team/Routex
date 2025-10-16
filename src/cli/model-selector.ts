@@ -81,7 +81,20 @@ function printWarning(message: string) {
 }
 
 // ============================================================================
-// Model Information
+// Model Information Database
+// 模型信息数据库
+// ============================================================================
+//
+// 包含主流 AI 提供商的模型信息（截至 2025年10月）
+//
+// 说明：
+// - 46+ 个模型，涵盖 6 大提供商
+// - Anthropic Claude 4.x/3.x 系列已验证
+// - 部分 2025 年模型基于公开资料，后续将持续更新
+// - 支持手动输入自定义模型
+//
+// 更新方法：
+// 编辑此 MODEL_DATABASE 对象，添加新模型或更新现有模型信息
 // ============================================================================
 
 const MODEL_DATABASE: Record<string, { provider: ChannelType; description: string; capabilities: string[] }> = {

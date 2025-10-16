@@ -316,28 +316,64 @@ bun run cli
 
 ## 模型数据库
 
-CLI 内置了主流模型的信息数据库。
+CLI 内置了主流 AI 模型的信息数据库（截至 2025年10月）。
 
-### Anthropic Claude 模型
+> **📝 说明**: 模型数据库包含 46+ 个模型，涵盖 Anthropic、OpenAI、Google、DeepSeek、Zhipu、Qwen 等提供商。部分 2025 年模型信息基于公开资料，可能需要根据实际情况调整。
+
+### 提供商覆盖
+
+- **Anthropic Claude**: Claude 4.5、4.1、4.0、3.5 系列
+- **OpenAI GPT**: o1 推理系列、GPT-4o、GPT-4 Turbo
+- **Google Gemini**: Gemini 2.0、1.5 系列
+- **DeepSeek**: V3、Reasoner (R1)、Coder V2
+- **Zhipu GLM**: GLM-4 全系列
+- **Qwen (通义千问)**: Qwen 2.5、Long、VL 系列
+
+### Anthropic Claude 模型（精选）
 
 | 模型 | 描述 | 上下文 | 能力 |
 |------|------|--------|------|
-| claude-3-5-sonnet-20241022 | 最新版本，最强性能 | 200K | Function Calling, Vision, Artifacts |
-| claude-3-5-sonnet-20240620 | 前一版本 | 200K | Function Calling, Vision |
-| claude-3-opus-20240229 | 最强能力，复杂任务 | 200K | Function Calling, Vision |
-| claude-3-sonnet-20240229 | 平衡性能与成本 | 200K | Function Calling, Vision |
-| claude-3-haiku-20240307 | 快速响应，低成本 | 200K | Function Calling, Vision |
+| claude-sonnet-4-5-20250929 | 最新旗舰模型 | 200K | Function Calling, Vision, Artifacts, Extended thinking |
+| claude-opus-4-1-20250805 | 最强推理能力 | 200K | Function Calling, Vision, Advanced reasoning |
+| claude-haiku-4-5-20251001 | 最新快速模型 | 200K | Function Calling, Vision, Fast response |
+| claude-3-5-sonnet-20241022 | Extended Thinking 版本 | 200K | Function Calling, Vision, Artifacts |
+| claude-3-5-haiku-20241022 | 快速响应，智能升级 | 200K | Function Calling, Vision |
 
-### OpenAI GPT 模型
+### OpenAI GPT 模型（精选）
 
 | 模型 | 描述 | 上下文 | 能力 |
 |------|------|--------|------|
-| gpt-4-turbo | 最新 GPT-4 | 128K | Function Calling, JSON mode |
-| gpt-4-turbo-preview | 预览版本 | 128K | Function Calling |
-| gpt-4 | 标准版本 | 8K | Function Calling |
-| gpt-4-32k | 扩展上下文 | 32K | Function Calling |
-| gpt-3.5-turbo | 快速且经济 | 16K | Function Calling |
-| gpt-3.5-turbo-16k | 扩展上下文 | 16K | Function Calling |
+| o1 | 最新推理模型 | 200K | Advanced reasoning, Chain-of-thought |
+| o1-mini | 快速推理模型 | 128K | Reasoning, Fast response |
+| gpt-4o-2025-01-31 | 最新多模态旗舰 | 128K | Function Calling, Vision, Audio, Structured Outputs |
+| gpt-4o-mini-2025-01-17 | 最新小型高效模型 | 128K | Function Calling, Vision, Fast |
+| gpt-4-turbo | 128K 上下文 | 128K | Function Calling, Vision, JSON mode |
+
+### Google Gemini 模型（精选）
+
+| 模型 | 描述 | 上下文 | 能力 |
+|------|------|--------|------|
+| gemini-2.0-flash | 正式版，极快速度 | 1M | Function Calling, Vision, Audio, Native tool use |
+| gemini-2.0-flash-thinking | 推理增强版本 | 1M | Advanced reasoning, Chain-of-thought |
+| gemini-1.5-pro | 超长上下文 | 2M | Function Calling, Vision, Audio, Code execution |
+| gemini-1.5-flash-8b | 超高性价比小模型 | 1M | Function Calling, Vision, Very fast |
+
+### 中国 AI 提供商（精选）
+
+**DeepSeek**:
+- `deepseek-chat` (V3) - 671B MoE 架构
+- `deepseek-reasoner` (R1) - 推理专用模型
+- `deepseek-coder-v2` - 代码专用模型
+
+**Zhipu GLM**:
+- `glm-4-plus` - 增强版本，更强推理能力
+- `glm-4-alltools` - 多工具协作模型
+- `glm-4-flash` - 极速响应版本
+
+**Qwen (通义千问)**:
+- `qwen-max` - 旗舰模型 (Qwen 2.5)
+- `qwen-long` - 超长上下文 (1M)
+- `qwen-vl-max` - 视觉旗舰
 
 ### 自定义模型
 
@@ -345,6 +381,20 @@ CLI 内置了主流模型的信息数据库。
 
 ```
 模型列表 (用逗号分隔): custom-model-1, custom-model-2
+```
+
+### 更新模型数据库
+
+如需添加或更新模型，编辑 `src/cli/model-selector.ts` 中的 `MODEL_DATABASE`：
+
+```typescript
+const MODEL_DATABASE = {
+  'your-model-name': {
+    provider: 'anthropic', // 或 'openai', 'google', 'custom' 等
+    description: '模型描述',
+    capabilities: ['能力1', '能力2', ...],
+  },
+};
 ```
 
 ## 高级功能
