@@ -5,6 +5,7 @@
 
 import type { Channel, LoadBalanceStrategy, LoadBalancerContext } from '../types';
 import { ServiceUnavailableError } from '../types';
+import { LRUCache } from '../utils/lru-cache';
 
 interface SessionCacheEntry {
   channelId: string;
@@ -13,12 +14,20 @@ interface SessionCacheEntry {
 
 export class LoadBalancer {
   private roundRobinIndex = 0;
-  private sessionCache = new Map<string, SessionCacheEntry>(); // sessionId -> {channelId, timestamp}
+  private sessionCache: LRUCache<string, SessionCacheEntry>;
   private sessionExpiry = 5 * 60 * 60 * 1000; //// 5 hours / 5
-  private maxCacheSize = 10000; // Maximum number of sessions to cache
   private cleanupInterval: Timer | null = null;
 
   constructor(private strategy: LoadBalanceStrategy = 'priority') {
+    // Initialize LRU cache with TTL support
+    this.sessionCache = new LRUCache({
+      maxSize: 10000,
+      ttl: this.sessionExpiry,
+      onEvict: (sessionId, entry) => {
+        console.log(`🗑️  Evicted session ${sessionId} (channel: ${entry.channelId})`);
+      }
+    });
+
     // Start periodic cleanup of expired sessions
     this.startCleanup();
   }
@@ -124,14 +133,9 @@ export class LoadBalancer {
  *
    */
   private getSessionChannel(channels: Channel[], sessionId: string): Channel | null {
+    // LRU cache automatically handles TTL expiration
     const entry = this.sessionCache.get(sessionId);
     if (!entry) return null;
-
-    // Check if session has expired
-    if (Date.now() - entry.timestamp > this.sessionExpiry) {
-      this.sessionCache.delete(sessionId);
-      return null;
-    }
 
     const channel = channels.find((ch) => ch.id === entry.channelId);
     if (!channel || channel.status !== 'enabled') {
@@ -147,29 +151,11 @@ export class LoadBalancer {
  *
    */
   private setSessionChannel(sessionId: string, channelId: string) {
-    // Check cache size and remove oldest entries if needed
-    if (this.sessionCache.size >= this.maxCacheSize) {
-      this.evictOldestSessions();
-    }
-
+    // LRU cache automatically handles eviction when full
     this.sessionCache.set(sessionId, {
       channelId,
       timestamp: Date.now(),
     });
-  }
-
-  /**
-   * Evict oldest sessions when cache is full
-   */
-  private evictOldestSessions() {
-    const entriesToRemove = Math.floor(this.maxCacheSize * 0.1); // Remove 10% of entries
-    const entries = Array.from(this.sessionCache.entries())
-      .sort((a, b) => a[1].timestamp - b[1].timestamp)
-      .slice(0, entriesToRemove);
-
-    for (const [sessionId] of entries) {
-      this.sessionCache.delete(sessionId);
-    }
   }
 
   /**
@@ -187,21 +173,11 @@ export class LoadBalancer {
  *
    */
   clearExpiredSessions() {
-    const now = Date.now();
-    const expiredSessions: string[] = [];
+    // LRU cache's prune() method removes all expired entries
+    const removedCount = this.sessionCache.prune();
 
-    for (const [sessionId, entry] of this.sessionCache.entries()) {
-      if (now - entry.timestamp > this.sessionExpiry) {
-        expiredSessions.push(sessionId);
-      }
-    }
-
-    for (const sessionId of expiredSessions) {
-      this.sessionCache.delete(sessionId);
-    }
-
-    if (expiredSessions.length > 0) {
-      console.log(`🧹 Cleared ${expiredSessions.length} expired sessions`);
+    if (removedCount > 0) {
+      console.log(`🧹 Cleared ${removedCount} expired cache entries`);
     }
   }
 
@@ -209,11 +185,7 @@ export class LoadBalancer {
    * Get cache statistics
    */
   getCacheStats() {
-    return {
-      size: this.sessionCache.size,
-      maxSize: this.maxCacheSize,
-      utilizationPercent: (this.sessionCache.size / this.maxCacheSize) * 100,
-    };
+    return this.sessionCache.stats();
   }
 
   /**
