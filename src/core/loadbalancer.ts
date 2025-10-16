@@ -101,21 +101,53 @@ export class LoadBalancer {
   }
 
   /**
-   * Weighted strategy: select based on weight
- *
+   * Weighted strategy: select based on weight using binary search
+   * 加权策略: 使用二分查找优化，O(log n) 复杂度
+   *
+   * Algorithm:
+   * 1. Build cumulative weight array [w1, w1+w2, w1+w2+w3, ...]
+   * 2. Generate random number in [0, totalWeight)
+   * 3. Binary search for the first cumulative weight >= random
    */
   private selectByWeight(channels: Channel[]): Channel {
-    const totalWeight = channels.reduce((sum, ch) => sum + ch.weight, 0);
-    let random = Math.random() * totalWeight;
+    if (channels.length === 1) {
+      return channels[0];
+    }
+
+    // Build cumulative weight array
+    const cumulativeWeights: number[] = [];
+    let sum = 0;
 
     for (const channel of channels) {
-      random -= channel.weight;
-      if (random <= 0) {
-        return channel;
+      sum += channel.weight;
+      cumulativeWeights.push(sum);
+    }
+
+    const totalWeight = sum;
+
+    // Handle edge case: all weights are 0
+    if (totalWeight === 0) {
+      return channels[Math.floor(Math.random() * channels.length)];
+    }
+
+    // Generate random value
+    const random = Math.random() * totalWeight;
+
+    // Binary search for the target channel
+    let left = 0;
+    let right = cumulativeWeights.length - 1;
+
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2);
+
+      if (cumulativeWeights[mid] < random) {
+        left = mid + 1;
+      } else {
+        right = mid;
       }
     }
 
-    return channels[channels.length - 1];
+    return channels[left];
   }
 
   /**
