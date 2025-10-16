@@ -85,47 +85,135 @@ function printWarning(message: string) {
 // ============================================================================
 
 const MODEL_DATABASE: Record<string, { provider: ChannelType; description: string; capabilities: string[] }> = {
-  // Anthropic Models
+  // ========== Anthropic Claude Models ==========
+  // Claude 3.5 Sonnet (最新)
   'claude-3-5-sonnet-20241022': {
     provider: 'anthropic',
-    description: 'Claude 3.5 Sonnet - 最新版本，最强性能',
-    capabilities: ['200K context', 'Function Calling', 'Vision', 'Artifacts'],
+    description: 'Claude 3.5 Sonnet (2024-10-22) - 最新版本，最强性能',
+    capabilities: ['200K context', 'Function Calling', 'Vision', 'Artifacts', 'Extended thinking'],
   },
   'claude-3-5-sonnet-20240620': {
     provider: 'anthropic',
-    description: 'Claude 3.5 Sonnet - 前一版本',
-    capabilities: ['200K context', 'Function Calling', 'Vision'],
+    description: 'Claude 3.5 Sonnet (2024-06-20) - 初始版本',
+    capabilities: ['200K context', 'Function Calling', 'Vision', 'Artifacts'],
   },
+
+  // Claude 3 Opus
   'claude-3-opus-20240229': {
     provider: 'anthropic',
-    description: 'Claude 3 Opus - 最强能力，适合复杂任务',
+    description: 'Claude 3 Opus - 最强能力，适合复杂推理任务',
+    capabilities: ['200K context', 'Function Calling', 'Vision', 'Advanced reasoning'],
+  },
+  'claude-3-opus-latest': {
+    provider: 'anthropic',
+    description: 'Claude 3 Opus (Latest) - 自动使用最新版本',
     capabilities: ['200K context', 'Function Calling', 'Vision'],
   },
+
+  // Claude 3 Sonnet
   'claude-3-sonnet-20240229': {
     provider: 'anthropic',
     description: 'Claude 3 Sonnet - 平衡性能与成本',
     capabilities: ['200K context', 'Function Calling', 'Vision'],
   },
+
+  // Claude 3 Haiku
   'claude-3-haiku-20240307': {
     provider: 'anthropic',
     description: 'Claude 3 Haiku - 快速响应，低成本',
-    capabilities: ['200K context', 'Function Calling', 'Vision'],
+    capabilities: ['200K context', 'Function Calling', 'Vision', 'Fast response'],
   },
 
-  // OpenAI Models
+  // Claude 2.x (Legacy)
+  'claude-2.1': {
+    provider: 'anthropic',
+    description: 'Claude 2.1 - 上一代模型，200K 上下文',
+    capabilities: ['200K context', 'Text only'],
+  },
+  'claude-2.0': {
+    provider: 'anthropic',
+    description: 'Claude 2.0 - 上一代模型，100K 上下文',
+    capabilities: ['100K context', 'Text only'],
+  },
+
+  // ========== OpenAI GPT Models ==========
+  // GPT-4o (Omni)
+  'gpt-4o': {
+    provider: 'openai',
+    description: 'GPT-4o - 多模态旗舰模型，速度快，成本优',
+    capabilities: ['128K context', 'Function Calling', 'Vision', 'Audio', 'JSON mode'],
+  },
+  'gpt-4o-2024-11-20': {
+    provider: 'openai',
+    description: 'GPT-4o (2024-11-20) - 最新版本',
+    capabilities: ['128K context', 'Function Calling', 'Vision', 'Audio', 'JSON mode'],
+  },
+  'gpt-4o-2024-08-06': {
+    provider: 'openai',
+    description: 'GPT-4o (2024-08-06) - Structured Outputs 支持',
+    capabilities: ['128K context', 'Function Calling', 'Vision', 'Structured Outputs'],
+  },
+  'gpt-4o-2024-05-13': {
+    provider: 'openai',
+    description: 'GPT-4o (2024-05-13) - 初始版本',
+    capabilities: ['128K context', 'Function Calling', 'Vision'],
+  },
+
+  // GPT-4o mini
+  'gpt-4o-mini': {
+    provider: 'openai',
+    description: 'GPT-4o mini - 小型高效模型，性价比极高',
+    capabilities: ['128K context', 'Function Calling', 'Vision', 'JSON mode', 'Fast'],
+  },
+  'gpt-4o-mini-2024-07-18': {
+    provider: 'openai',
+    description: 'GPT-4o mini (2024-07-18) - 指定版本',
+    capabilities: ['128K context', 'Function Calling', 'Vision'],
+  },
+
+  // GPT-4 Turbo
   'gpt-4-turbo': {
     provider: 'openai',
     description: 'GPT-4 Turbo - 最新 GPT-4，128K 上下文',
-    capabilities: ['128K context', 'Function Calling', 'JSON mode'],
+    capabilities: ['128K context', 'Function Calling', 'Vision', 'JSON mode'],
+  },
+  'gpt-4-turbo-2024-04-09': {
+    provider: 'openai',
+    description: 'GPT-4 Turbo (2024-04-09) - Vision 支持',
+    capabilities: ['128K context', 'Function Calling', 'Vision', 'JSON mode'],
   },
   'gpt-4-turbo-preview': {
     provider: 'openai',
     description: 'GPT-4 Turbo Preview - 预览版本',
     capabilities: ['128K context', 'Function Calling'],
   },
+  'gpt-4-0125-preview': {
+    provider: 'openai',
+    description: 'GPT-4 Turbo (0125) - 改进版本',
+    capabilities: ['128K context', 'Function Calling'],
+  },
+  'gpt-4-1106-preview': {
+    provider: 'openai',
+    description: 'GPT-4 Turbo (1106) - 初始版本',
+    capabilities: ['128K context', 'Function Calling', 'JSON mode'],
+  },
+
+  // GPT-4 Vision
+  'gpt-4-vision-preview': {
+    provider: 'openai',
+    description: 'GPT-4 Vision - 图像理解专用',
+    capabilities: ['128K context', 'Vision'],
+  },
+
+  // GPT-4 Standard
   'gpt-4': {
     provider: 'openai',
     description: 'GPT-4 - 标准版本，8K 上下文',
+    capabilities: ['8K context', 'Function Calling'],
+  },
+  'gpt-4-0613': {
+    provider: 'openai',
+    description: 'GPT-4 (0613) - 改进的 function calling',
     capabilities: ['8K context', 'Function Calling'],
   },
   'gpt-4-32k': {
@@ -133,15 +221,135 @@ const MODEL_DATABASE: Record<string, { provider: ChannelType; description: strin
     description: 'GPT-4 32K - 扩展上下文版本',
     capabilities: ['32K context', 'Function Calling'],
   },
+  'gpt-4-32k-0613': {
+    provider: 'openai',
+    description: 'GPT-4 32K (0613) - 改进版本',
+    capabilities: ['32K context', 'Function Calling'],
+  },
+
+  // GPT-3.5 Turbo
   'gpt-3.5-turbo': {
     provider: 'openai',
     description: 'GPT-3.5 Turbo - 快速且经济',
-    capabilities: ['16K context', 'Function Calling'],
+    capabilities: ['16K context', 'Function Calling', 'JSON mode'],
+  },
+  'gpt-3.5-turbo-0125': {
+    provider: 'openai',
+    description: 'GPT-3.5 Turbo (0125) - 最新版本',
+    capabilities: ['16K context', 'Function Calling', 'JSON mode'],
+  },
+  'gpt-3.5-turbo-1106': {
+    provider: 'openai',
+    description: 'GPT-3.5 Turbo (1106) - 改进版本',
+    capabilities: ['16K context', 'Function Calling', 'JSON mode'],
   },
   'gpt-3.5-turbo-16k': {
     provider: 'openai',
     description: 'GPT-3.5 Turbo 16K - 扩展上下文',
     capabilities: ['16K context', 'Function Calling'],
+  },
+
+  // ========== Google Gemini Models ==========
+  'gemini-2.0-flash-exp': {
+    provider: 'google',
+    description: 'Gemini 2.0 Flash (Experimental) - 最新实验版本',
+    capabilities: ['1M context', 'Function Calling', 'Vision', 'Audio', 'Multimodal'],
+  },
+  'gemini-exp-1206': {
+    provider: 'google',
+    description: 'Gemini Experimental (1206) - 实验性高级模型',
+    capabilities: ['2M context', 'Function Calling', 'Vision', 'Advanced reasoning'],
+  },
+  'gemini-1.5-pro': {
+    provider: 'google',
+    description: 'Gemini 1.5 Pro - 超长上下文，2M tokens',
+    capabilities: ['2M context', 'Function Calling', 'Vision', 'Audio', 'Code execution'],
+  },
+  'gemini-1.5-pro-latest': {
+    provider: 'google',
+    description: 'Gemini 1.5 Pro (Latest) - 自动最新版本',
+    capabilities: ['2M context', 'Function Calling', 'Vision', 'Audio'],
+  },
+  'gemini-1.5-flash': {
+    provider: 'google',
+    description: 'Gemini 1.5 Flash - 快速响应，1M 上下文',
+    capabilities: ['1M context', 'Function Calling', 'Vision', 'Fast response'],
+  },
+  'gemini-1.5-flash-8b': {
+    provider: 'google',
+    description: 'Gemini 1.5 Flash-8B - 超高性价比小模型',
+    capabilities: ['1M context', 'Function Calling', 'Vision', 'Very fast'],
+  },
+  'gemini-pro': {
+    provider: 'google',
+    description: 'Gemini Pro - 第一代 Pro 模型',
+    capabilities: ['32K context', 'Function Calling'],
+  },
+
+  // ========== DeepSeek Models ==========
+  'deepseek-chat': {
+    provider: 'openai',
+    description: 'DeepSeek Chat - 中文友好的对话模型',
+    capabilities: ['64K context', 'Function Calling', 'Fast response'],
+  },
+  'deepseek-coder': {
+    provider: 'openai',
+    description: 'DeepSeek Coder - 代码专用模型',
+    capabilities: ['64K context', 'Code generation', 'Code completion'],
+  },
+
+  // ========== Zhipu AI Models ==========
+  'glm-4': {
+    provider: 'zhipu',
+    description: 'GLM-4 - 智谱 AI 旗舰模型',
+    capabilities: ['128K context', 'Function Calling', 'Vision'],
+  },
+  'glm-4-plus': {
+    provider: 'zhipu',
+    description: 'GLM-4 Plus - 增强版本，更强推理能力',
+    capabilities: ['128K context', 'Function Calling', 'Vision', 'Advanced reasoning'],
+  },
+  'glm-4-air': {
+    provider: 'zhipu',
+    description: 'GLM-4 Air - 轻量高效版本',
+    capabilities: ['128K context', 'Function Calling', 'Fast response'],
+  },
+  'glm-4-flash': {
+    provider: 'zhipu',
+    description: 'GLM-4 Flash - 极速响应版本',
+    capabilities: ['128K context', 'Function Calling', 'Very fast'],
+  },
+  'glm-4v': {
+    provider: 'zhipu',
+    description: 'GLM-4V - 视觉理解模型',
+    capabilities: ['8K context', 'Vision', 'Image understanding'],
+  },
+  'glm-3-turbo': {
+    provider: 'zhipu',
+    description: 'GLM-3 Turbo - 上一代高性价比模型',
+    capabilities: ['128K context', 'Function Calling'],
+  },
+
+  // ========== Qwen Models (通义千问) ==========
+  'qwen-turbo': {
+    provider: 'openai',
+    description: 'Qwen Turbo - 阿里通义千问快速模型',
+    capabilities: ['8K context', 'Function Calling', 'Fast response'],
+  },
+  'qwen-plus': {
+    provider: 'openai',
+    description: 'Qwen Plus - 通义千问增强模型',
+    capabilities: ['32K context', 'Function Calling'],
+  },
+  'qwen-max': {
+    provider: 'openai',
+    description: 'Qwen Max - 通义千问旗舰模型',
+    capabilities: ['8K context', 'Function Calling', 'Advanced reasoning'],
+  },
+  'qwen-vl-plus': {
+    provider: 'openai',
+    description: 'Qwen VL Plus - 通义千问视觉模型',
+    capabilities: ['8K context', 'Vision', 'Image understanding'],
   },
 };
 
