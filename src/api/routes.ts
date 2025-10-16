@@ -84,12 +84,105 @@ export function createAPI(
     });
   });
 
-  //// Health check
+  //// Health check - Basic
   app.get('/health', (c) => {
     return c.json({
       status: 'healthy',
-      version: '1.0.0',
+      version: '1.1.0-beta',
       uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  //// Health check - Detailed
+  app.get('/health/detailed', async (c) => {
+    const channels = db.getChannels();
+    const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
+    const routingRules = db.getEnabledRoutingRules();
+
+    // Memory usage
+    const memUsage = process.memoryUsage();
+
+    // Check if any channels are configured and enabled
+    const hasChannels = channels.length > 0;
+    const hasEnabledChannels = enabledChannels.length > 0;
+
+    // Determine overall health status
+    let status = 'healthy';
+    const issues: string[] = [];
+
+    if (!hasChannels) {
+      status = 'degraded';
+      issues.push('No channels configured');
+    } else if (!hasEnabledChannels) {
+      status = 'degraded';
+      issues.push('No enabled channels');
+    }
+
+    return c.json({
+      status,
+      version: '1.1.0-beta',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      system: {
+        platform: process.platform,
+        nodeVersion: process.version,
+        pid: process.pid,
+        memory: {
+          rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+          heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+          heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+          external: `${Math.round(memUsage.external / 1024 / 1024)}MB`,
+        },
+      },
+      channels: {
+        total: channels.length,
+        enabled: enabledChannels.length,
+        disabled: channels.length - enabledChannels.length,
+      },
+      routing: {
+        rules: routingRules.length,
+        transformers: transformerManager ? transformerManager.list().length : 0,
+      },
+      loadBalancer: {
+        strategy: loadBalancer.getStrategy(),
+        cacheSize: loadBalancer.getCacheStats().size,
+      },
+      issues: issues.length > 0 ? issues : undefined,
+    });
+  });
+
+  //// Health check - Live (for Kubernetes liveness probe)
+  app.get('/health/live', (c) => {
+    // Check if the process is responsive
+    return c.json({
+      status: 'alive',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  //// Health check - Ready (for Kubernetes readiness probe)
+  app.get('/health/ready', (c) => {
+    const channels = db.getChannels();
+    const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
+
+    // Check if the service is ready to handle traffic
+    const isReady = enabledChannels.length > 0;
+
+    if (!isReady) {
+      return c.json(
+        {
+          status: 'not_ready',
+          reason: 'No enabled channels available',
+          timestamp: new Date().toISOString(),
+        },
+        503,
+      );
+    }
+
+    return c.json({
+      status: 'ready',
+      enabledChannels: enabledChannels.length,
       timestamp: new Date().toISOString(),
     });
   });
