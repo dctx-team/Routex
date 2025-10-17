@@ -25,6 +25,8 @@
     "dev": "bun run --watch src/server.ts",
     "start": "bun run src/server.ts",
     "build": "bun build src/server.ts --outdir dist --target bun",
+    "build:dashboard": "cd dashboard && bun run build",
+    "dev:dashboard": "cd dashboard && bun run dev",
     "test": "bun test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
