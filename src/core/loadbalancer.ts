@@ -6,6 +6,7 @@
 import type { Channel, LoadBalanceStrategy, LoadBalancerContext } from '../types';
 import { ServiceUnavailableError } from '../types';
 import { LRUCache } from '../utils/lru-cache';
+import { logger, logLoadBalancer } from '../utils/logger';
 
 interface SessionCacheEntry {
   channelId: string;
@@ -24,7 +25,10 @@ export class LoadBalancer {
       maxSize: 10000,
       ttl: this.sessionExpiry,
       onEvict: (sessionId, entry) => {
-        console.log(`🗑️  Evicted session ${sessionId} (channel: ${entry.channelId})`);
+        logger.debug({
+          sessionId,
+          channelId: entry.channelId,
+        }, `🗑️  Evicted session ${sessionId}`);
       }
     });
 
@@ -48,6 +52,10 @@ export class LoadBalancer {
     if (context.sessionId) {
       const sessionChannel = this.getSessionChannel(available, context.sessionId);
       if (sessionChannel) {
+        logLoadBalancer(this.strategy, sessionChannel.name, {
+          reason: 'session_affinity',
+          sessionId: context.sessionId,
+        });
         return sessionChannel;
       }
     }
@@ -77,16 +85,21 @@ export class LoadBalancer {
       this.setSessionChannel(context.sessionId, selected.id);
     }
 
+    logLoadBalancer(this.strategy, selected.name, {
+      availableChannels: available.length,
+      model: context.model,
+    });
+
     return selected;
   }
 
   /**
-   * Priority strategy: select channel with highest priority
- *
+   * Priority strategy: select channel with highest priority (lowest number)
+   * 优先级策略：选择优先级最高的渠道（数值越小优先级越高）
    */
   private selectByPriority(channels: Channel[]): Channel {
     return channels.reduce((highest, current) =>
-      current.priority > highest.priority ? current : highest,
+      current.priority < highest.priority ? current : highest,
     );
   }
 
@@ -209,7 +222,10 @@ export class LoadBalancer {
     const removedCount = this.sessionCache.prune();
 
     if (removedCount > 0) {
-      console.log(`🧹 Cleared ${removedCount} expired cache entries`);
+      logger.info({
+        removedCount,
+        cacheStats: this.getCacheStats(),
+      }, `🧹 Cleared ${removedCount} expired cache entries`);
     }
   }
 
@@ -218,6 +234,14 @@ export class LoadBalancer {
    */
   getCacheStats() {
     return this.sessionCache.stats();
+  }
+
+  /**
+   * Clear all session cache (for cache warming)
+   */
+  clearCache() {
+    this.sessionCache.clear();
+    logger.debug('🗑️  Session cache cleared');
   }
 
   /**

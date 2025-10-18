@@ -11,6 +11,7 @@ import type { ProxyEngine } from '../core/proxy';
 import type { LoadBalancer } from '../core/loadbalancer';
 import type { SmartRouter } from '../core/routing/smart-router';
 import type { TransformerManager } from '../transformers';
+import type { CacheWarmer } from '../core/cache-warmer';
 import {
   ValidationError,
   NotFoundError,
@@ -22,6 +23,12 @@ import {
 import { createRoutingAPI } from './routing';
 import { createTransformersAPI } from './transformers';
 import { ChannelTester } from '../services/channel-tester';
+import { logRequest, logChannelOperation, logError } from '../utils/logger';
+import { providerRegistry } from '../providers';
+import { metrics } from '../core/metrics';
+import { getPrometheusMetricsResponse } from '../core/prometheus';
+import { tracer } from '../core/tracing';
+import { i18n } from '../i18n';
 
 export function createAPI(
   db: Database,
@@ -29,12 +36,36 @@ export function createAPI(
   loadBalancer: LoadBalancer,
   smartRouter?: SmartRouter,
   transformerManager?: TransformerManager,
+  cacheWarmer?: CacheWarmer,
 ): Hono {
   const app = new Hono();
   const channelTester = new ChannelTester();
 
   //// CORS middleware / CORS
   app.use('/*', cors());
+
+  //// Static file middleware with caching
+  // Cache static assets for 1 hour in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cacheMaxAge = isProduction ? 3600 : 0;
+
+  //// Serve dashboard static assets with caching
+  app.get('/dashboard/assets/*', async (c, next) => {
+    const response = await serveStatic({ root: './public' })(c, next);
+
+    if (response && isProduction) {
+      // Add cache headers for production
+      response.headers.set('Cache-Control', `public, max-age=${cacheMaxAge}`);
+
+      // Add ETag support
+      const etag = c.req.header('if-none-match');
+      if (etag) {
+        return new Response(null, { status: 304 });
+      }
+    }
+
+    return response;
+  });
 
   //// Serve dashboards
   // Enhanced dashboard with CRUD operations
@@ -228,6 +259,11 @@ export function createAPI(
       weight: body.weight,
     });
 
+    logChannelOperation('create', channel.name, {
+      type: channel.type,
+      models: channel.models.length,
+    });
+
     return c.json({ success: true, data: channel }, 201);
   });
 
@@ -237,16 +273,27 @@ export function createAPI(
     const body = await c.req.json();
 
     const channel = db.updateChannel(id, body);
+
+    logChannelOperation('update', channel.name, {
+      channelId: id,
+      updates: Object.keys(body),
+    });
+
     return c.json({ success: true, data: channel });
   });
 
   //// Delete channel
   app.delete('/api/channels/:id', (c) => {
     const id = c.req.param('id');
+    const channel = db.getChannel(id);
     const deleted = db.deleteChannel(id);
 
     if (!deleted) {
       throw new NotFoundError(`Channel ${id} not found`);
+    }
+
+    if (channel) {
+      logChannelOperation('delete', channel.name, { channelId: id });
     }
 
     return c.json({ success: true, message: 'Channel deleted' });
@@ -414,6 +461,28 @@ export function createAPI(
   }
 
   // ============================================================================
+  //// Providers API /  API
+  // ============================================================================
+
+  //// Get all providers info
+  app.get('/api/providers', (c) => {
+    const providers = providerRegistry.getAllProvidersInfo();
+    return c.json({ success: true, data: providers });
+  });
+
+  //// Get specific provider info
+  app.get('/api/providers/:type', (c) => {
+    const type = c.req.param('type') as any;
+    const provider = providerRegistry.getProviderInfo(type);
+
+    if (!provider) {
+      throw new NotFoundError(`Provider ${type} not found`);
+    }
+
+    return c.json({ success: true, data: provider });
+  });
+
+  // ============================================================================
   //// Load Balancer API /  API
   // ============================================================================
 
@@ -455,12 +524,302 @@ export function createAPI(
   });
 
   // ============================================================================
+  //// Tee Destinations API
+  // ============================================================================
+
+  //// List tee destinations
+  app.get('/api/tee', (c) => {
+    const destinations = db.getTeeDestinations();
+    return c.json({ success: true, data: destinations });
+  });
+
+  //// Get tee destination
+  app.get('/api/tee/:id', (c) => {
+    const id = c.req.param('id');
+    const destination = db.getTeeDestination(id);
+
+    if (!destination) {
+      throw new NotFoundError(`Tee destination ${id} not found`);
+    }
+
+    return c.json({ success: true, data: destination });
+  });
+
+  //// Create tee destination
+  app.post('/api/tee', async (c) => {
+    const body = await c.req.json();
+
+    //// Validate required fields
+    validateRequired(body, ['name', 'type']);
+    validateTypes(body, {
+      name: 'string',
+      type: 'string',
+      enabled: 'boolean',
+      url: 'string',
+      method: 'string',
+      filePath: 'string',
+      customHandler: 'string',
+      retries: 'number',
+      timeout: 'number',
+    });
+
+    const destination = db.createTeeDestination({
+      name: body.name,
+      type: body.type,
+      enabled: body.enabled,
+      url: body.url,
+      headers: body.headers,
+      method: body.method,
+      filePath: body.filePath,
+      customHandler: body.customHandler,
+      filter: body.filter,
+      retries: body.retries,
+      timeout: body.timeout,
+    });
+
+    // Update proxy engine's tee destinations
+    proxy.updateTeeDestinations();
+
+    return c.json({ success: true, data: destination }, 201);
+  });
+
+  //// Update tee destination
+  app.put('/api/tee/:id', async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    const destination = db.updateTeeDestination(id, body);
+
+    // Update proxy engine's tee destinations
+    proxy.updateTeeDestinations();
+
+    return c.json({ success: true, data: destination });
+  });
+
+  //// Delete tee destination
+  app.delete('/api/tee/:id', (c) => {
+    const id = c.req.param('id');
+    const deleted = db.deleteTeeDestination(id);
+
+    if (!deleted) {
+      throw new NotFoundError(`Tee destination ${id} not found`);
+    }
+
+    // Update proxy engine's tee destinations
+    proxy.updateTeeDestinations();
+
+    return c.json({ success: true, message: 'Tee destination deleted' });
+  });
+
+  // ============================================================================
+  //// Metrics API
+  // ============================================================================
+
+  //// Get metrics summary
+  app.get('/api/metrics', (c) => {
+    const summary = metrics.getSummary();
+    return c.json({ success: true, data: summary });
+  });
+
+  //// Get all metrics (detailed)
+  app.get('/api/metrics/all', (c) => {
+    const allMetrics = metrics.getAllMetrics();
+    return c.json({ success: true, data: allMetrics });
+  });
+
+  //// Reset metrics
+  app.post('/api/metrics/reset', (c) => {
+    metrics.reset();
+    return c.json({ success: true, message: 'Metrics reset' });
+  });
+
+  //// Prometheus metrics endpoint
+  app.get('/metrics', (c) => {
+    return getPrometheusMetricsResponse();
+  });
+
+  // ============================================================================
+  //// Tracing API
+  // ============================================================================
+
+  //// Get tracing statistics
+  app.get('/api/tracing/stats', (c) => {
+    const stats = tracer.getStats();
+    return c.json({ success: true, data: stats });
+  });
+
+  //// Get trace details by ID
+  app.get('/api/tracing/traces/:traceId', (c) => {
+    const traceId = c.req.param('traceId');
+    const spans = tracer.getTraceSpans(traceId);
+
+    if (spans.length === 0) {
+      throw new NotFoundError(`Trace ${traceId} not found`);
+    }
+
+    return c.json({ success: true, data: { traceId, spans } });
+  });
+
+  //// Get specific span
+  app.get('/api/tracing/spans/:spanId', (c) => {
+    const spanId = c.req.param('spanId');
+    const span = tracer.getSpan(spanId);
+
+    if (!span) {
+      throw new NotFoundError(`Span ${spanId} not found`);
+    }
+
+    return c.json({ success: true, data: span });
+  });
+
+  //// Clear old spans
+  app.post('/api/tracing/clear', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const olderThanMs = body.olderThanMs || 3600000; // Default 1 hour
+
+    const removedCount = tracer.clearOldSpans(olderThanMs);
+
+    return c.json({
+      success: true,
+      data: { removedCount, remainingSpans: tracer.getStats().totalSpans },
+    });
+  });
+
+  // ============================================================================
+  //// i18n API
+  // ============================================================================
+
+  //// Get current locale
+  app.get('/api/i18n/locale', (c) => {
+    return c.json({
+      success: true,
+      data: {
+        locale: i18n.getLocale(),
+        available: ['en', 'zh-CN'],
+      },
+    });
+  });
+
+  //// Set locale
+  app.put('/api/i18n/locale', async (c) => {
+    const body = await c.req.json();
+    const { locale } = body;
+
+    if (!locale || !['en', 'zh-CN'].includes(locale)) {
+      throw new ValidationError('Invalid locale. Must be one of: en, zh-CN');
+    }
+
+    i18n.setLocale(locale as 'en' | 'zh-CN');
+
+    return c.json({
+      success: true,
+      data: { locale },
+    });
+  });
+
+  // ============================================================================
+  //// Cache Warmer API / 缓存预热 API
+  // ============================================================================
+
+  if (cacheWarmer) {
+    //// Get cache warmer stats
+    app.get('/api/cache/stats', (c) => {
+      const stats = cacheWarmer.getStats();
+      return c.json({ success: true, data: stats });
+    });
+
+    //// Get cache warmer config
+    app.get('/api/cache/config', (c) => {
+      const config = cacheWarmer.getConfig();
+      return c.json({ success: true, data: config });
+    });
+
+    //// Update cache warmer config
+    app.put('/api/cache/config', async (c) => {
+      const body = await c.req.json();
+      cacheWarmer.updateConfig(body);
+      return c.json({ success: true, data: cacheWarmer.getConfig() });
+    });
+
+    //// Manually warm cache
+    app.post('/api/cache/warm', async (c) => {
+      const body = await c.req.json().catch(() => ({}));
+      const items = body.items;
+
+      await cacheWarmer.warmCache(items);
+
+      return c.json({
+        success: true,
+        data: cacheWarmer.getStats(),
+      });
+    });
+
+    //// Invalidate cache
+    app.post('/api/cache/invalidate', async (c) => {
+      const body = await c.req.json().catch(() => ({}));
+      const type = body.type;
+
+      cacheWarmer.invalidateCache(type);
+
+      return c.json({
+        success: true,
+        message: `Cache${type ? ` (${type})` : ''} invalidated`,
+      });
+    });
+
+    //// Invalidate and warm cache
+    app.post('/api/cache/invalidate-and-warm', async (c) => {
+      const body = await c.req.json().catch(() => ({}));
+      const type = body.type;
+
+      await cacheWarmer.invalidateAndWarm(type);
+
+      return c.json({
+        success: true,
+        data: cacheWarmer.getStats(),
+      });
+    });
+
+    //// Reset cache warmer stats
+    app.post('/api/cache/reset-stats', (c) => {
+      cacheWarmer.resetStats();
+      return c.json({
+        success: true,
+        message: 'Cache warmer stats reset',
+      });
+    });
+  }
+
+  // ============================================================================
   //// Proxy Endpoint
   // ============================================================================
 
   //// Forward all /v1/* requests to proxy /  /v1/*
   app.all('/v1/*', async (c) => {
-    return proxy.handle(c.req.raw);
+    const start = Date.now();
+    try {
+      const response = await proxy.handle(c.req.raw);
+      const duration = Date.now() - start;
+
+      logRequest({
+        method: c.req.method,
+        url: c.req.url,
+        status: response.status,
+        duration,
+      });
+
+      return response;
+    } catch (error) {
+      const duration = Date.now() - start;
+      logRequest({
+        method: c.req.method,
+        url: c.req.url,
+        status: 500,
+        duration,
+        error: error as Error,
+      });
+      throw error;
+    }
   });
 
   // ============================================================================
@@ -468,7 +827,7 @@ export function createAPI(
   // ============================================================================
 
   app.onError((err, c) => {
-    console.error('API Error:', err);
+    logError(err, { component: 'API', path: c.req.path });
 
     if (err instanceof RoutexError) {
       return c.json(

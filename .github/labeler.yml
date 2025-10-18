@@ -1,0 +1,35 @@
+# Configuration for auto-labeling PRs based on changed files
+
+'type: core':
+  - src/core/**/*
+  - src/db/**/*
+
+'type: api':
+  - src/api/**/*
+
+'type: providers':
+  - src/providers/**/*
+
+'type: transformers':
+  - src/transformers/**/*
+
+'type: dashboard':
+  - dashboard/**/*
+
+'type: docs':
+  - docs/**/*
+  - '*.md'
+
+'type: ci':
+  - .github/**/*
+
+'type: tests':
+  - '**/*.test.ts'
+  - '**/*.spec.ts'
+
+'type: config':
+  - src/config/**/*
+  - package.json
+  - bun.lock
+  - tsconfig.json
+  - biome.json

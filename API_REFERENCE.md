@@ -6,7 +6,11 @@
 - [Transformers API](#transformers-api)
 - [Channels API](#channels-api)
 - [Analytics API](#analytics-api)
+- [Load Balancer API](#load-balancer-api)
+- [Tracing API](#tracing-api)
 - [Health Check](#health-check)
+- [Proxy Endpoint](#proxy-endpoint)
+- [Error Responses](#error-responses)
 
 ---
 
@@ -393,6 +397,163 @@ Content-Type: application/json
   "strategy": "priority|round_robin|weighted|least_used"
 }
 ```
+
+---
+
+## Tracing API / 追踪 API
+
+### Get Tracing Statistics / 获取追踪统计
+
+```http
+GET /api/tracing/stats
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "totalSpans": 150,
+    "completed": 148,
+    "success": 145,
+    "error": 3,
+    "averageDuration": 234,
+    "maxSpans": 10000
+  }
+}
+```
+
+### Get Trace Details / 获取追踪详情
+
+Get all spans for a specific trace:
+获取特定追踪的所有 Spans：
+
+```http
+GET /api/tracing/traces/:traceId
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "traceId": "trace-1697123456789-abc123",
+    "spans": [
+      {
+        "traceId": "trace-1697123456789-abc123",
+        "spanId": "span-xyz789",
+        "parentSpanId": null,
+        "name": "proxy.handle",
+        "startTime": 1697123456789,
+        "endTime": 1697123458753,
+        "duration": 1964,
+        "status": "success",
+        "tags": {
+          "method": "POST",
+          "url": "http://localhost:8080/v1/messages",
+          "latency": 1960
+        },
+        "logs": []
+      },
+      {
+        "traceId": "trace-1697123456789-abc123",
+        "spanId": "span-abc123",
+        "parentSpanId": "span-xyz789",
+        "name": "proxy.forward",
+        "startTime": 1697123456799,
+        "endTime": 1697123458753,
+        "duration": 1954,
+        "status": "success",
+        "tags": {
+          "channel": "Test Channel",
+          "model": "claude-sonnet-4"
+        },
+        "logs": []
+      }
+    ]
+  }
+}
+```
+
+### Get Span Details / 获取 Span 详情
+
+Get details of a specific span:
+获取特定 Span 的详细信息：
+
+```http
+GET /api/tracing/spans/:spanId
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "traceId": "trace-1697123456789-abc123",
+    "spanId": "span-xyz789",
+    "parentSpanId": null,
+    "name": "proxy.handle",
+    "startTime": 1697123456789,
+    "endTime": 1697123458753,
+    "duration": 1964,
+    "status": "success",
+    "tags": {
+      "method": "POST",
+      "url": "http://localhost:8080/v1/messages"
+    },
+    "logs": [
+      {
+        "timestamp": 1697123456790,
+        "message": "Request parsed",
+        "level": "info"
+      }
+    ]
+  }
+}
+```
+
+### Clear Old Spans / 清理旧 Spans
+
+Clear spans older than specified time (default 1 hour):
+清理指定时间之前的 Spans（默认 1 小时）：
+
+```http
+POST /api/tracing/clear
+Content-Type: application/json
+
+{
+  "olderThanMs": 3600000
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "removedCount": 42,
+    "remainingSpans": 108
+  }
+}
+```
+
+**Trace Context Headers / 追踪上下文头**:
+
+When making requests, you can pass trace context headers:
+发送请求时，可以传递追踪上下文头：
+
+- `X-Trace-Id`: Custom trace ID (optional) / 自定义追踪 ID（可选）
+- `X-Span-Id`: Custom span ID (optional) / 自定义 Span ID（可选）
+- `X-Parent-Span-Id`: Parent span ID (optional) / 父 Span ID（可选）
+- `traceparent`: W3C Trace Context format (optional) / W3C 追踪上下文格式（可选）
+
+**Response Trace Headers / 响应追踪头**:
+
+All proxy responses include trace headers:
+所有代理响应都包含追踪头：
+
+- `X-Trace-Id`: Trace ID for this request / 本次请求的追踪 ID
+- `X-Span-Id`: Root span ID / 根 Span ID
 
 ---
 

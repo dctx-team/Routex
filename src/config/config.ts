@@ -48,6 +48,10 @@ export class ConfigManager {
         enabled: true,
         password: process.env.DASHBOARD_PASSWORD,
       },
+      i18n: {
+        locale: (process.env.LOCALE as 'en' | 'zh-CN') || 'en',
+        fallback: 'en',
+      },
       firstRun: !existsSync(join(dataDir, 'routex.db')),
     };
   }

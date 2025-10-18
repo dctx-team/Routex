@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+npm-debug.log
+bun.lockb.tmp
+
+# Build outputs
+dist
+dashboard/dist
+dashboard/node_modules
+
+# Data and logs
+data
+*.log
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Development
+.env
+.env.local
+.env.*.local
+
+# Version control
+.git
+.gitignore
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Testing
+coverage
+.nyc_output
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs
+*.md
+!README.md
+
+# CI/CD
+.github/workflows

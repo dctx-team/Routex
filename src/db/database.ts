@@ -13,7 +13,11 @@ import type {
   RoutingRule,
   CreateRoutingRuleInput,
   UpdateRoutingRuleInput,
+  TeeDestination,
+  CreateTeeDestinationInput,
+  UpdateTeeDestinationInput,
 } from '../types';
+import { logger } from '../utils/logger';
 
 export class Database {
   private db: BunSQLite;
@@ -52,8 +56,11 @@ export class Database {
     if (version < 3) {
       this.migrateV3();
     }
+    if (version < 4) {
+      this.migrateV4();
+    }
 
-    this.setVersion(3);
+    this.setVersion(4);
   }
 
   private getVersion(): number {
@@ -154,6 +161,32 @@ export class Database {
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_priority ON routing_rules(priority DESC)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_enabled ON routing_rules(enabled)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_type ON routing_rules(type)');
+  }
+
+  private migrateV4() {
+    //// Tee destinations table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS tee_destinations (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        url TEXT,
+        headers TEXT,
+        method TEXT,
+        file_path TEXT,
+        custom_handler TEXT,
+        filter TEXT,
+        retries INTEGER DEFAULT 3,
+        timeout INTEGER DEFAULT 5000,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+
+    //// Indexes for tee destinations
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_tee_destinations_enabled ON tee_destinations(enabled)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_tee_destinations_type ON tee_destinations(type)');
   }
 
   // ============================================================================
@@ -574,7 +607,11 @@ export class Database {
     }
 
     if (cleaned > 0) {
-      console.log(`🧹 Cleaned ${cleaned} expired cache entries`);
+      logger.debug({
+        cleaned,
+        channelCacheSize: this.channelCache.size,
+        singleChannelCacheSize: this.singleChannelCache.size,
+      }, `🧹 Cleaned ${cleaned} expired cache entries`);
     }
   }
 
@@ -602,7 +639,7 @@ export class Database {
   clearAllCaches() {
     this.invalidateChannelCache();
     this.routingRuleCache = null;
-    console.log('✅ All caches cleared');
+    logger.info('✅ All caches cleared');
   }
 
   // ============================================================================
@@ -746,5 +783,137 @@ export class Database {
     } catch {
       return false;
     }
+  }
+
+  // ============================================================================
+  //// Tee Destination Operations
+  // ============================================================================
+
+  createTeeDestination(input: CreateTeeDestinationInput): TeeDestination {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+
+    const query = this.db.prepare(`
+      INSERT INTO tee_destinations (
+        id, name, type, enabled, url, headers, method, file_path, custom_handler, filter, retries, timeout, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    query.run(
+      id,
+      input.name,
+      input.type,
+      input.enabled !== false ? 1 : 0,
+      input.url || null,
+      input.headers ? JSON.stringify(input.headers) : null,
+      input.method || null,
+      input.filePath || null,
+      input.customHandler || null,
+      input.filter ? JSON.stringify(input.filter) : null,
+      input.retries ?? 3,
+      input.timeout ?? 5000,
+      now,
+      now
+    );
+
+    return this.getTeeDestination(id)!;
+  }
+
+  getTeeDestination(id: string): TeeDestination | null {
+    const query = this.db.prepare('SELECT * FROM tee_destinations WHERE id = ?');
+    const row = query.get(id) as any;
+    return row ? this.mapTeeDestinationRow(row) : null;
+  }
+
+  getTeeDestinations(): TeeDestination[] {
+    const query = this.db.query('SELECT * FROM tee_destinations ORDER BY name ASC');
+    const rows = query.all() as any[];
+    return rows.map(row => this.mapTeeDestinationRow(row));
+  }
+
+  getEnabledTeeDestinations(): TeeDestination[] {
+    const query = this.db.query('SELECT * FROM tee_destinations WHERE enabled = 1 ORDER BY name ASC');
+    const rows = query.all() as any[];
+    return rows.map(row => this.mapTeeDestinationRow(row));
+  }
+
+  updateTeeDestination(id: string, input: UpdateTeeDestinationInput): TeeDestination {
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (input.name !== undefined) {
+      updates.push('name = ?');
+      values.push(input.name);
+    }
+    if (input.enabled !== undefined) {
+      updates.push('enabled = ?');
+      values.push(input.enabled ? 1 : 0);
+    }
+    if (input.url !== undefined) {
+      updates.push('url = ?');
+      values.push(input.url);
+    }
+    if (input.headers !== undefined) {
+      updates.push('headers = ?');
+      values.push(JSON.stringify(input.headers));
+    }
+    if (input.method !== undefined) {
+      updates.push('method = ?');
+      values.push(input.method);
+    }
+    if (input.filePath !== undefined) {
+      updates.push('file_path = ?');
+      values.push(input.filePath);
+    }
+    if (input.customHandler !== undefined) {
+      updates.push('custom_handler = ?');
+      values.push(input.customHandler);
+    }
+    if (input.filter !== undefined) {
+      updates.push('filter = ?');
+      values.push(JSON.stringify(input.filter));
+    }
+    if (input.retries !== undefined) {
+      updates.push('retries = ?');
+      values.push(input.retries);
+    }
+    if (input.timeout !== undefined) {
+      updates.push('timeout = ?');
+      values.push(input.timeout);
+    }
+
+    updates.push('updated_at = ?');
+    values.push(Date.now());
+    values.push(id);
+
+    const query = this.db.prepare(`UPDATE tee_destinations SET ${updates.join(', ')} WHERE id = ?`);
+    query.run(...values);
+
+    return this.getTeeDestination(id)!;
+  }
+
+  deleteTeeDestination(id: string): boolean {
+    const query = this.db.prepare('DELETE FROM tee_destinations WHERE id = ?');
+    const result = query.run(id);
+    return result.changes > 0;
+  }
+
+  private mapTeeDestinationRow(row: any): TeeDestination {
+    return {
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      enabled: row.enabled === 1,
+      url: row.url || undefined,
+      headers: row.headers ? JSON.parse(row.headers) : undefined,
+      method: row.method || undefined,
+      filePath: row.file_path || undefined,
+      customHandler: row.custom_handler || undefined,
+      filter: row.filter ? JSON.parse(row.filter) : undefined,
+      retries: row.retries,
+      timeout: row.timeout,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 }

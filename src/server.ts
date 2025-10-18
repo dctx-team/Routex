@@ -7,49 +7,58 @@ import { serve } from 'bun';
 import { Database } from './db/database';
 import { LoadBalancer } from './core/loadbalancer';
 import { ProxyEngine } from './core/proxy';
+import { CacheWarmer } from './core/cache-warmer';
 import { createAPI } from './api/routes';
 import { ConfigManager } from './config/config';
 import { SmartRouter } from './core/routing/smart-router';
 import { createTransformerManager } from './transformers';
+import { logger, logStartup, logShutdown, log } from './utils/logger';
+import { metrics } from './core/metrics';
+import { i18n, t } from './i18n';
+import { en, zhCN } from './i18n/locales';
 
 async function main() {
-  console.log('🎯 Starting Routex...');
-  console.log('🎯 启动 Routex...\n');
+  //// Initialize i18n
+  i18n.addTranslations('en', en);
+  i18n.addTranslations('zh-CN', zhCN);
 
   //// Load configuration
   const configManager = ConfigManager.getInstance();
   const config = configManager.getConfig();
 
+  //// Set locale from config
+  i18n.setLocale(config.i18n.locale);
+
+  log.info(t('server.starting'));
+
   //// Initialize database
-  console.log('📦 Initializing database...');
-  console.log('📦 初始化数据库...');
+  log.info(t('init.database'));
   const db = new Database(config.database.path);
 
   //// Initialize load balancer
-  console.log('⚖️  Initializing load balancer...');
-  console.log('⚖️  初始化负载均衡器...');
+  log.info(t('init.loadBalancer'));
   const loadBalancer = new LoadBalancer(config.strategy);
 
   //// Initialize SmartRouter
-  console.log('🧠 Initializing SmartRouter...');
-  console.log('🧠 初始化智能路由器...');
+  log.info(t('init.smartRouter'));
   const routingRules = db.getEnabledRoutingRules();
   const smartRouter = new SmartRouter(routingRules);
 
   //// Initialize TransformerManager / Transformer
-  console.log('🔄 Initializing TransformerManager...');
-  console.log('🔄 初始化Transformer管理器...');
+  log.info(t('init.transformers'));
   const transformerManager = createTransformerManager();
 
   //// Initialize proxy engine
-  console.log('🔀 Initializing proxy engine...');
-  console.log('🔀 初始化代理引擎...');
+  log.info(t('init.proxy'));
   const proxy = new ProxyEngine(db, loadBalancer, smartRouter, transformerManager);
 
+  //// Initialize cache warmer
+  log.info('🔥 Initializing cache warmer...');
+  const cacheWarmer = new CacheWarmer(db, loadBalancer);
+
   // Create API
-  console.log('🛣️  Setting up routes...');
-  console.log('🛣️  设置路由...');
-  const app = createAPI(db, proxy, loadBalancer, smartRouter, transformerManager);
+  log.info(t('init.routes'));
+  const app = createAPI(db, proxy, loadBalancer, smartRouter, transformerManager, cacheWarmer);
 
   //// Start server
   const server = serve({
@@ -58,33 +67,42 @@ async function main() {
     fetch: app.fetch,
   });
 
-  console.log('\n✅ Routex is running! / Routex 正在运行！\n');
-  console.log(`🌐 Server: http://${config.server.host}:${config.server.port}`);
-  console.log(`🎨 Dashboard: http://${config.server.host}:${config.server.port}/dashboard`);
-  console.log(`📊 API: http://${config.server.host}:${config.server.port}/api`);
-  console.log(`🏥 Health: http://${config.server.host}:${config.server.port}/health`);
-  console.log(`🔀 Proxy: http://${config.server.host}:${config.server.port}/v1/messages`);
-  console.log(`\n⚖️  Load Balance Strategy: ${config.strategy}`);
-  console.log(`⚖️  负载均衡策略: ${config.strategy}`);
-  console.log(`🧠 Routing Rules: ${routingRules.length} enabled`);
-  console.log(`🧠 路由规则: ${routingRules.length} 条已启用`);
-  console.log(`🔄 Transformers: ${transformerManager.list().length} available`);
-  console.log(`🔄 Transformers: ${transformerManager.list().length} 个可用\n`);
+  // Log startup info
+  logStartup({
+    port: config.server.port,
+    version: '1.1.0-beta',
+    channels: db.getChannels().length,
+    strategy: config.strategy,
+  });
+
+  logger.info({
+    urls: {
+      server: `http://${config.server.host}:${config.server.port}`,
+      dashboard: `http://${config.server.host}:${config.server.port}/dashboard`,
+      api: `http://${config.server.host}:${config.server.port}/api`,
+      health: `http://${config.server.host}:${config.server.port}/health`,
+      proxy: `http://${config.server.host}:${config.server.port}/v1/messages`,
+    },
+    loadBalancer: {
+      strategy: config.strategy,
+    },
+    routing: {
+      rules: routingRules.length,
+    },
+    transformers: {
+      available: transformerManager.list().length,
+    },
+  }, t('server.running'));
 
   //// Check if first run
   if (configManager.isFirstRun()) {
-    console.log('👋 Welcome to Routex!');
-    console.log('👋 欢迎使用 Routex！\n');
-    console.log('💡 This is your first time running Routex.');
-    console.log('💡 这是您第一次运行 Routex。\n');
-    console.log('📖 To get started:');
-    console.log('📖 开始使用：');
-    console.log('   1. Create your first channel:');
-    console.log('      创建您的第一个渠道：');
-    console.log(`      POST http://${config.server.host}:${config.server.port}/api/channels\n`);
-    console.log('   2. Check the API documentation:');
-    console.log('      查看 API 文档：');
-    console.log('      https://github.com/dctx-team/Routex/blob/main/docs/api.md\n');
+    log.info(t('server.firstRun'));
+    logger.info({
+      gettingStarted: {
+        step1: `POST http://${config.server.host}:${config.server.port}/api/channels`,
+        step2: 'https://github.com/dctx-team/Routex/blob/main/docs/api.md',
+      },
+    }, t('gettingStarted.title'));
 
     configManager.markFirstRunComplete();
   }
@@ -93,28 +111,39 @@ async function main() {
   const channels = db.getChannels();
   const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
 
-  console.log(`📡 Total Channels: ${channels.length}`);
-  console.log(`📡 渠道总数: ${channels.length}`);
-  console.log(`✅ Enabled Channels: ${enabledChannels.length}`);
-  console.log(`✅ 启用的渠道: ${enabledChannels.length}\n`);
+  //// Initialize channel metrics
+  metrics.setGauge('routex_channels_total', channels.length);
+  metrics.setGauge('routex_channels_enabled', enabledChannels.length);
+
+  logger.info({
+    channels: {
+      total: channels.length,
+      enabled: enabledChannels.length,
+      disabled: channels.length - enabledChannels.length,
+    },
+  }, t('analytics.channelStats'));
 
   if (enabledChannels.length === 0) {
-    console.log('⚠️  Warning: No enabled channels found!');
-    console.log('⚠️  警告：未找到启用的渠道！');
-    console.log('   Add a channel to start routing requests.');
-    console.log('   添加渠道以开始路由请求。\n');
+    log.warn(t('server.noChannels'));
   }
 
+  //// Start cache warmer
+  await cacheWarmer.start();
+
   //// Graceful shutdown
-  const shutdown = () => {
-    console.log('\n🛑 Shutting down Routex...');
-    console.log('🛑 关闭 Routex...');
+  const shutdown = async () => {
+    logShutdown(t('server.shutdown'));
+
+    //// Stop cache warmer
+    await cacheWarmer.stop();
+
+    //// Shutdown proxy engine (flushes tee stream)
+    await proxy.shutdown();
 
     db.close();
     server.stop();
 
-    console.log('✅ Shutdown complete');
-    console.log('✅ 关闭完成');
+    log.info(t('server.shutdownComplete'));
     process.exit(0);
   };
 
@@ -124,7 +153,12 @@ async function main() {
 
 //// Start server
 main().catch((error) => {
-  console.error('❌ Failed to start Routex:', error);
-  console.error('❌ 启动 Routex 失败:', error);
+  logger.fatal({
+    error: {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    },
+  }, '❌ Failed to start Routex');
   process.exit(1);
 });

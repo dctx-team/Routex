@@ -1,0 +1,65 @@
+# Docker Compose configuration for Routex
+# Routex 的 Docker Compose 配置
+
+version: '3.8'
+
+services:
+  routex:
+    image: routex:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: routex
+    restart: unless-stopped
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      # Server configuration / 服务器配置
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+
+      # Database / 数据库
+      DATABASE_PATH: /app/data/routex.db
+
+      # Logging / 日志
+      LOG_LEVEL: info
+      LOG_SENSITIVE_DATA: "false"
+
+      # Security / 安全
+      # ⚠️ IMPORTANT: Change these in production!
+      # ⚠️ 重要：生产环境中必须修改这些值！
+      MASTER_PASSWORD: ${MASTER_PASSWORD:-change-me-in-production}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-}
+      SIGNATURE_SECRET: ${SIGNATURE_SECRET:-change-me-in-production}
+
+      # CORS / 跨域
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+
+    volumes:
+      # Persist database / 持久化数据库
+      - routex-data:/app/data
+      # Persist logs / 持久化日志
+      - routex-logs:/app/logs
+
+    networks:
+      - routex-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  routex-data:
+    driver: local
+  routex-logs:
+    driver: local
+
+networks:
+  routex-network:
+    driver: bridge

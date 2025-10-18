@@ -140,6 +140,10 @@ export interface Config {
     enabled: boolean;
     password?: string;
   };
+  i18n: {
+    locale: 'en' | 'zh-CN';
+    fallback: 'en';
+  };
   firstRun: boolean;
 }
 
@@ -289,4 +293,103 @@ export interface Tool {
   name: string;
   description?: string;
   input_schema: Record<string, any>;
+}
+
+//// Tee Stream Types
+// ============================================================================
+
+export type TeeDestinationType = 'http' | 'file' | 'webhook' | 'custom';
+
+export interface TeeDestination {
+  id: string;
+  name: string;
+  type: TeeDestinationType;
+  enabled: boolean;
+  //// HTTP/Webhook configuration
+  url?: string;
+  headers?: Record<string, string>;
+  method?: string;
+  //// File configuration
+  filePath?: string;
+  //// Custom handler
+  customHandler?: string; //// Path to custom handler function
+  //// Filtering
+  filter?: TeeFilter;
+  //// Retry configuration
+  retries?: number;
+  timeout?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TeeFilter {
+  //// Only tee requests matching these channels
+  channels?: string[];
+  //// Only tee requests matching these models
+  models?: string[];
+  //// Only tee requests with status codes in this range
+  statusCodes?: number[];
+  //// Only tee successful requests
+  successOnly?: boolean;
+  //// Only tee failed requests
+  failureOnly?: boolean;
+  //// Sample rate (0.0 to 1.0)
+  sampleRate?: number;
+}
+
+export interface TeePayload {
+  id: string;
+  timestamp: number;
+  channel: {
+    id: string;
+    name: string;
+    type: ChannelType;
+  };
+  request: {
+    method: string;
+    path: string;
+    model?: string;
+    body?: unknown;
+    headers: Record<string, string>;
+  };
+  response: {
+    status: number;
+    body?: unknown;
+    headers: Record<string, string>;
+    latency: number;
+  };
+  tokens: {
+    input: number;
+    output: number;
+    cached: number;
+  };
+  success: boolean;
+  error?: string;
+}
+
+export interface CreateTeeDestinationInput {
+  name: string;
+  type: TeeDestinationType;
+  enabled?: boolean;
+  url?: string;
+  headers?: Record<string, string>;
+  method?: string;
+  filePath?: string;
+  customHandler?: string;
+  filter?: TeeFilter;
+  retries?: number;
+  timeout?: number;
+}
+
+export interface UpdateTeeDestinationInput {
+  name?: string;
+  enabled?: boolean;
+  url?: string;
+  headers?: Record<string, string>;
+  method?: string;
+  filePath?: string;
+  customHandler?: string;
+  filter?: TeeFilter;
+  retries?: number;
+  timeout?: number;
 }

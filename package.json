@@ -37,7 +37,9 @@
     "cli": "bun run src/cli/model-selector.ts"
   },
   "dependencies": {
-    "hono": "^4.0.0"
+    "hono": "^4.0.0",
+    "pino": "^10.0.0",
+    "pino-pretty": "^13.1.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
