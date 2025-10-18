@@ -8,11 +8,11 @@ primary_region = "sjc"
   builder = "dockerfile"
 
 [env]
-  PORT = "8080"
+  PORT = "3000"
   LOAD_BALANCE_STRATEGY = "priority"
 
 [[services]]
-  internal_port = 8080
+  internal_port = 3000
   protocol = "tcp"
   auto_stop_machines = true
   auto_start_machines = true

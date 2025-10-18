@@ -231,7 +231,7 @@ POST /api/cache/reset-stats
 
 ```bash
 # 1. 
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H Content-Type: application/json \
   -d '{
     name: New Channel,
@@ -241,19 +241,19 @@ curl -X POST http://localhost:8080/api/channels \
   }'
 
 # 2. 
-curl -X POST http://localhost:8080/api/cache/invalidate-and-warm \
+curl -X POST http://localhost:3000/api/cache/invalidate-and-warm \
   -H Content-Type: application/json \
   -d '{type: channels}'
 
 # 3. 
-curl http://localhost:8080/api/cache/stats
+curl http://localhost:3000/api/cache/stats
 ```
 
 ###  2
 
 ```bash
 #  2 
-curl -X PUT http://localhost:8080/api/cache/config \
+curl -X PUT http://localhost:3000/api/cache/config \
   -H Content-Type: application/json \
   -d '{
     backgroundRefresh: {
@@ -267,12 +267,12 @@ curl -X PUT http://localhost:8080/api/cache/config \
 
 ```bash
 # 
-curl -X PUT http://localhost:8080/api/cache/config \
+curl -X PUT http://localhost:3000/api/cache/config \
   -H Content-Type: application/json \
   -d '{enabled: false}'
 
 # 
-curl -X PUT http://localhost:8080/api/cache/config \
+curl -X PUT http://localhost:3000/api/cache/config \
   -H Content-Type: application/json \
   -d '{enabled: true}'
 ```
@@ -281,7 +281,7 @@ curl -X PUT http://localhost:8080/api/cache/config \
 
 ```bash
 # 
-watch -n 10 'curl -s http://localhost:8080/api/cache/stats | jq .data | {warms: .totalWarms, duration: .lastWarmDuration, items: .itemsCached}'
+watch -n 10 'curl -s http://localhost:3000/api/cache/stats | jq .data | {warms: .totalWarms, duration: .lastWarmDuration, items: .itemsCached}'
 ```
 
 ```json
@@ -438,10 +438,10 @@ metrics.incrementCounter('routex_cache_invalidation_total', 1, { type });
 tail -f logs/routex.log | grep Cache
 
 # 2. 
-curl http://localhost:8080/api/cache/config
+curl http://localhost:3000/api/cache/config
 
 # 3. 
-curl -X POST http://localhost:8080/api/cache/warm
+curl -X POST http://localhost:3000/api/cache/warm
 ```
 
 ###  2
@@ -451,10 +451,10 @@ curl -X POST http://localhost:8080/api/cache/warm
 ****
 ```bash
 # 
-curl http://localhost:8080/api/cache/config | jq '.data.backgroundRefresh'
+curl http://localhost:3000/api/cache/config | jq '.data.backgroundRefresh'
 
 #  enabled: false
-curl -X PUT http://localhost:8080/api/cache/config \
+curl -X PUT http://localhost:3000/api/cache/config \
   -H Content-Type: application/json \
   -d '{backgroundRefresh: {enabled: true}}'
 ```
@@ -466,12 +466,12 @@ curl -X PUT http://localhost:8080/api/cache/config \
 ****
 ```bash
 #  1
-curl -X POST http://localhost:8080/api/cache/invalidate-and-warm
+curl -X POST http://localhost:3000/api/cache/invalidate-and-warm
 
 #  2 5 
 
 #  3
-curl -X PUT http://localhost:8080/api/cache/config \
+curl -X PUT http://localhost:3000/api/cache/config \
   -H Content-Type: application/json \
   -d '{backgroundRefresh: {intervalMs: 60000}}'  // 1 
 ```
@@ -537,7 +537,7 @@ groups:
 
 ```bash
 # 
-curl -s http://localhost:8080/api/cache/stats | \
+curl -s http://localhost:3000/api/cache/stats | \
   jq '{
     totalWarms: .data.totalWarms,
     avgDuration: .data.lastWarmDuration,

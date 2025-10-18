@@ -447,7 +447,7 @@ GET /api/tracing/traces/:traceId
         status: success,
         tags: {
           method: POST,
-          url: http://localhost:8080/v1/messages,
+          url: http://localhost:3000/v1/messages,
           latency: 1960
         },
         logs: 
@@ -496,7 +496,7 @@ GET /api/tracing/spans/:spanId
     status: success,
     tags: {
       method: POST,
-      url: http://localhost:8080/v1/messages
+      url: http://localhost:3000/v1/messages
     },
     logs: [
       {

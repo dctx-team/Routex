@@ -398,7 +398,7 @@ bun run start
 docker build -t routex .
 
 # 
-docker run -d -p 8080:8080 \
+docker run -d -p 3000:3000 \
   -v $(pwd)/data:/data \
   -e LOCALE=zh-CN \
   routex
@@ -446,7 +446,7 @@ docker run -d -p 8080:8080 \
 
 ### 
 ```bash
-PORT=8080                    # 
+PORT=3000                    # 
 LOCALE=zh-CN                 # 
 LOAD_BALANCE_STRATEGY=priority  # 
 DASHBOARD_PASSWORD=secret    # Dashboard 

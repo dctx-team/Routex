@@ -267,7 +267,7 @@ Routex
 **1. **
 
 ```bash
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H Content-Type: application/json \
   -d '{
     name: OpenRouter Claude,
@@ -284,7 +284,7 @@ curl -X POST http://localhost:8080/api/channels \
 **2. **
 
 ```bash
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H Content-Type: application/json \
   -H x-api-key: your-routex-api-key \
   -d '{
@@ -341,7 +341,7 @@ const assistantMessage = {
 const toolResult = getWeather(assistantMessage.content[0].input.location);
 
 // 
-const response = await fetch('http://localhost:8080/v1/messages', {
+const response = await fetch('http://localhost:3000/v1/messages', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -424,7 +424,7 @@ import anthropic
 #  Routex 
 client = anthropic.Anthropic(
     api_key=your-routex-api-key,
-    base_url=http://localhost:8080
+    base_url=http://localhost:3000
 )
 
 tools = [
@@ -612,7 +612,7 @@ Routex  transformer
  transformer 
 
 ```bash
-curl -X POST http://localhost:8080/api/transformers/test \
+curl -X POST http://localhost:3000/api/transformers/test \
   -H Content-Type: application/json \
   -d '{
     transformer: openai,

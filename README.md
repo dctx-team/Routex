@@ -113,7 +113,7 @@ Route long-context requests to Gemini automatically:
 Gemini
 
 ```bash
-curl -X POST http://localhost:8080/api/routing/rules \
+curl -X POST http://localhost:3000/api/routing/rules \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Long Context to Gemini",
@@ -131,7 +131,7 @@ Route code review tasks to Claude Opus:
 Claude Opus
 
 ```bash
-curl -X POST http://localhost:8080/api/routing/rules \
+curl -X POST http://localhost:3000/api/routing/rules \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Code Review Tasks",
@@ -152,7 +152,7 @@ Use OpenRouter with automatic format conversion:
 OpenRouter
 
 ```bash
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H "Content-Type: application/json" \
   -d '{
     "name": "OpenRouter Channel",
@@ -169,7 +169,7 @@ curl -X POST http://localhost:8080/api/channels \
 ### Testing Transformers /  Transformers
 
 ```bash
-curl -X POST http://localhost:8080/api/transformers/test \
+curl -X POST http://localhost:3000/api/transformers/test \
   -H "Content-Type: application/json" \
   -d '{
     "transformer": "openai",

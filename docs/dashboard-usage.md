@@ -4,7 +4,7 @@ Routex  Web
 
 ## 🚀 
 
-**** `http://localhost:8080/dashboard/enhanced`
+**** `http://localhost:3000/dashboard/enhanced`
 
 ### 
 
@@ -58,7 +58,7 @@ Routex  Web
 
 ## 📊 
 
-**** `http://localhost:8080/dashboard`
+**** `http://localhost:3000/dashboard`
 - API 
 
 **** 
@@ -127,7 +127,7 @@ claude-3-haiku-20240307
 
 ### 
 -  Routex 
--  8080
+-  3000
 ### API
 -  API 
 -  Network 

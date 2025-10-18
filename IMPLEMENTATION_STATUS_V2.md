@@ -223,7 +223,7 @@ ALTER TABLE channels ADD COLUMN transformers TEXT;  -- JSON
 - `POST /api/routing/test`
 
 ```bash
-curl -X POST http://localhost:8080/api/routing/rules \
+curl -X POST http://localhost:3000/api/routing/rules \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Long Context to Gemini",
@@ -236,9 +236,9 @@ curl -X POST http://localhost:8080/api/routing/rules \
     "priority": 100
   }'
 
-curl http://localhost:8080/api/routing/rules
+curl http://localhost:3000/api/routing/rules
 
-curl -X POST http://localhost:8080/api/routing/rules/{id}/enable
+curl -X POST http://localhost:3000/api/routing/rules/{id}/enable
 ```
 
 ### 5. Transformers API / Transformers API
@@ -250,10 +250,10 @@ curl -X POST http://localhost:8080/api/routing/rules/{id}/enable
 
 ```bash
 # transformers
-curl http://localhost:8080/api/transformers
+curl http://localhost:3000/api/transformers
 
 # transformer
-curl -X POST http://localhost:8080/api/transformers/test \
+curl -X POST http://localhost:3000/api/transformers/test \
   -H "Content-Type: application/json" \
   -d '{
     "transformer": "openai",
@@ -519,7 +519,7 @@ Transformer
 ```bash
 bun start
 
-curl -X POST http://localhost:8080/api/routing/rules \
+curl -X POST http://localhost:3000/api/routing/rules \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Long Context",
@@ -530,7 +530,7 @@ curl -X POST http://localhost:8080/api/routing/rules \
   }'
 
 # 3. Transformer
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H "Content-Type: application/json" \
   -d '{
     "name": "OpenRouter",
@@ -543,7 +543,7 @@ curl -X POST http://localhost:8080/api/channels \
     }
   }'
 
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H "Content-Type: application/json" \
   -d '{
     "model": "claude-opus-4",

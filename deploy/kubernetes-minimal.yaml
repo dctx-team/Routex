@@ -43,13 +43,13 @@ spec:
         args: ["bun run dist/server.js"]
         env:
         - name: PORT
-          value: "8080"
+          value: "3000"
         - name: HOST
           value: "0.0.0.0"
         - name: DB_PATH
           value: "/data/routex.db"
         ports:
-        - containerPort: 8080
+        - containerPort: 3000
         volumeMounts:
         - name: data
           mountPath: /data
@@ -76,5 +76,5 @@ spec:
   selector:
     app: routex
   ports:
-  - port: 8080
-    targetPort: 8080
+  - port: 3000
+    targetPort: 3000

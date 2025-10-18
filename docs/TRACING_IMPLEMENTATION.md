@@ -57,7 +57,7 @@ Each span tracks:
 
 ### Get Tracing Statistics
 ```bash
-curl http://localhost:8080/api/tracing/stats
+curl http://localhost:3000/api/tracing/stats
 ```
 
 **Response:**
@@ -78,7 +78,7 @@ curl http://localhost:8080/api/tracing/stats
 ### Get All Spans for a Trace /  Spans
 
 ```bash
-curl http://localhost:8080/api/tracing/traces/trace-1697123456789-abc123
+curl http://localhost:3000/api/tracing/traces/trace-1697123456789-abc123
 ```
 
 **Response:**
@@ -99,7 +99,7 @@ curl http://localhost:8080/api/tracing/traces/trace-1697123456789-abc123
         status: success,
         tags: {
           method: POST,
-          url: http://localhost:8080/v1/messages,
+          url: http://localhost:3000/v1/messages,
           latency: 1960
         },
         logs: 
@@ -112,13 +112,13 @@ curl http://localhost:8080/api/tracing/traces/trace-1697123456789-abc123
 ### Get Specific Span /  Span
 
 ```bash
-curl http://localhost:8080/api/tracing/spans/span-xyz789
+curl http://localhost:3000/api/tracing/spans/span-xyz789
 ```
 
 ### Clear Old Spans /  Spans
 
 ```bash
-curl -X POST http://localhost:8080/api/tracing/clear \
+curl -X POST http://localhost:3000/api/tracing/clear \
   -H Content-Type: application/json \
   -d '{olderThanMs: 3600000}'
 ```
@@ -140,7 +140,7 @@ Make a request and check its trace:
 
 ```bash
 # Make a request with a custom trace ID
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H Content-Type: application/json \
   -H X-Trace-Id: my-custom-trace-001 \
   -d '{
@@ -150,7 +150,7 @@ curl -X POST http://localhost:8080/v1/messages \
   }'
 
 # Check the trace
-curl http://localhost:8080/api/tracing/traces/my-custom-trace-001
+curl http://localhost:3000/api/tracing/traces/my-custom-trace-001
 ```
 
 ### Example 2: Distributed Tracing Across Services
@@ -161,13 +161,13 @@ If you have multiple services, you can propagate the trace context:
 TRACE_ID=trace-$(date +%s)-$(openssl rand -hex 8)
 
 # Service A calls Routex
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H X-Trace-Id: $TRACE_ID \
   -H X-Parent-Span-Id: service-a-span-123 \
   -d '...'
 
 # Later, query the trace to see the complete flow
-curl http://localhost:8080/api/tracing/traces/$TRACE_ID
+curl http://localhost:3000/api/tracing/traces/$TRACE_ID
 ```
 
 ### Example 3: Performance Analysis
@@ -176,7 +176,7 @@ Analyze request performance by examining span durations:
 
 ```bash
 # Get trace
-curl http://localhost:8080/api/tracing/traces/trace-001 | \
+curl http://localhost:3000/api/tracing/traces/trace-001 | \
   jq '.data.spans | {name: .name, duration: .duration}'
 ```
 
@@ -261,7 +261,7 @@ Set up a cron job to clean old spans:
 
 ```bash
 # Every hour, clean spans older than 2 hours
-0 * * * * curl -X POST http://localhost:8080/api/tracing/clear \
+0 * * * * curl -X POST http://localhost:3000/api/tracing/clear \
   -H Content-Type: application/json \
   -d '{olderThanMs: 7200000}'
 ```
@@ -282,7 +282,7 @@ tracer.addTags(spanId, {
 Regularly check tracing statistics:
 
 ```bash
-curl http://localhost:8080/api/tracing/stats | \
+curl http://localhost:3000/api/tracing/stats | \
   jq '.data | {spans: .totalSpans, errors: .error, avgDuration: .averageDuration}'
 ```
 
@@ -294,11 +294,11 @@ Tracing data can be used to enhance Prometheus metrics:
 
 ```bash
 # Get average request duration from tracing
-curl http://localhost:8080/api/tracing/stats | \
+curl http://localhost:3000/api/tracing/stats | \
   jq '.data.averageDuration'
 
 # Compare with Prometheus metrics
-curl http://localhost:8080/metrics | \
+curl http://localhost:3000/metrics | \
   grep routex_request_duration
 ```
 
@@ -319,13 +319,13 @@ You can build a Grafana dashboard that:
 
 ```bash
 # Make a test request
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H X-Trace-Id: test-trace-001 \
   -H Content-Type: application/json \
   -d '{...}'
 
 # Check stats
-curl http://localhost:8080/api/tracing/stats
+curl http://localhost:3000/api/tracing/stats
 
 # If totalSpans is 0, check server logs
 ```
@@ -336,7 +336,7 @@ curl http://localhost:8080/api/tracing/stats
 
 ```bash
 # Clean spans older than 30 minutes
-curl -X POST http://localhost:8080/api/tracing/clear \
+curl -X POST http://localhost:3000/api/tracing/clear \
   -d '{olderThanMs: 1800000}'
 ```
 

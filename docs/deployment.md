@@ -22,8 +22,8 @@ bun run dev
 bun start
 ```
 
-Server will be available at `http://localhost:8080`.
-`http://localhost:8080`
+Server will be available at `http://localhost:3000`.
+`http://localhost:3000`
 
 ---
 
@@ -38,7 +38,7 @@ docker build -t routex .
 # Run container
 docker run -d \
   --name routex \
-  -p 8080:8080 \
+  -p 3000:3000 \
   -v $(pwd)/data:/data \
   routex
 ```
@@ -52,7 +52,7 @@ services:
   routex:
     build: .
     ports:
-      - "8080:8080"
+      - "3000:3000"
     volumes:
       - ./data:/data
     environment:
@@ -113,7 +113,7 @@ helm install routex ./deploy/helm/routex \
 
 **Port Forward (Development):**
 ```bash
-kubectl port-forward -n routex svc/routex 8080:8080
+kubectl port-forward -n routex svc/routex 3000:3000
 ```
 
 **NodePort / LoadBalancer (Production):**
@@ -144,7 +144,7 @@ ingress:
 **Environment Variables:**
 ```yaml
 env:
-  PORT: "8080"
+  PORT: "3000"
   HOST: "0.0.0.0"
   NODE_ENV: "production"
   DB_PATH: "/data/routex.db"
@@ -300,7 +300,7 @@ Set in Railway dashboard:
 Railway
 
 ```
-PORT=8080 (automatically set)
+PORT=3000 (automatically set)
 LOAD_BALANCE_STRATEGY=priority
 DASHBOARD_PASSWORD=your_password
 ```
@@ -380,7 +380,7 @@ Render  Web
 **Environment Variables / :**
 
 ```
-PORT=8080
+PORT=3000
 LOAD_BALANCE_STRATEGY=priority
 ```
 
@@ -438,7 +438,7 @@ WorkingDirectory=/opt/routex
 ExecStart=/home/routex/.bun/bin/bun run dist/server.js
 Restart=always
 RestartSec=10
-Environment="PORT=8080"
+Environment="PORT=3000"
 Environment="LOAD_BALANCE_STRATEGY=priority"
 
 [Install]
@@ -462,7 +462,7 @@ server {
     server_name your-domain.com;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -487,7 +487,7 @@ sudo certbot --nginx -d your-domain.com
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | Server port /  | 8080 |
+| `PORT` | Server port /  | 3000 |
 | `LOAD_BALANCE_STRATEGY` | Load balancing strategy /  | priority |
 | `DASHBOARD_PASSWORD` | Dashboard password /  | (none) |
 | `DATA_DIR` | Data directory path /  | ./data |
@@ -542,7 +542,7 @@ Access analytics via API:
 API
 
 ```bash
-curl http://localhost:8080/api/analytics
+curl http://localhost:3000/api/analytics
 ```
 
 ---
@@ -592,7 +592,7 @@ pkill -f routex
 
 ```bash
 # Add a channel via API /  API
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Channel",

@@ -103,7 +103,7 @@ bun start
 
 ```bash
 # Route long-context requests to Gemini
-curl -X POST http://localhost:8080/api/routing/rules \
+curl -X POST http://localhost:3000/api/routing/rules \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Long Context to Gemini",
@@ -118,7 +118,7 @@ curl -X POST http://localhost:8080/api/routing/rules \
 
 ```bash
 # Use OpenRouter with automatic format conversion
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H "Content-Type: application/json" \
   -d '{
     "name": "OpenRouter",
@@ -134,7 +134,7 @@ curl -X POST http://localhost:8080/api/channels \
 
 ```bash
 # Send a request - it will be automatically routed and transformed
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H "Content-Type: application/json" \
   -H "x-api-key: dummy" \
   -d '{

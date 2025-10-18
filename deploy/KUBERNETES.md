@@ -33,9 +33,9 @@ kubectl logs -f -n routex -l app=routex
 
 #### Option A: Port Forward (Development)
 ```bash
-kubectl port-forward -n routex svc/routex 8080:8080
+kubectl port-forward -n routex svc/routex 8080:3000
 ```
-Access at: http://localhost:8080
+Access at: http://localhost:3000
 
 #### Option B: NodePort (On-premise)
 Edit the Service type in `kubernetes.yaml`:
@@ -141,7 +141,7 @@ spec:
           service:
             name: routex
             port:
-              number: 8080
+              number: 3000
 ```
 
 ### Traefik Ingress Controller
@@ -166,7 +166,7 @@ spec:
           service:
             name: routex
             port:
-              number: 8080
+              number: 3000
 ```
 
 ## Monitoring
@@ -176,7 +176,7 @@ spec:
 Routex exposes a health endpoint at `/health`:
 
 ```bash
-kubectl exec -it -n routex <pod-name> -- curl http://localhost:8080/health
+kubectl exec -it -n routex <pod-name> -- curl http://localhost:3000/health
 ```
 
 ### Logs

@@ -32,7 +32,7 @@ securityContext:
 
 service:
   type: ClusterIP
-  port: 8080
+  port: 3000
 
 ingress:
   enabled: false
@@ -99,7 +99,7 @@ persistence:
 
 # Environment variables
 env:
-  PORT: "8080"
+  PORT: "3000"
   HOST: "0.0.0.0"
   NODE_ENV: "production"
   DB_PATH: "/data/routex.db"
@@ -109,7 +109,7 @@ config:
   enabled: true
   data:
     server:
-      port: 8080
+      port: 3000
       host: "0.0.0.0"
     database:
       path: "/data/routex.db"

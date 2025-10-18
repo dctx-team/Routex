@@ -6,7 +6,7 @@ Routex  API
 ## Base URL /  URL
 
 ```
-http://localhost:8080
+http://localhost:3000
 ```
 
 ## Authentication
@@ -481,7 +481,7 @@ There are no built-in rate limits. Configure rate limiting based on your deploym
 
 ```bash
 # 1. Create channel
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Claude Channel",
@@ -492,7 +492,7 @@ curl -X POST http://localhost:8080/api/channels \
   }'
 
 # 2. Send request
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H "Content-Type: application/json" \
   -d '{
     "model": "claude-opus-4-20250514",
@@ -501,7 +501,7 @@ curl -X POST http://localhost:8080/v1/messages \
   }'
 
 # 3. Check analytics
-curl http://localhost:8080/api/analytics
+curl http://localhost:3000/api/analytics
 ```
 
 ---

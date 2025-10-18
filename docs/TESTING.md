@@ -274,7 +274,7 @@ expect(Array.isArray(data)).toBe(true);
 
 ```typescript
 test('should get cache warmer stats', async  => {
-  const req = new Request('http://localhost:8080/api/cache/stats');
+  const req = new Request('http://localhost:3000/api/cache/stats');
   const res = await app.fetch(req);
   const data = await res.json;
 
@@ -295,7 +295,7 @@ test('should create a new channel', async  => {
     models: ['gpt-4']
   };
 
-  const req = new Request('http://localhost:8080/api/channels', {
+  const req = new Request('http://localhost:3000/api/channels', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(newChannel),
@@ -314,7 +314,7 @@ test('should create a new channel', async  => {
 
 ```typescript
 test('should return 404 for non-existent channel', async  => {
-  const req = new Request('http://localhost:8080/api/channels/invalid-id');
+  const req = new Request('http://localhost:3000/api/channels/invalid-id');
   const res = await app.fetch(req);
   const data = await res.json;
 

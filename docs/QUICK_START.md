@@ -72,7 +72,7 @@ bun run cli
 ####  2:  API
 
 ```bash
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H Content-Type: application/json \
   -d '{
     name: Claude Main,
@@ -86,13 +86,13 @@ curl -X POST http://localhost:8080/api/channels \
 
 ####  3:  Dashboard
 
- http://localhost:8080/dashboard Channels  Add Channel
+ http://localhost:3000/dashboard Channels  Add Channel
 
 ### 
 
 ```bash
 # 
-curl -X PUT http://localhost:8080/api/load-balancer/strategy \
+curl -X PUT http://localhost:3000/api/load-balancer/strategy \
   -H Content-Type: application/json \
   -d '{strategy: priority}'
 
@@ -114,7 +114,7 @@ curl -X PUT http://localhost:8080/api/load-balancer/strategy \
  60K tokens  Gemini
 
 ```bash
-curl -X POST http://localhost:8080/api/routing/rules \
+curl -X POST http://localhost:3000/api/routing/rules \
   -H Content-Type: application/json \
   -d '{
     name: Long Context to Gemini,
@@ -134,7 +134,7 @@ curl -X POST http://localhost:8080/api/routing/rules \
  Claude Opus
 
 ```bash
-curl -X POST http://localhost:8080/api/routing/rules \
+curl -X POST http://localhost:3000/api/routing/rules \
   -H Content-Type: application/json \
   -d '{
     name: Code Review to Opus,
@@ -167,7 +167,7 @@ curl -X POST http://localhost:8080/api/routing/rules \
 ####  OpenRouter 
 
 ```bash
-curl -X POST http://localhost:8080/api/channels \
+curl -X POST http://localhost:3000/api/channels \
   -H Content-Type: application/json \
   -d '{
     name: OpenRouter,
@@ -184,7 +184,7 @@ curl -X POST http://localhost:8080/api/channels \
  Anthropic Routex  OpenAI 
 
 ```bash
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H Content-Type: application/json \
   -d '{
     model: claude-opus-4,
@@ -207,7 +207,7 @@ curl -X POST http://localhost:8080/v1/messages \
  `X-Session-ID` 
 
 ```bash
-curl -X POST http://localhost:8080/v1/messages \
+curl -X POST http://localhost:3000/v1/messages \
   -H X-Session-ID: user-123-conversation-abc \
   -H Content-Type: application/json \
   -d '{
@@ -231,7 +231,7 @@ curl -X POST http://localhost:8080/v1/messages \
 Routex 
 
 ```bash
-curl -I http://localhost:8080/v1/messages \
+curl -I http://localhost:3000/v1/messages \
   -H Content-Type: application/json \
   -d '{model: claude-sonnet-4, messages: [...]}'
 
@@ -246,7 +246,7 @@ curl -I http://localhost:8080/v1/messages \
 
 ```bash
 # 
-curl http://localhost:8080/api/tracing/stats
+curl http://localhost:3000/api/tracing/stats
 
 # :
 {
@@ -258,7 +258,7 @@ curl http://localhost:8080/api/tracing/stats
 }
 
 #  Trace  Spans
-curl http://localhost:8080/api/tracing/traces/trace-1697123456789-abc123
+curl http://localhost:3000/api/tracing/traces/trace-1697123456789-abc123
 
 # :
 {
@@ -285,10 +285,10 @@ curl http://localhost:8080/api/tracing/traces/trace-1697123456789-abc123
 }
 
 #  Span
-curl http://localhost:8080/api/tracing/spans/span-xyz789
+curl http://localhost:3000/api/tracing/spans/span-xyz789
 
 #  Spans ( 1 )
-curl -X POST http://localhost:8080/api/tracing/clear \
+curl -X POST http://localhost:3000/api/tracing/clear \
   -H Content-Type: application/json \
   -d '{olderThanMs: 3600000}'
 ```
@@ -299,13 +299,13 @@ curl -X POST http://localhost:8080/api/tracing/clear \
 
 ```bash
 # Prometheus 
-curl http://localhost:8080/metrics
+curl http://localhost:3000/metrics
 
 # JSON 
-curl http://localhost:8080/api/metrics
+curl http://localhost:3000/api/metrics
 
 # 
-curl http://localhost:8080/api/metrics/all
+curl http://localhost:3000/api/metrics/all
 ```
 
 #### 
@@ -333,7 +333,7 @@ curl http://localhost:8080/api/metrics/all
 
 ```bash
 # 
-curl -X POST http://localhost:8080/api/tee \
+curl -X POST http://localhost:3000/api/tee \
   -H Content-Type: application/json \
   -d '{
     name: Request Log,
@@ -348,7 +348,7 @@ curl -X POST http://localhost:8080/api/tee \
   }'
 
 #  Webhook 
-curl -X POST http://localhost:8080/api/tee \
+curl -X POST http://localhost:3000/api/tee \
   -H Content-Type: application/json \
   -d '{
     name: Analytics Webhook,
@@ -386,17 +386,17 @@ curl -X POST http://localhost:8080/api/tee \
 
 ```bash
 # 
-curl -X PUT http://localhost:8080/api/i18n/locale \
+curl -X PUT http://localhost:3000/api/i18n/locale \
   -H Content-Type: application/json \
   -d '{locale: zh-CN}'
 
 # 
-curl -X PUT http://localhost:8080/api/i18n/locale \
+curl -X PUT http://localhost:3000/api/i18n/locale \
   -H Content-Type: application/json \
   -d '{locale: en}'
 
 # 
-curl http://localhost:8080/api/i18n/locale
+curl http://localhost:3000/api/i18n/locale
 ```
 
 #### 
@@ -417,16 +417,16 @@ LOCALE=en bun start
 
 ```bash
 # 
-curl http://localhost:8080/health
+curl http://localhost:3000/health
 
 # 
-curl http://localhost:8080/health/detailed
+curl http://localhost:3000/health/detailed
 
 #  (Kubernetes)
-curl http://localhost:8080/health/ready
+curl http://localhost:3000/health/ready
 
 #  (Kubernetes)
-curl http://localhost:8080/health/live
+curl http://localhost:3000/health/live
 ```
 
 ### 
@@ -446,13 +446,13 @@ tail -f logs/routex.log | bunx pino-pretty
 
 ```bash
 # 
-curl -X POST http://localhost:8080/api/channels/{channelId}/test
+curl -X POST http://localhost:3000/api/channels/{channelId}/test
 
 # 
-curl -X POST http://localhost:8080/api/channels/test/all
+curl -X POST http://localhost:3000/api/channels/test/all
 
 # 
-curl -X POST http://localhost:8080/api/channels/test/enabled
+curl -X POST http://localhost:3000/api/channels/test/enabled
 ```
 
 ---
@@ -512,7 +512,7 @@ curl -X POST http://localhost:8080/api/channels/test/enabled
 scrape_configs:
   - job_name: 'routex'
     static_configs:
-      - targets: ['localhost:8080']
+      - targets: ['localhost:3000']
     metrics_path: '/metrics'
     scrape_interval: 15s
 ```
@@ -557,7 +557,7 @@ groups:
 ### Q1:  API Key
 
 ```bash
-curl -X PUT http://localhost:8080/api/channels/{channelId} \
+curl -X PUT http://localhost:3000/api/channels/{channelId} \
   -H Content-Type: application/json \
   -d '{apiKey: new-key-xxx}'
 ```
@@ -572,10 +572,10 @@ curl -X PUT http://localhost:8080/api/channels/{channelId} \
 ### Q3:
 ```bash
 # 
-curl http://localhost:8080/api/channels/export > channels.json
+curl http://localhost:3000/api/channels/export > channels.json
 
 # 
-curl -X POST http://localhost:8080/api/channels/import \
+curl -X POST http://localhost:3000/api/channels/import \
   -H Content-Type: application/json \
   -d @channels.json
 ```
@@ -583,7 +583,7 @@ curl -X POST http://localhost:8080/api/channels/import \
 ### Q4: 
 
 ```bash
-curl -X POST http://localhost:8080/api/metrics/reset
+curl -X POST http://localhost:3000/api/metrics/reset
 ```
 
 ### Q5: Dashboard 
@@ -612,7 +612,7 @@ server {
     ssl_certificate_key /path/to/key.pem;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
