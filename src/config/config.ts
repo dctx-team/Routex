@@ -32,7 +32,7 @@ export class ConfigManager {
 
     return {
       server: {
-        port: Number(process.env.PORT) || 8080,
+        port: Number(process.env.PORT) || 3000,
         host: env === 'local' ? 'localhost' : '0.0.0.0',
         cors: {
           enabled: true,
