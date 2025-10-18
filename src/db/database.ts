@@ -21,13 +21,13 @@ import { logger } from '../utils/logger';
 
 export class Database {
   private db: BunSQLite;
-  private requestBuffer: RequestLog[] = [];
+  private requestBuffer: RequestLog = ;
   private flushInterval: Timer | null = null;
 
   // Query cache
-  private channelCache = new Map<string, { data: Channel[], timestamp: number }>();
-  private singleChannelCache = new Map<string, { data: Channel, timestamp: number }>();
-  private routingRuleCache: { data: RoutingRule[], timestamp: number } | null = null;
+  private channelCache = new Map<string, { data: Channel, timestamp: number }>;
+  private singleChannelCache = new Map<string, { data: Channel, timestamp: number }>;
+  private routingRuleCache: { data: RoutingRule, timestamp: number } | null = null;
   private readonly CACHE_TTL = 30000; // 30 seconds
   private cacheCleanupInterval: Timer | null = null;
 
@@ -35,36 +35,36 @@ export class Database {
     this.db = new BunSQLite(path);
     this.db.exec('PRAGMA journal_mode = WAL');
     this.db.exec('PRAGMA synchronous = NORMAL');
-    this.migrate();
-    this.startBufferFlush();
-    this.startCacheCleanup();
+    this.migrate;
+    this.startBufferFlush;
+    this.startCacheCleanup;
   }
 
   /**
    * Run database migrations
  *
    */
-  private migrate() {
-    const version = this.getVersion();
+  private migrate {
+    const version = this.getVersion;
 
     if (version < 1) {
-      this.migrateV1();
+      this.migrateV1;
     }
     if (version < 2) {
-      this.migrateV2();
+      this.migrateV2;
     }
     if (version < 3) {
-      this.migrateV3();
+      this.migrateV3;
     }
     if (version < 4) {
-      this.migrateV4();
+      this.migrateV4;
     }
 
     this.setVersion(4);
   }
 
-  private getVersion(): number {
-    const result = this.db.query('PRAGMA user_version').get() as { user_version: number };
+  private getVersion: number {
+    const result = this.db.query('PRAGMA user_version').get as { user_version: number };
     return result.user_version;
   }
 
@@ -72,7 +72,7 @@ export class Database {
     this.db.exec(`PRAGMA user_version = ${version}`);
   }
 
-  private migrateV1() {
+  private migrateV1 {
     //// Channels table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS channels (
@@ -121,7 +121,7 @@ export class Database {
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_channels_status ON channels(status)');
   }
 
-  private migrateV2() {
+  private migrateV2 {
     //// Add circuit breaker fields to channels
     this.db.exec(`
       ALTER TABLE channels ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0;
@@ -140,7 +140,7 @@ export class Database {
     `);
   }
 
-  private migrateV3() {
+  private migrateV3 {
     //// Routing rules table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS routing_rules (
@@ -163,7 +163,7 @@ export class Database {
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_type ON routing_rules(type)');
   }
 
-  private migrateV4() {
+  private migrateV4 {
     //// Tee destinations table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS tee_destinations (
@@ -194,8 +194,8 @@ export class Database {
   // ============================================================================
 
   createChannel(input: CreateChannelInput): Channel {
-    const id = crypto.randomUUID();
-    const now = Date.now();
+    const id = crypto.randomUUID;
+    const now = Date.now;
 
     const query = this.db.prepare(`
       INSERT INTO channels (
@@ -223,7 +223,7 @@ export class Database {
   getChannel(id: string): Channel | null {
     // Check cache first
     const cached = this.singleChannelCache.get(id);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+    if (cached && Date.now - cached.timestamp < this.CACHE_TTL) {
       return cached.data;
     }
 
@@ -235,58 +235,58 @@ export class Database {
     if (channel) {
       this.singleChannelCache.set(id, {
         data: channel,
-        timestamp: Date.now(),
+        timestamp: Date.now,
       });
     }
 
     return channel;
   }
 
-  getChannels(): Channel[] {
+  getChannels: Channel {
     // Check cache first
     const cached = this.channelCache.get('all');
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+    if (cached && Date.now - cached.timestamp < this.CACHE_TTL) {
       return cached.data;
     }
 
     const query = this.db.query('SELECT * FROM channels ORDER BY priority DESC, name ASC');
-    const rows = query.all() as any[];
+    const rows = query.all as any;
     const channels = rows.map((row) => this.mapChannelRow(row));
 
     // Cache the result
     this.channelCache.set('all', {
       data: channels,
-      timestamp: Date.now(),
+      timestamp: Date.now,
     });
 
     return channels;
   }
 
-  getEnabledChannels(): Channel[] {
+  getEnabledChannels: Channel {
     // Check cache first
     const cached = this.channelCache.get('enabled');
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+    if (cached && Date.now - cached.timestamp < this.CACHE_TTL) {
       return cached.data;
     }
 
     const query = this.db.query(
-      "SELECT * FROM channels WHERE status = 'enabled' ORDER BY priority DESC, name ASC",
+      SELECT * FROM channels WHERE status = 'enabled' ORDER BY priority DESC, name ASC,
     );
-    const rows = query.all() as any[];
+    const rows = query.all as any;
     const channels = rows.map((row) => this.mapChannelRow(row));
 
     // Cache the result
     this.channelCache.set('enabled', {
       data: channels,
-      timestamp: Date.now(),
+      timestamp: Date.now,
     });
 
     return channels;
   }
 
   updateChannel(id: string, input: UpdateChannelInput): Channel {
-    const updates: string[] = [];
-    const values: any[] = [];
+    const updates: string = ;
+    const values: any = ;
 
     if (input.name !== undefined) {
       updates.push('name = ?');
@@ -318,7 +318,7 @@ export class Database {
     }
 
     updates.push('updated_at = ?');
-    values.push(Date.now());
+    values.push(Date.now);
 
     values.push(id);
 
@@ -326,7 +326,7 @@ export class Database {
     query.run(...values);
 
     // Invalidate all channel caches
-    this.invalidateChannelCache();
+    this.invalidateChannelCache;
 
     return this.getChannel(id)!;
   }
@@ -337,7 +337,7 @@ export class Database {
 
     // Invalidate all channel caches
     if (result.changes > 0) {
-      this.invalidateChannelCache();
+      this.invalidateChannelCache;
     }
 
     return result.changes > 0;
@@ -352,7 +352,7 @@ export class Database {
           last_used_at = ?
       WHERE id = ?
     `);
-    query.run(success ? 1 : 0, success ? 0 : 1, Date.now(), id);
+    query.run(success ? 1 : 0, success ? 0 : 1, Date.now, id);
   }
 
   // ============================================================================
@@ -368,13 +368,13 @@ export class Database {
    */
   logRequest(log: Omit<RequestLog, 'id'>) {
     this.requestBuffer.push({
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID,
       ...log,
     });
 
     //// Flush immediately if buffer is full
     if (this.requestBuffer.length >= this.BATCH_SIZE) {
-      this.flushRequests();
+      this.flushRequests;
     }
   }
 
@@ -382,7 +382,7 @@ export class Database {
    * Flush buffered requests to database
  *
    */
-  private flushRequests() {
+  private flushRequests {
     if (this.requestBuffer.length === 0) return;
 
     const query = this.db.prepare(`
@@ -392,7 +392,7 @@ export class Database {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const transaction = this.db.transaction(() => {
+    const transaction = this.db.transaction( => {
       for (const log of this.requestBuffer) {
         query.run(
           log.id,
@@ -412,38 +412,38 @@ export class Database {
       }
     });
 
-    transaction();
-    this.requestBuffer = [];
+    transaction;
+    this.requestBuffer = ;
   }
 
   /**
    * Start periodic buffer flush
  *
    */
-  private startBufferFlush() {
-    this.flushInterval = setInterval(() => {
-      this.flushRequests();
+  private startBufferFlush {
+    this.flushInterval = setInterval( => {
+      this.flushRequests;
     }, this.FLUSH_INTERVAL); //// Flush every 1000ms (1s) / 1000ms (1)
   }
 
-  getRequests(limit = 100, offset = 0): RequestLog[] {
+  getRequests(limit = 100, offset = 0): RequestLog {
     const query = this.db.query(`
       SELECT * FROM requests
       ORDER BY timestamp DESC
       LIMIT ? OFFSET ?
     `);
-    const rows = query.all(limit, offset) as any[];
+    const rows = query.all(limit, offset) as any;
     return rows.map((row) => this.mapRequestRow(row));
   }
 
-  getRequestsByChannel(channelId: string, limit = 100): RequestLog[] {
+  getRequestsByChannel(channelId: string, limit = 100): RequestLog {
     const query = this.db.query(`
       SELECT * FROM requests
       WHERE channel_id = ?
       ORDER BY timestamp DESC
       LIMIT ?
     `);
-    const rows = query.all(channelId, limit) as any[];
+    const rows = query.all(channelId, limit) as any;
     return rows.map((row) => this.mapRequestRow(row));
   }
 
@@ -451,7 +451,7 @@ export class Database {
   //// Analytics
   // ============================================================================
 
-  getAnalytics(): Analytics {
+  getAnalytics: Analytics {
     const query = this.db.query(`
       SELECT
         COUNT(*) as total_requests,
@@ -464,7 +464,7 @@ export class Database {
       FROM requests
     `);
 
-    const result = query.get() as any;
+    const result = query.get as any;
 
     return {
       totalRequests: result.total_requests || 0,
@@ -543,7 +543,7 @@ export class Database {
    * Close database connection
  *
    */
-  close() {
+  close {
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
       this.flushInterval = null;
@@ -552,48 +552,48 @@ export class Database {
       clearInterval(this.cacheCleanupInterval);
       this.cacheCleanupInterval = null;
     }
-    this.flushRequests(); //// Final flush
-    this.db.close();
+    this.flushRequests; //// Final flush
+    this.db.close;
   }
 
   // ============================================================================
-  // Cache Management / 缓存管理
+  // Cache Management
   // ============================================================================
 
   /**
    * Invalidate all channel caches
    */
-  private invalidateChannelCache() {
-    this.channelCache.clear();
-    this.singleChannelCache.clear();
+  private invalidateChannelCache {
+    this.channelCache.clear;
+    this.singleChannelCache.clear;
   }
 
   /**
    * Start periodic cache cleanup
    */
-  private startCacheCleanup() {
+  private startCacheCleanup {
     // Run cleanup every minute
-    this.cacheCleanupInterval = setInterval(() => {
-      this.cleanupExpiredCache();
+    this.cacheCleanupInterval = setInterval( => {
+      this.cleanupExpiredCache;
     }, 60 * 1000);
   }
 
   /**
    * Clean up expired cache entries
    */
-  private cleanupExpiredCache() {
-    const now = Date.now();
+  private cleanupExpiredCache {
+    const now = Date.now;
     let cleaned = 0;
 
     // Clean channel caches
-    for (const [key, entry] of this.channelCache.entries()) {
+    for (const [key, entry] of this.channelCache.entries) {
       if (now - entry.timestamp > this.CACHE_TTL) {
         this.channelCache.delete(key);
         cleaned++;
       }
     }
 
-    for (const [key, entry] of this.singleChannelCache.entries()) {
+    for (const [key, entry] of this.singleChannelCache.entries) {
       if (now - entry.timestamp > this.CACHE_TTL) {
         this.singleChannelCache.delete(key);
         cleaned++;
@@ -618,11 +618,11 @@ export class Database {
   /**
    * Get cache statistics
    */
-  getCacheStats() {
+  getCacheStats {
     return {
       channelCache: {
         size: this.channelCache.size,
-        entries: Array.from(this.channelCache.keys()),
+        entries: Array.from(this.channelCache.keys),
       },
       singleChannelCache: {
         size: this.singleChannelCache.size,
@@ -636,8 +636,8 @@ export class Database {
   /**
    * Clear all caches manually
    */
-  clearAllCaches() {
-    this.invalidateChannelCache();
+  clearAllCaches {
+    this.invalidateChannelCache;
     this.routingRuleCache = null;
     logger.info('✅ All caches cleared');
   }
@@ -647,8 +647,8 @@ export class Database {
   // ============================================================================
 
   createRoutingRule(input: CreateRoutingRuleInput): RoutingRule {
-    const id = crypto.randomUUID();
-    const now = Date.now();
+    const id = crypto.randomUUID;
+    const now = Date.now;
 
     const query = this.db.prepare(`
       INSERT INTO routing_rules (
@@ -677,36 +677,36 @@ export class Database {
     return row ? this.mapRoutingRuleRow(row) : null;
   }
 
-  getRoutingRules(): RoutingRule[] {
+  getRoutingRules: RoutingRule {
     const query = this.db.query('SELECT * FROM routing_rules ORDER BY priority DESC, name ASC');
-    const rows = query.all() as any[];
+    const rows = query.all as any;
     return rows.map(row => this.mapRoutingRuleRow(row));
   }
 
-  getEnabledRoutingRules(): RoutingRule[] {
+  getEnabledRoutingRules: RoutingRule {
     // Check cache first
-    if (this.routingRuleCache && Date.now() - this.routingRuleCache.timestamp < this.CACHE_TTL) {
+    if (this.routingRuleCache && Date.now - this.routingRuleCache.timestamp < this.CACHE_TTL) {
       return this.routingRuleCache.data;
     }
 
     const query = this.db.query(
       'SELECT * FROM routing_rules WHERE enabled = 1 ORDER BY priority DESC, name ASC'
     );
-    const rows = query.all() as any[];
+    const rows = query.all as any;
     const rules = rows.map(row => this.mapRoutingRuleRow(row));
 
     // Cache the result
     this.routingRuleCache = {
       data: rules,
-      timestamp: Date.now(),
+      timestamp: Date.now,
     };
 
     return rules;
   }
 
   updateRoutingRule(id: string, input: UpdateRoutingRuleInput): RoutingRule {
-    const updates: string[] = [];
-    const values: any[] = [];
+    const updates: string = ;
+    const values: any = ;
 
     if (input.name !== undefined) {
       updates.push('name = ?');
@@ -734,7 +734,7 @@ export class Database {
     }
 
     updates.push('updated_at = ?');
-    values.push(Date.now());
+    values.push(Date.now);
     values.push(id);
 
     const query = this.db.prepare(`UPDATE routing_rules SET ${updates.join(', ')} WHERE id = ?`);
@@ -776,9 +776,9 @@ export class Database {
   /**
  * Check if database is connected
    */
-  isConnected(): boolean {
+  isConnected: boolean {
     try {
-      this.db.query('SELECT 1').get();
+      this.db.query('SELECT 1').get;
       return true;
     } catch {
       return false;
@@ -790,8 +790,8 @@ export class Database {
   // ============================================================================
 
   createTeeDestination(input: CreateTeeDestinationInput): TeeDestination {
-    const id = crypto.randomUUID();
-    const now = Date.now();
+    const id = crypto.randomUUID;
+    const now = Date.now;
 
     const query = this.db.prepare(`
       INSERT INTO tee_destinations (
@@ -825,21 +825,21 @@ export class Database {
     return row ? this.mapTeeDestinationRow(row) : null;
   }
 
-  getTeeDestinations(): TeeDestination[] {
+  getTeeDestinations: TeeDestination {
     const query = this.db.query('SELECT * FROM tee_destinations ORDER BY name ASC');
-    const rows = query.all() as any[];
+    const rows = query.all as any;
     return rows.map(row => this.mapTeeDestinationRow(row));
   }
 
-  getEnabledTeeDestinations(): TeeDestination[] {
+  getEnabledTeeDestinations: TeeDestination {
     const query = this.db.query('SELECT * FROM tee_destinations WHERE enabled = 1 ORDER BY name ASC');
-    const rows = query.all() as any[];
+    const rows = query.all as any;
     return rows.map(row => this.mapTeeDestinationRow(row));
   }
 
   updateTeeDestination(id: string, input: UpdateTeeDestinationInput): TeeDestination {
-    const updates: string[] = [];
-    const values: any[] = [];
+    const updates: string = ;
+    const values: any = ;
 
     if (input.name !== undefined) {
       updates.push('name = ?');
@@ -883,7 +883,7 @@ export class Database {
     }
 
     updates.push('updated_at = ?');
-    values.push(Date.now());
+    values.push(Date.now);
     values.push(id);
 
     const query = this.db.prepare(`UPDATE tee_destinations SET ${updates.join(', ')} WHERE id = ?`);

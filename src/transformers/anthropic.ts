@@ -13,11 +13,11 @@ export class AnthropicTransformer extends BaseTransformer {
 
   /**
    * Transform request to Anthropic format with special adaptations for public welfare sites
-   * Anthropic 格式，并针对公益站点进行特殊适配
+   * Anthropic 
    *
    * Supports:
    * - agentrouter.org: Requires user-agent header 'claude-cli/2.0.14 (external, cli)'
-   * - anyrouter.top, q.quuvv.cn, etc.: Requires system[0] to contain "You are Claude Code"
+   * - anyrouter.top, q.quuvv.cn, etc.: Requires system[0] to contain You are Claude Code
    */
   async transformRequest(request: any, options?: any): Promise<TransformResult> {
     // Anthropic format is our base format, so minimal transformation needed
@@ -54,18 +54,18 @@ export class AnthropicTransformer extends BaseTransformer {
     if (['anyrouter.top', 'q.quuvv.cn', 'pmpjfbhq.cn-nb1.rainapp.top'].some((host) => baseUrl.includes(host))) {
       console.log('🔧 Adapting for anyrouter.top: Injecting Claude Code system prompt');
 
-      const requiredPrompt = "You are Claude Code, Anthropic's official CLI for Claude.";
+      const requiredPrompt = You are Claude Code, Anthropic's official CLI for Claude.;
 
       if (transformed.system && Array.isArray(transformed.system) && transformed.system.length > 0) {
         // Check if the first system prompt already contains the required text
         if (transformed.system[0].text !== requiredPrompt) {
-          // If it contains "Claude Agent SDK", replace it
-          if (transformed.system[0].text.includes("Claude Agent SDK")) {
+          // If it contains Claude Agent SDK, replace it
+          if (transformed.system[0].text.includes(Claude Agent SDK)) {
             transformed.system[0].text = requiredPrompt;
           } else {
             // Otherwise, prepend the required prompt
             transformed.system.unshift({
-              type: "text",
+              type: text,
               text: requiredPrompt,
               cache_control: transformed.system[0].cache_control
             });
@@ -74,7 +74,7 @@ export class AnthropicTransformer extends BaseTransformer {
       } else if (!transformed.system) {
         // If no system prompt exists, create one
         transformed.system = [{
-          type: "text",
+          type: text,
           text: requiredPrompt
         }];
       }

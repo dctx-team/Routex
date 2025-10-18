@@ -1,6 +1,6 @@
 /**
  * Custom Router Functions for Routex
- * Routex 自定义路由函数库
+ * Routex 
  *
  * Provides a library of reusable custom routing functions
  * and tools to create, compose, and test them
@@ -16,7 +16,7 @@ import type { ContentAnalysis } from './content-analyzer';
 
 /**
  * Custom router function signature
- * 自定义路由函数签名
+ * 
  *
  * @param context - Request context
  * @param analysis - Content analysis result
@@ -26,24 +26,24 @@ import type { ContentAnalysis } from './content-analyzer';
 export type CustomRouterFunction = (
   context: RouterContext,
   analysis?: ContentAnalysis,
-  availableChannels?: Channel[]
+  availableChannels?: Channel
 ) => boolean | Channel | Promise<boolean | Channel>;
 
 /**
  * Router function metadata
- * 路由函数元数据
+ * 
  */
 export interface RouterFunctionInfo {
   name: string;
   description: string;
   version?: string;
   author?: string;
-  examples?: string[];
+  examples?: string;
 }
 
 /**
  * Registered custom router
- * 注册的自定义路由器
+ * 
  */
 export interface RegisteredRouter {
   fn: CustomRouterFunction;
@@ -56,14 +56,14 @@ export interface RegisteredRouter {
 
 /**
  * Registry for custom routing functions
- * 自定义路由函数注册表
+ * 
  */
 export class CustomRouterRegistry {
-  private routers = new Map<string, RegisteredRouter>();
+  private routers = new Map<string, RegisteredRouter>;
 
   /**
    * Register a custom router function
-   * 注册自定义路由函数
+   * 
    */
   register(name: string, fn: CustomRouterFunction, info?: Partial<RouterFunctionInfo>) {
     this.routers.set(name, {
@@ -80,7 +80,7 @@ export class CustomRouterRegistry {
 
   /**
    * Get a registered router function
-   * 获取注册的路由函数
+   * 
    */
   get(name: string): CustomRouterFunction | undefined {
     return this.routers.get(name)?.fn;
@@ -88,7 +88,7 @@ export class CustomRouterRegistry {
 
   /**
    * Get router info
-   * 获取路由器信息
+   * 
    */
   getInfo(name: string): RouterFunctionInfo | undefined {
     return this.routers.get(name)?.info;
@@ -96,15 +96,15 @@ export class CustomRouterRegistry {
 
   /**
    * List all registered routers
-   * 列出所有注册的路由器
+   * 
    */
-  list(): RouterFunctionInfo[] {
-    return Array.from(this.routers.values()).map((r) => r.info);
+  list: RouterFunctionInfo {
+    return Array.from(this.routers.values).map((r) => r.info);
   }
 
   /**
    * Check if a router is registered
-   * 检查路由器是否已注册
+   * 
    */
   has(name: string): boolean {
     return this.routers.has(name);
@@ -112,7 +112,7 @@ export class CustomRouterRegistry {
 
   /**
    * Unregister a router
-   * 注销路由器
+   * 
    */
   unregister(name: string): boolean {
     return this.routers.delete(name);
@@ -120,10 +120,10 @@ export class CustomRouterRegistry {
 
   /**
    * Clear all routers
-   * 清空所有路由器
+   * 
    */
-  clear() {
-    this.routers.clear();
+  clear {
+    this.routers.clear;
   }
 }
 
@@ -133,18 +133,18 @@ export class CustomRouterRegistry {
 
 /**
  * Built-in custom router functions
- * 内置自定义路由函数
+ * 
  */
 export const BuiltinRouters = {
   /**
    * Route based on time of day
-   * 基于时间路由
+   * 
    *
    * Example: Use cheaper models during off-peak hours
    */
-  timeBasedRouter: (peakHours: number[] = [9, 10, 11, 14, 15, 16, 17]): CustomRouterFunction => {
+  timeBasedRouter: (peakHours: number = [9, 10, 11, 14, 15, 16, 17]): CustomRouterFunction => {
     return (context, analysis, availableChannels) => {
-      const hour = new Date().getHours();
+      const hour = new Date.getHours;
       const isPeakTime = peakHours.includes(hour);
 
       if (!availableChannels || availableChannels.length === 0) {
@@ -171,7 +171,7 @@ export const BuiltinRouters = {
 
   /**
    * Route based on user/session metadata
-   * 基于用户/会话元数据路由
+   *
    *
    * Example: VIP users get priority channels
    */
@@ -211,7 +211,7 @@ export const BuiltinRouters = {
 
   /**
    * Route based on cost optimization
-   * 基于成本优化路由
+   * 
    *
    * Example: Simple requests use cheaper models
    */
@@ -257,7 +257,7 @@ export const BuiltinRouters = {
 
   /**
    * Route based on channel health
-   * 基于渠道健康状况路由
+   * 
    *
    * Example: Prefer channels with high success rates
    */
@@ -294,7 +294,7 @@ export const BuiltinRouters = {
 
   /**
    * Route based on channel load
-   * 基于渠道负载路由
+   * 
    *
    * Example: Avoid overloaded channels
    */
@@ -321,14 +321,14 @@ export const BuiltinRouters = {
 
   /**
    * Route based on model capabilities
-   * 基于模型能力路由
+   * 
    *
    * Example: Function calling requires specific models
    */
   capabilityRouter: (requiredCapability: string): CustomRouterFunction => {
     return (context, analysis, availableChannels) => {
       // Check if capability is needed
-      const needsCapability = (() => {
+      const needsCapability = ( => {
         switch (requiredCapability) {
           case 'function_calling':
             return context.tools && context.tools.length > 0;
@@ -341,7 +341,7 @@ export const BuiltinRouters = {
           default:
             return false;
         }
-      })();
+      });
 
       if (!needsCapability) {
         return false; // This router doesn't apply
@@ -352,14 +352,14 @@ export const BuiltinRouters = {
       }
 
       // Model capability mappings
-      const capabilityModels: Record<string, RegExp[]> = {
+      const capabilityModels: Record<string, RegExp> = {
         function_calling: [/claude-3/, /gpt-4/, /gpt-3.5-turbo/],
         vision: [/claude-3/, /gpt-4.*vision/, /gemini.*pro.*vision/],
         long_context: [/claude-3/, /gpt-4-turbo/, /gemini.*pro/],
         code_generation: [/claude.*opus/, /claude.*sonnet/, /gpt-4/],
       };
 
-      const patterns = capabilityModels[requiredCapability] || [];
+      const patterns = capabilityModels[requiredCapability] || ;
       const capableChannels = availableChannels.filter((c) =>
         c.models.some((m) => patterns.some((p) => p.test(m)))
       );
@@ -376,7 +376,7 @@ export const BuiltinRouters = {
 
   /**
    * A/B testing router
-   * A/B 测试路由
+   * A/B 
    *
    * Example: Route 10% of traffic to experimental channel
    */
@@ -416,9 +416,9 @@ export const BuiltinRouters = {
 
 /**
  * Compose multiple router functions with AND logic
- * 使用 AND 逻辑组合多个路由函数
+ *  AND 
  */
-export function composeAnd(...routers: CustomRouterFunction[]): CustomRouterFunction {
+export function composeAnd(...routers: CustomRouterFunction): CustomRouterFunction {
   return async (context, analysis, availableChannels) => {
     for (const router of routers) {
       const result = await router(context, analysis, availableChannels);
@@ -440,9 +440,9 @@ export function composeAnd(...routers: CustomRouterFunction[]): CustomRouterFunc
 
 /**
  * Compose multiple router functions with OR logic
- * 使用 OR 逻辑组合多个路由函数
+ *  OR 
  */
-export function composeOr(...routers: CustomRouterFunction[]): CustomRouterFunction {
+export function composeOr(...routers: CustomRouterFunction): CustomRouterFunction {
   return async (context, analysis, availableChannels) => {
     for (const router of routers) {
       const result = await router(context, analysis, availableChannels);
@@ -459,7 +459,7 @@ export function composeOr(...routers: CustomRouterFunction[]): CustomRouterFunct
 
 /**
  * Create a negated router function
- * 创建取反的路由函数
+ * 
  */
 export function not(router: CustomRouterFunction): CustomRouterFunction {
   return async (context, analysis, availableChannels) => {
@@ -477,7 +477,7 @@ export function not(router: CustomRouterFunction): CustomRouterFunction {
 
 /**
  * Create a conditional router
- * 创建条件路由
+ * 
  */
 export function when(
   condition: (context: RouterContext, analysis?: ContentAnalysis) => boolean | Promise<boolean>,
@@ -499,9 +499,9 @@ export function when(
 
 /**
  * Create a fallback chain of routers
- * 创建回退链路由
+ * 
  */
-export function fallback(...routers: CustomRouterFunction[]): CustomRouterFunction {
+export function fallback(...routers: CustomRouterFunction): CustomRouterFunction {
   return async (context, analysis, availableChannels) => {
     for (const router of routers) {
       try {
@@ -526,7 +526,7 @@ export function fallback(...routers: CustomRouterFunction[]): CustomRouterFuncti
 
 /**
  * Test a router function with given inputs
- * 测试路由函数
+ * 
  */
 export async function testRouter(
   router: CustomRouterFunction,
@@ -534,11 +534,11 @@ export async function testRouter(
     name: string;
     context: RouterContext;
     analysis?: ContentAnalysis;
-    availableChannels?: Channel[];
+    availableChannels?: Channel;
     expectedResult?: boolean | string; // channel name or boolean
   }>
-): Promise<{ passed: number; failed: number; results: any[] }> {
-  const results = [];
+): Promise<{ passed: number; failed: number; results: any }> {
+  const results = ;
   let passed = 0;
   let failed = 0;
 
@@ -585,12 +585,12 @@ export async function testRouter(
 
 /**
  * Create a global registry instance
- * 创建全局注册表实例
+ * 
  */
-export const globalRouterRegistry = new CustomRouterRegistry();
+export const globalRouterRegistry = new CustomRouterRegistry;
 
 // Register all built-in routers
-// 注册所有内置路由器
+// 
 Object.entries(BuiltinRouters).forEach(([name, factory]) => {
   globalRouterRegistry.register(
     name,

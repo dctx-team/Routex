@@ -1,6 +1,6 @@
 /**
  * Channel Connection Tester
- * 渠道连接测试服务
+ * 
  */
 
 import type { Channel } from '../types';
@@ -21,28 +21,28 @@ export interface TestResult {
 export class ChannelTester {
   /**
    * Test a single channel
-   * 测试单个渠道
+   * 
    */
   async testChannel(channel: Channel): Promise<TestResult> {
-    const startTime = Date.now();
+    const startTime = Date.now;
 
     try {
-      // 构建测试请求
+      // 
       const testRequest = this.buildTestRequest(channel);
 
-      // 发送请求
+      // 
       const response = await fetch(testRequest.url, {
         method: 'POST',
         headers: testRequest.headers,
         body: JSON.stringify(testRequest.body),
-        signal: AbortSignal.timeout(10000), // 10秒超时
+        signal: AbortSignal.timeout(10000), // 10
       });
 
-      const latency = Date.now() - startTime;
+      const latency = Date.now - startTime;
 
-      // 检查响应
+      // 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unable to read error');
+        const errorText = await response.text.catch( => 'Unable to read error');
         return {
           success: false,
           channelName: channel.name,
@@ -56,17 +56,17 @@ export class ChannelTester {
         };
       }
 
-      // 尝试解析响应
+      // 
       const contentType = response.headers.get('content-type') || '';
       let responseData: any;
 
       if (contentType.includes('application/json')) {
-        responseData = await response.json();
+        responseData = await response.json;
       } else if (contentType.includes('text/event-stream')) {
-        // SSE 流式响应
+        // SSE 
         responseData = { stream: true };
       } else {
-        responseData = await response.text();
+        responseData = await response.text;
       }
 
       return {
@@ -81,7 +81,7 @@ export class ChannelTester {
         },
       };
     } catch (error) {
-      const latency = Date.now() - startTime;
+      const latency = Date.now - startTime;
       return {
         success: false,
         channelName: channel.name,
@@ -93,16 +93,16 @@ export class ChannelTester {
 
   /**
    * Test multiple channels in parallel
-   * 并行测试多个渠道
+   * 
    */
-  async testChannels(channels: Channel[]): Promise<TestResult[]> {
+  async testChannels(channels: Channel): Promise<TestResult> {
     const promises = channels.map((channel) => this.testChannel(channel));
     return Promise.all(promises);
   }
 
   /**
    * Build test request based on channel type
-   * 根据渠道类型构建测试请求
+   * 
    */
   private buildTestRequest(channel: Channel): {
     url: string;
@@ -155,7 +155,7 @@ export class ChannelTester {
 
   /**
    * Get default base URL for channel type
-   * 获取渠道类型的默认 Base URL
+   *  Base URL
    */
   private getDefaultBaseURL(type: string): string {
     switch (type) {
@@ -170,7 +170,7 @@ export class ChannelTester {
 
   /**
    * Extract relevant headers from response
-   * 从响应中提取相关头部
+   * 
    */
   private extractHeaders(response: Response): Record<string, string> {
     const headers: Record<string, string> = {};
@@ -194,7 +194,7 @@ export class ChannelTester {
 
   /**
    * Extract model name from response
-   * 从响应中提取模型名称
+   * 
    */
   private extractModelFromResponse(data: any): string | undefined {
     if (typeof data === 'object' && data !== null) {
@@ -205,7 +205,7 @@ export class ChannelTester {
 
   /**
    * Quick health check (lightweight test)
-   * 快速健康检查（轻量级测试）
+   * 
    */
   async quickCheck(channel: Channel): Promise<boolean> {
     try {
@@ -218,13 +218,13 @@ export class ChannelTester {
 
   /**
    * Batch test with progress callback
-   * 批量测试并带进度回调
+   * 
    */
   async testChannelsWithProgress(
-    channels: Channel[],
+    channels: Channel,
     onProgress?: (completed: number, total: number, result: TestResult) => void,
-  ): Promise<TestResult[]> {
-    const results: TestResult[] = [];
+  ): Promise<TestResult> {
+    const results: TestResult = ;
     const total = channels.length;
 
     for (let i = 0; i < channels.length; i++) {
@@ -241,9 +241,9 @@ export class ChannelTester {
 
   /**
    * Get test summary
-   * 获取测试摘要
+   * 
    */
-  getTestSummary(results: TestResult[]): {
+  getTestSummary(results: TestResult): {
     total: number;
     passed: number;
     failed: number;

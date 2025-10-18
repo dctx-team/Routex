@@ -7,14 +7,14 @@ import { Hono } from 'hono';
 import type { TransformerManager } from '../transformers';
 
 export function createTransformersAPI(transformerManager: TransformerManager) {
-  const app = new Hono();
+  const app = new Hono;
 
   /**
    * GET /api/transformers
  * List all available transformers / transformers
    */
   app.get('/', (c) => {
-    const transformers = transformerManager.list();
+    const transformers = transformerManager.list;
 
     return c.json({
       success: true,
@@ -30,7 +30,7 @@ export function createTransformersAPI(transformerManager: TransformerManager) {
  * Test a transformer / transformer
    */
   app.post('/test', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json;
 
     const { transformer, request, direction = 'request' } = body;
 
@@ -55,7 +55,7 @@ export function createTransformersAPI(transformerManager: TransformerManager) {
         return c.json(
           {
             success: false,
-            error: 'Invalid direction. Must be "request" or "response"',
+            error: 'Invalid direction. Must be request or response',
           },
           400
         );
@@ -90,18 +90,18 @@ export function createTransformersAPI(transformerManager: TransformerManager) {
 function getTransformerDescription(name: string): string {
   const descriptions: Record<string, string> = {
     anthropic:
-      'Anthropic Messages API format (base format) / Anthropic消息API格式（基础格式）',
+      'Anthropic Messages API format (base format) / AnthropicAPI',
     openai:
-      'OpenAI Chat Completions API format / OpenAI聊天补全API格式',
+      'OpenAI Chat Completions API format / OpenAIAPI',
     gemini:
-      'Google Gemini API format / Google Gemini API格式',
+      'Google Gemini API format / Google Gemini API',
     deepseek:
-      'DeepSeek API format / DeepSeek API格式',
+      'DeepSeek API format / DeepSeek API',
     maxtoken:
-      'Enforce max_tokens limit / 强制max_tokens限制',
+      'Enforce max_tokens limit / max_tokens',
     reasoning:
-      'Handle reasoning_content field / 处理reasoning_content字段',
+      'Handle reasoning_content field / reasoning_content',
   };
 
-  return descriptions[name] || 'Custom transformer / 自定义transformer';
+  return descriptions[name] || 'Custom transformer / transformer';
 }

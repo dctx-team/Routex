@@ -21,7 +21,7 @@ import { logger, logError, logTransformer } from '../utils/logger';
 import { getProvider } from '../providers';
 
 export class ProxyEngine {
-  private circuitBreaker = new Map<string, { failures: number; lastFailure: number }>();
+  private circuitBreaker = new Map<string, { failures: number; lastFailure: number }>;
   private maxRetries = 3;
   private circuitBreakerThreshold = 5;
   private circuitBreakerTimeout = 60000; //// 1 minute / 1
@@ -34,7 +34,7 @@ export class ProxyEngine {
     private transformerManager?: TransformerManager,
   ) {
     // Initialize Tee Stream with enabled destinations
-    const destinations = this.db.getEnabledTeeDestinations();
+    const destinations = this.db.getEnabledTeeDestinations;
     if (destinations.length > 0) {
       this.teeStream = new TeeStream(destinations);
     }
@@ -42,10 +42,10 @@ export class ProxyEngine {
 
   /**
    * Handle incoming proxy request
-   * 处理传入的代理请求
+   * 
    */
   async handle(req: Request): Promise<Response> {
-    const start = Date.now();
+    const start = Date.now;
 
     // Extract or create trace context
     const traceContext = tracer.extractTraceContext(req.headers);
@@ -66,14 +66,14 @@ export class ProxyEngine {
       tracer.endSpan(parseSpan.spanId, 'success');
 
       //// Get available channels
-      const channels = this.db.getEnabledChannels();
+      const channels = this.db.getEnabledChannels;
 
       //// Filter out channels in circuit breaker state
       const available = channels.filter((ch) => !this.isCircuitOpen(ch.id));
 
       if (available.length === 0) {
         tracer.addLog(rootSpan.spanId, 'No available channels', 'error');
-        throw new NoAvailableChannelError();
+        throw new NoAvailableChannelError;
       }
 
       //// Try SmartRouter first if available / SmartRouter
@@ -87,7 +87,7 @@ export class ProxyEngine {
         try {
           const routerContext = {
             model: parsed.model || '',
-            messages: (parsed.body as any).messages || [],
+            messages: (parsed.body as any).messages || ,
             system: (parsed.body as any).system,
             tools: (parsed.body as any).tools,
             metadata: {
@@ -164,12 +164,12 @@ export class ProxyEngine {
       });
       const response = await this.forwardWithRetries(channel, parsed, available);
       tracer.endSpan(forwardSpan.spanId, 'success', {
-        status: response.status.toString(),
+        status: response.status.toString,
         latency: response.latency,
       });
 
       //// Log request
-      const latency = Date.now() - start;
+      const latency = Date.now - start;
       this.logRequest(channel, parsed, response, latency, true);
 
       //// Record metrics
@@ -202,7 +202,7 @@ export class ProxyEngine {
         'Content-Type': 'application/json',
         'X-Channel-Id': channel.id,
         'X-Channel-Name': channel.name,
-        'X-Latency-Ms': latency.toString(),
+        'X-Latency-Ms': latency.toString,
         'X-Trace-Id': rootSpan.traceId,
         'X-Span-Id': rootSpan.spanId,
       };
@@ -222,7 +222,7 @@ export class ProxyEngine {
       }, `✅ Request succeeded: ${channel.name} (${latency}ms)`);
 
       tracer.endSpan(rootSpan.spanId, 'success', {
-        status: response.status.toString(),
+        status: response.status.toString,
         latency,
       });
 
@@ -231,7 +231,7 @@ export class ProxyEngine {
         headers: responseHeaders,
       });
     } catch (error) {
-      const latency = Date.now() - start;
+      const latency = Date.now - start;
       logError(error as Error, { component: 'ProxyEngine', latency, traceId: rootSpan.traceId });
 
       tracer.addLog(rootSpan.spanId, `Error: ${(error as Error).message}`, 'error');
@@ -260,8 +260,8 @@ export class ProxyEngine {
   /**
    * Update Tee Stream destinations
    */
-  updateTeeDestinations() {
-    const destinations = this.db.getEnabledTeeDestinations();
+  updateTeeDestinations {
+    const destinations = this.db.getEnabledTeeDestinations;
     if (destinations.length > 0) {
       if (this.teeStream) {
         this.teeStream.setDestinations(destinations);
@@ -270,7 +270,7 @@ export class ProxyEngine {
       }
     } else if (this.teeStream) {
       // No destinations, shutdown tee stream
-      this.teeStream.shutdown().catch(error => {
+      this.teeStream.shutdown.catch(error => {
         logError(error as Error, { component: 'TeeStream', operation: 'shutdown' });
       });
       this.teeStream = undefined;
@@ -280,9 +280,9 @@ export class ProxyEngine {
   /**
    * Shutdown proxy engine and cleanup resources
    */
-  async shutdown() {
+  async shutdown {
     if (this.teeStream) {
-      await this.teeStream.shutdown();
+      await this.teeStream.shutdown;
     }
     logger.info('🛑 Proxy engine shutdown complete');
   }
@@ -294,7 +294,7 @@ export class ProxyEngine {
   private async forwardWithRetries(
     channel: Channel,
     request: ParsedRequest,
-    availableChannels: Channel[],
+    availableChannels: Channel,
   ): Promise<ProxyResponse> {
     let lastError: Error | null = null;
     let attempts = 0;
@@ -337,7 +337,7 @@ export class ProxyEngine {
  *
    */
   private async forward(channel: Channel, request: ParsedRequest): Promise<ProxyResponse> {
-    const start = Date.now();
+    const start = Date.now;
 
     // Get provider for this channel
     const provider = getProvider(channel);
@@ -348,7 +348,7 @@ export class ProxyEngine {
 
     if (this.transformerManager && channel.transformers && transformedRequest) {
       try {
-        const transformerSpecs = channel.transformers.use || [];
+        const transformerSpecs = channel.transformers.use || ;
         if (transformerSpecs.length > 0) {
           logTransformer('pipeline', 'request', {
             count: transformerSpecs.length,
@@ -406,7 +406,7 @@ export class ProxyEngine {
       body: providerRequest.body ? JSON.stringify(providerRequest.body) : undefined,
     });
 
-    const latency = Date.now() - start;
+    const latency = Date.now - start;
 
     //// Handle provider response
     const providerResponse = await provider.handleResponse(response, channel);
@@ -415,14 +415,14 @@ export class ProxyEngine {
     //// Apply reverse transformers if configured / transformers
     if (this.transformerManager && channel.transformers && responseBody) {
       try {
-        const transformerSpecs = channel.transformers.use || [];
+        const transformerSpecs = channel.transformers.use || ;
         if (transformerSpecs.length > 0) {
           logTransformer('pipeline', 'response', {
             count: transformerSpecs.length,
             channel: channel.name,
           });
           //// Reverse the transformer order for response / transformer
-          const reversedSpecs = [...transformerSpecs].reverse();
+          const reversedSpecs = [...transformerSpecs].reverse;
           responseBody = await this.transformerManager.transformResponse(
             responseBody,
             reversedSpecs
@@ -452,7 +452,7 @@ export class ProxyEngine {
     const headers: Record<string, string> = {};
 
     //// Copy relevant headers
-    for (const [key, value] of req.headers.entries()) {
+    for (const [key, value] of req.headers.entries) {
       if (!key.startsWith('x-') && key !== 'host') {
         headers[key] = value;
       }
@@ -464,7 +464,7 @@ export class ProxyEngine {
 
     if (req.method === 'POST' || req.method === 'PUT') {
       try {
-        body = await req.json();
+        body = await req.json;
         if (body && typeof body === 'object' && 'model' in body) {
           model = (body as any).model;
         }
@@ -481,7 +481,6 @@ export class ProxyEngine {
       model,
     };
   }
-
 
   /**
    * Log request to database
@@ -522,7 +521,7 @@ export class ProxyEngine {
       cachedTokens: tokenUsage.cachedTokens,
       success,
       error: success ? undefined : body?.error?.message,
-      timestamp: Date.now(),
+      timestamp: Date.now,
     };
 
     this.db.logRequest(log);
@@ -539,7 +538,7 @@ export class ProxyEngine {
   private recordFailure(channelId: string) {
     const state = this.circuitBreaker.get(channelId) || { failures: 0, lastFailure: 0 };
     state.failures++;
-    state.lastFailure = Date.now();
+    state.lastFailure = Date.now;
     this.circuitBreaker.set(channelId, state);
 
     // Mark channel as rate limited if threshold exceeded
@@ -570,7 +569,7 @@ export class ProxyEngine {
     }
 
     //// Auto-reset after timeout
-    if (Date.now() - state.lastFailure > this.circuitBreakerTimeout) {
+    if (Date.now - state.lastFailure > this.circuitBreakerTimeout) {
       this.resetCircuitBreaker(channelId);
       return false;
     }

@@ -1,6 +1,6 @@
 /**
  * Custom/Generic Provider
- * 用于自定义提供商或兼容 OpenAI API 的提供商
+ *  OpenAI API 
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base';
@@ -14,16 +14,16 @@ export class CustomProvider extends BaseProvider {
     supportsTools: true,
     supportsVision: true,
     supportsSystemMessages: true,
-    maxTokens: undefined, // 未知
+    maxTokens: undefined, // 
   };
 
-  getDefaultBaseUrl(): string {
-    // 自定义提供商没有默认 URL
+  getDefaultBaseUrl: string {
+    //  URL
     return '';
   }
 
   prepareAuthHeaders(channel: Channel): Record<string, string> {
-    // 默认使用 Bearer token（OpenAI 兼容）
+    //  Bearer tokenOpenAI 
     if (!channel.apiKey) {
       return {};
     }

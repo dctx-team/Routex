@@ -13,10 +13,10 @@ export class AnthropicProvider extends BaseProvider {
     supportsTools: true,
     supportsVision: true,
     supportsSystemMessages: true,
-    maxTokens: 200000, // Claude 3.5 Sonnet 支持 200K context
+    maxTokens: 200000, // Claude 3.5 Sonnet  200K context
   };
 
-  getDefaultBaseUrl(): string {
+  getDefaultBaseUrl: string {
     return 'https://api.anthropic.com';
   }
 
@@ -28,18 +28,18 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   /**
-   * Anthropic 特定的请求转换
+   * Anthropic 
    */
   async transformRequest(body: unknown, channel: Channel): Promise<unknown> {
-    // Anthropic API 已经是标准格式，无需转换
+    // Anthropic API 
     return body;
   }
 
   /**
-   * Anthropic 特定的响应转换
+   * Anthropic 
    */
   async transformResponse(body: unknown, channel: Channel): Promise<unknown> {
-    // Anthropic API 已经是标准格式，无需转换
+    // Anthropic API 
     return body;
   }
 

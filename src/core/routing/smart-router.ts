@@ -28,8 +28,8 @@ import {
 
 export interface RouterContext {
   model: string;
-  messages: Message[];
-  tools?: Tool[];
+  messages: Message;
+  tools?: Tool;
   sessionId?: string;
   system?: string;
   metadata?: Record<string, any>;
@@ -44,26 +44,26 @@ export interface RouterResult {
 }
 
 export class SmartRouter {
-  private rules: RoutingRule[] = [];
-  private customRouters: Map<string, Function> = new Map(); // Legacy support
+  private rules: RoutingRule = ;
+  private customRouters: Map<string, Function> = new Map; // Legacy support
   private contentAnalyzer: ContentAnalyzer;
   private routerRegistry: CustomRouterRegistry;
 
-  constructor(rules: RoutingRule[] = [], useGlobalRegistry: boolean = true) {
+  constructor(rules: RoutingRule = , useGlobalRegistry: boolean = true) {
     this.rules = rules
       .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
-    this.contentAnalyzer = new ContentAnalyzer();
+    this.contentAnalyzer = new ContentAnalyzer;
     this.routerRegistry = useGlobalRegistry
       ? globalRouterRegistry
-      : new CustomRouterRegistry();
+      : new CustomRouterRegistry;
   }
 
   /**
    * Add or update routing rules
  *
    */
-  setRules(rules: RoutingRule[]) {
+  setRules(rules: RoutingRule) {
     this.rules = rules
       .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
@@ -71,7 +71,7 @@ export class SmartRouter {
 
   /**
    * Register a custom routing function (legacy method)
-   * 注册自定义路由函数（传统方法）
+   * 
    */
   registerCustomRouter(name: string, fn: Function) {
     this.customRouters.set(name, fn);
@@ -79,7 +79,7 @@ export class SmartRouter {
 
   /**
    * Register a custom routing function with metadata
-   * 注册带元数据的自定义路由函数
+   * 
    */
   registerRouter(
     name: string,
@@ -91,18 +91,18 @@ export class SmartRouter {
 
   /**
    * Get router registry
-   * 获取路由器注册表
+   * 
    */
-  getRegistry(): CustomRouterRegistry {
+  getRegistry: CustomRouterRegistry {
     return this.routerRegistry;
   }
 
   /**
    * List all registered custom routers
-   * 列出所有注册的自定义路由器
+   * 
    */
-  listCustomRouters() {
-    return this.routerRegistry.list();
+  listCustomRouters {
+    return this.routerRegistry.list;
   }
 
   /**
@@ -111,7 +111,7 @@ export class SmartRouter {
    */
   async findMatchingChannel(
     context: RouterContext,
-    availableChannels: Channel[]
+    availableChannels: Channel
   ): Promise<RouterResult | null> {
     //// Perform content analysis
     const analysis = this.contentAnalyzer.analyze(context.messages, context.tools);
@@ -143,19 +143,19 @@ export class SmartRouter {
 
   /**
    * Get content analysis for a request
-   * 获取请求的内容分析
+   * 
    */
-  analyzeContent(messages: Message[], tools?: Tool[]): ContentAnalysis {
+  analyzeContent(messages: Message, tools?: Tool): ContentAnalysis {
     return this.contentAnalyzer.analyze(messages, tools);
   }
 
   /**
    * Find best channel based on content analysis
-   * 基于内容分析查找最佳渠道
+   * 
    */
   findChannelByContent(
     analysis: ContentAnalysis,
-    availableChannels: Channel[]
+    availableChannels: Channel
   ): Channel | null {
     //// Strategy: Match channel capabilities with content requirements
 
@@ -211,7 +211,7 @@ export class SmartRouter {
     if (condition.keywords && condition.keywords.length > 0) {
       const userMessage = this.extractUserMessage(context.messages);
       const hasKeyword = condition.keywords.some((keyword) =>
-        userMessage.toLowerCase().includes(keyword.toLowerCase())
+        userMessage.toLowerCase.includes(keyword.toLowerCase)
       );
       if (!hasKeyword) {
         return false;
@@ -279,7 +279,7 @@ export class SmartRouter {
           }
         } catch (error) {
           console.error(
-            `Custom router function "${condition.customFunction}" failed:`,
+            `Custom router function ${condition.customFunction} failed:`,
             error
           );
           return false;
@@ -347,8 +347,8 @@ export class SmartRouter {
    * Extract user message content
  *
    */
-  private extractUserMessage(messages: Message[]): string {
-    const parts: string[] = [];
+  private extractUserMessage(messages: Message): string {
+    const parts: string = ;
 
     for (const msg of messages) {
       if (msg.role === 'user') {
@@ -371,7 +371,7 @@ export class SmartRouter {
    * Check if messages contain images
  *
    */
-  private containsImages(messages: Message[]): boolean {
+  private containsImages(messages: Message): boolean {
     for (const msg of messages) {
       if (Array.isArray(msg.content)) {
         for (const block of msg.content) {
@@ -387,7 +387,7 @@ export class SmartRouter {
   /**
    * Estimate token count using improved token counter
    */
-  private estimateTokenCount(messages: Message[], model: string = 'claude'): number {
+  private estimateTokenCount(messages: Message, model: string = 'claude'): number {
     return estimateMessageTokens(messages, model);
   }
 
@@ -395,8 +395,8 @@ export class SmartRouter {
    * Get default routing configuration
  *
    */
-  static getDefaultRules(): RoutingRule[] {
-    const now = Date.now();
+  static getDefaultRules: RoutingRule {
+    const now = Date.now;
 
     return [
       {

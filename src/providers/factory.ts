@@ -1,6 +1,6 @@
 /**
  * Provider Factory
- * 负责创建和管理不同类型的 Provider 实例
+ *  Provider 
  */
 
 import type { Channel, ChannelType } from '../types';
@@ -12,43 +12,43 @@ import { CustomProvider } from './custom';
 import { logger } from '../utils/logger';
 
 /**
- * Provider 注册表
+ * Provider 
  */
 class ProviderRegistry {
-  private providers = new Map<ChannelType, BaseProvider>();
-  private providerInstances = new Map<string, BaseProvider>();
+  private providers = new Map<ChannelType, BaseProvider>;
+  private providerInstances = new Map<string, BaseProvider>;
 
-  constructor() {
-    // 注册所有内置 Provider
-    this.registerProvider('anthropic', new AnthropicProvider());
-    this.registerProvider('openai', new OpenAIProvider());
-    this.registerProvider('azure', new AzureOpenAIProvider());
-    this.registerProvider('google', new GoogleProvider());
-    this.registerProvider('custom', new CustomProvider());
-    this.registerProvider('zhipu', new CustomProvider()); // 智谱 AI 使用 OpenAI 兼容接口
+  constructor {
+    //  Provider
+    this.registerProvider('anthropic', new AnthropicProvider);
+    this.registerProvider('openai', new OpenAIProvider);
+    this.registerProvider('azure', new AzureOpenAIProvider);
+    this.registerProvider('google', new GoogleProvider);
+    this.registerProvider('custom', new CustomProvider);
+    this.registerProvider('zhipu', new CustomProvider); //  AI  OpenAI 
 
     logger.info({
-      registeredProviders: Array.from(this.providers.keys()),
+      registeredProviders: Array.from(this.providers.keys),
     }, '📋 Provider registry initialized');
   }
 
   /**
-   * 注册一个 Provider
+   *  Provider
    */
   registerProvider(type: ChannelType, provider: BaseProvider) {
     this.providers.set(type, provider);
   }
 
   /**
-   * 获取 Provider 实例（单例，按 channel.id 缓存）
+   *  Provider  channel.id 
    */
   getProvider(channel: Channel): BaseProvider {
-    // 检查是否已有该 channel 的实例
+    //  channel 
     if (this.providerInstances.has(channel.id)) {
       return this.providerInstances.get(channel.id)!;
     }
 
-    // 获取对应类型的 Provider
+    //  Provider
     const provider = this.providers.get(channel.type);
 
     if (!provider) {
@@ -57,19 +57,19 @@ class ProviderRegistry {
         channelId: channel.id,
       }, `⚠️  No provider found for type ${channel.type}, using custom provider`);
 
-      // 如果找不到，返回 custom provider
+      //  custom provider
       const customProvider = this.providers.get('custom')!;
       this.providerInstances.set(channel.id, customProvider);
       return customProvider;
     }
 
-    // 缓存实例
+    // 
     this.providerInstances.set(channel.id, provider);
     return provider;
   }
 
   /**
-   * 验证渠道配置
+   * 
    */
   validateChannel(channel: Channel): { valid: boolean; error?: string } {
     const provider = this.getProvider(channel);
@@ -77,14 +77,14 @@ class ProviderRegistry {
   }
 
   /**
-   * 获取所有已注册的 Provider 类型
+   *  Provider 
    */
-  getRegisteredTypes(): ChannelType[] {
-    return Array.from(this.providers.keys());
+  getRegisteredTypes: ChannelType {
+    return Array.from(this.providers.keys);
   }
 
   /**
-   * 获取 Provider 信息
+   *  Provider 
    */
   getProviderInfo(type: ChannelType) {
     const provider = this.providers.get(type);
@@ -96,22 +96,22 @@ class ProviderRegistry {
       name: provider.name,
       type: provider.type,
       capabilities: provider.capabilities,
-      defaultBaseUrl: provider.getDefaultBaseUrl(),
+      defaultBaseUrl: provider.getDefaultBaseUrl,
     };
   }
 
   /**
-   * 获取所有 Provider 信息
+   *  Provider 
    */
-  getAllProvidersInfo() {
+  getAllProvidersInfo {
     const infos: Record<string, any> = {};
 
-    for (const [type, provider] of this.providers.entries()) {
+    for (const [type, provider] of this.providers.entries) {
       infos[type] = {
         name: provider.name,
         type: provider.type,
         capabilities: provider.capabilities,
-        defaultBaseUrl: provider.getDefaultBaseUrl(),
+        defaultBaseUrl: provider.getDefaultBaseUrl,
       };
     }
 
@@ -119,32 +119,32 @@ class ProviderRegistry {
   }
 
   /**
-   * 清除指定 channel 的缓存实例
+   *  channel 
    */
   clearProviderInstance(channelId: string) {
     this.providerInstances.delete(channelId);
   }
 
   /**
-   * 清除所有缓存实例
+   * 
    */
-  clearAllInstances() {
-    this.providerInstances.clear();
+  clearAllInstances {
+    this.providerInstances.clear;
   }
 }
 
-// 导出单例
-export const providerRegistry = new ProviderRegistry();
+// 
+export const providerRegistry = new ProviderRegistry;
 
 /**
- * 便捷函数：获取 Provider
+ *  Provider
  */
 export function getProvider(channel: Channel): BaseProvider {
   return providerRegistry.getProvider(channel);
 }
 
 /**
- * 便捷函数：验证渠道
+ * 
  */
 export function validateChannel(channel: Channel): { valid: boolean; error?: string } {
   return providerRegistry.validateChannel(channel);

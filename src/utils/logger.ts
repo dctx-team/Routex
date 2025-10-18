@@ -1,10 +1,10 @@
 import pino from 'pino';
 
-// 日志级别配置
+// 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-// 创建 logger 实例
+//  logger 
 export const logger = pino({
   level: LOG_LEVEL,
   transport: IS_PRODUCTION
@@ -20,7 +20,7 @@ export const logger = pino({
       },
   formatters: {
     level: (label) => {
-      return { level: label.toUpperCase() };
+      return { level: label.toUpperCase };
     },
   },
   timestamp: pino.stdTimeFunctions.isoTime,
@@ -29,17 +29,17 @@ export const logger = pino({
   },
 });
 
-// 请求日志器
+// 
 export function createRequestLogger(requestId: string) {
   return logger.child({ requestId });
 }
 
-// 组件日志器
+// 
 export function createComponentLogger(component: string) {
   return logger.child({ component });
 }
 
-// 便捷方法
+// 
 export const log = {
   info: (msg: string, data?: object) => logger.info(data || {}, msg),
   warn: (msg: string, data?: object) => logger.warn(data || {}, msg),
@@ -48,7 +48,7 @@ export const log = {
   fatal: (msg: string, data?: object) => logger.fatal(data || {}, msg),
 };
 
-// 请求日志中间件
+// 
 export function logRequest(context: {
   method: string;
   url: string;
@@ -85,7 +85,7 @@ export function logRequest(context: {
   }
 }
 
-// 渠道操作日志
+// 
 export function logChannelOperation(
   operation: 'create' | 'update' | 'delete' | 'select',
   channelName: string,
@@ -101,7 +101,7 @@ export function logChannelOperation(
   );
 }
 
-// 负载均衡日志
+// 
 export function logLoadBalancer(
   strategy: string,
   selectedChannel: string,
@@ -117,7 +117,7 @@ export function logLoadBalancer(
   );
 }
 
-// Transformer 日志
+// Transformer 
 export function logTransformer(
   transformerName: string,
   operation: 'request' | 'response',
@@ -133,7 +133,7 @@ export function logTransformer(
   );
 }
 
-// 错误日志
+// 
 export function logError(error: Error, context?: object) {
   logger.error(
     {
@@ -148,7 +148,7 @@ export function logError(error: Error, context?: object) {
   );
 }
 
-// 系统启动日志
+// 
 export function logStartup(config: {
   port: number;
   version: string;
@@ -161,7 +161,7 @@ export function logStartup(config: {
   );
 }
 
-// 系统关闭日志
+// 
 export function logShutdown(reason?: string) {
   logger.info({ reason }, '🛑 Routex shutting down');
 }

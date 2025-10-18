@@ -1,12 +1,12 @@
 /**
  * Base Provider interface and abstract class
- * 所有 AI 提供商的基础接口
+ *  AI 
  */
 
 import type { Channel, ParsedRequest } from '../types';
 
 /**
- * Provider 请求配置
+ * Provider 
  */
 export interface ProviderRequest {
   url: string;
@@ -16,7 +16,7 @@ export interface ProviderRequest {
 }
 
 /**
- * Provider 响应
+ * Provider 
  */
 export interface ProviderResponse {
   status: number;
@@ -25,7 +25,7 @@ export interface ProviderResponse {
 }
 
 /**
- * Provider 能力配置
+ * Provider 
  */
 export interface ProviderCapabilities {
   supportsStreaming: boolean;
@@ -36,7 +36,7 @@ export interface ProviderCapabilities {
 }
 
 /**
- * 抽象 Provider 基类
+ *  Provider 
  */
 export abstract class BaseProvider {
   abstract readonly name: string;
@@ -44,29 +44,29 @@ export abstract class BaseProvider {
   abstract readonly capabilities: ProviderCapabilities;
 
   /**
-   * 获取默认的 API Base URL
+   *  API Base URL
    */
-  abstract getDefaultBaseUrl(): string;
+  abstract getDefaultBaseUrl: string;
 
   /**
-   * 准备认证头
+   * 
    */
   abstract prepareAuthHeaders(channel: Channel): Record<string, string>;
 
   /**
-   * 构建完整的请求 URL
+   *  URL
    */
   buildRequestUrl(channel: Channel, path: string): string {
-    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl();
-    // 移除尾部斜杠
+    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl;
+    // 
     const cleanBase = baseUrl.replace(/\/$/, '');
-    // 确保路径以斜杠开头
+    // 
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     return `${cleanBase}${cleanPath}`;
   }
 
   /**
-   * 准备请求头（认证 + 通用头）
+   *  + 
    */
   prepareHeaders(
     channel: Channel,
@@ -79,26 +79,26 @@ export abstract class BaseProvider {
       ...request.headers,
       'Content-Type': 'application/json',
       ...authHeaders,
-      ...additionalHeaders, // 额外的头（如 transformer 提供的）优先级最高
+      ...additionalHeaders, //  transformer 
     };
   }
 
   /**
-   * 转换请求体（可选，子类可以覆盖）
+   * 
    */
   async transformRequest(body: unknown, channel: Channel): Promise<unknown> {
     return body;
   }
 
   /**
-   * 转换响应体（可选，子类可以覆盖）
+   * 
    */
   async transformResponse(body: unknown, channel: Channel): Promise<unknown> {
     return body;
   }
 
   /**
-   * 提取 token 使用信息
+   *  token 
    */
   extractTokenUsage(responseBody: any): {
     inputTokens: number;
@@ -114,7 +114,7 @@ export abstract class BaseProvider {
   }
 
   /**
-   * 验证渠道配置是否有效
+   * 
    */
   validateChannel(channel: Channel): { valid: boolean; error?: string } {
     if (!channel.apiKey) {
@@ -124,7 +124,7 @@ export abstract class BaseProvider {
   }
 
   /**
-   * 准备完整的 Provider 请求
+   *  Provider 
    */
   async prepareRequest(
     channel: Channel,
@@ -144,18 +144,18 @@ export abstract class BaseProvider {
   }
 
   /**
-   * 处理 Provider 响应
+   *  Provider 
    */
   async handleResponse(
     response: Response,
     channel: Channel
   ): Promise<ProviderResponse> {
-    const body = await response.json();
+    const body = await response.json;
     const transformedBody = await this.transformResponse(body, channel);
 
     return {
       status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
+      headers: Object.fromEntries(response.headers.entries),
       body: transformedBody,
     };
   }

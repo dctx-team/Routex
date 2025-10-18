@@ -1,69 +1,61 @@
 # Distributed Tracing Implementation
-# 分布式追踪实现
+# 
 
-## Overview / 概述
-
+## Overview
 Routex now includes a full-featured distributed tracing system that allows you to track the complete lifecycle of each request through the proxy. This feature is essential for performance analysis, debugging, and understanding system behavior in production.
 
-Routex 现已包含完整的分布式追踪系统，允许您跟踪通过代理的每个请求的完整生命周期。此功能对于性能分析、调试和理解生产环境中的系统行为至关重要。
+Routex 
 
-## Features / 特性
-
-### 1. Request Lifecycle Tracking / 请求生命周期追踪
-
+## Features
+### 1. Request Lifecycle Tracking
 Every request through the proxy is automatically traced with multiple spans:
-每个通过代理的请求都会自动追踪多个 Spans：
+ Spans
 
-- **proxy.handle** - Root span covering the entire request / 覆盖整个请求的根 Span
-- **proxy.parseRequest** - Request parsing phase / 请求解析阶段
-- **proxy.routing** - Routing decision phase / 路由决策阶段
-- **proxy.forward** - Forwarding to upstream API / 转发到上游 API
+- **proxy.handle** - Root span covering the entire request /  Span
+- **proxy.parseRequest** - Request parsing phase
+- **proxy.routing** - Routing decision phase
+- **proxy.forward** - Forwarding to upstream API /  API
 
-### 2. W3C Trace Context Compatible / W3C 追踪上下文兼容
+### 2. W3C Trace Context Compatible / W3C 
 
 The tracing system supports multiple trace context formats:
-追踪系统支持多种追踪上下文格式：
 
 - Custom headers: `X-Trace-Id`, `X-Span-Id`, `X-Parent-Span-Id`
 - W3C Trace Context: `traceparent` header
-- Automatic trace ID generation if not provided / 如果未提供则自动生成追踪 ID
+- Automatic trace ID generation if not provided /  ID
 
-### 3. Span Hierarchy / Span 层级结构
+### 3. Span Hierarchy / Span 
 
 Spans are organized in a parent-child hierarchy, allowing you to understand the exact sequence and nesting of operations:
-Spans 以父子层级结构组织，让您了解操作的确切顺序和嵌套关系：
+Spans 
 
 ```
 proxy.handle (1964ms)
 ├── proxy.parseRequest (1ms)
 ├── proxy.routing (5ms)
-│   └── LoadBalancer selected "Test Channel"
+│   └── LoadBalancer selected Test Channel
 └── proxy.forward (1954ms)
     └── API call to upstream provider
 ```
 
-### 4. Performance Metrics / 性能指标
-
+### 4. Performance Metrics
 Each span tracks:
-每个 Span 追踪：
+ Span 
 
-- **Start time** / 开始时间
-- **End time** / 结束时间
-- **Duration** / 持续时间
-- **Status** (pending, success, error) / 状态
-- **Tags** (custom metadata) / 标签（自定义元数据）
-- **Logs** (timestamped log messages) / 日志（带时间戳的日志消息）
+- **Start time**
+- **End time**
+- **Duration**
+- **Status** (pending, success, error)
+- **Tags** (custom metadata)
+- **Logs** (timestamped log messages)
+### 5. Memory Management
+- Automatic cleanup of old spans (default 1 hour) /  Spans 1 
+- Configurable maximum spans in memory (default 10,000) /  Spans  10,000
+- LRU-style eviction when limit is reached /  LRU 
 
-### 5. Memory Management / 内存管理
+## API Reference / API 
 
-- Automatic cleanup of old spans (default 1 hour) / 自动清理旧 Spans（默认 1 小时）
-- Configurable maximum spans in memory (default 10,000) / 可配置内存中的最大 Spans 数量（默认 10,000）
-- LRU-style eviction when limit is reached / 达到限制时采用 LRU 样式驱逐
-
-## API Reference / API 参考
-
-### Get Tracing Statistics / 获取追踪统计
-
+### Get Tracing Statistics
 ```bash
 curl http://localhost:8080/api/tracing/stats
 ```
@@ -71,19 +63,19 @@ curl http://localhost:8080/api/tracing/stats
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "totalSpans": 150,
-    "completed": 148,
-    "success": 145,
-    "error": 3,
-    "averageDuration": 234,
-    "maxSpans": 10000
+  success: true,
+  data: {
+    totalSpans: 150,
+    completed: 148,
+    success: 145,
+    error: 3,
+    averageDuration: 234,
+    maxSpans: 10000
   }
 }
 ```
 
-### Get All Spans for a Trace / 获取追踪的所有 Spans
+### Get All Spans for a Trace /  Spans
 
 ```bash
 curl http://localhost:8080/api/tracing/traces/trace-1697123456789-abc123
@@ -92,125 +84,116 @@ curl http://localhost:8080/api/tracing/traces/trace-1697123456789-abc123
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "traceId": "trace-1697123456789-abc123",
-    "spans": [
+  success: true,
+  data: {
+    traceId: trace-1697123456789-abc123,
+    spans: [
       {
-        "traceId": "trace-1697123456789-abc123",
-        "spanId": "span-xyz789",
-        "parentSpanId": null,
-        "name": "proxy.handle",
-        "startTime": 1697123456789,
-        "endTime": 1697123458753,
-        "duration": 1964,
-        "status": "success",
-        "tags": {
-          "method": "POST",
-          "url": "http://localhost:8080/v1/messages",
-          "latency": 1960
+        traceId: trace-1697123456789-abc123,
+        spanId: span-xyz789,
+        parentSpanId: null,
+        name: proxy.handle,
+        startTime: 1697123456789,
+        endTime: 1697123458753,
+        duration: 1964,
+        status: success,
+        tags: {
+          method: POST,
+          url: http://localhost:8080/v1/messages,
+          latency: 1960
         },
-        "logs": []
+        logs: 
       }
     ]
   }
 }
 ```
 
-### Get Specific Span / 获取特定 Span
+### Get Specific Span /  Span
 
 ```bash
 curl http://localhost:8080/api/tracing/spans/span-xyz789
 ```
 
-### Clear Old Spans / 清理旧 Spans
+### Clear Old Spans /  Spans
 
 ```bash
 curl -X POST http://localhost:8080/api/tracing/clear \
-  -H "Content-Type: application/json" \
-  -d '{"olderThanMs": 3600000}'
+  -H Content-Type: application/json \
+  -d '{olderThanMs: 3600000}'
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "removedCount": 42,
-    "remainingSpans": 108
+  success: true,
+  data: {
+    removedCount: 42,
+    remainingSpans: 108
   }
 }
 ```
 
-## Usage Examples / 使用示例
-
-### Example 1: Basic Request Tracing / 基础请求追踪
-
+## Usage Examples
+### Example 1: Basic Request Tracing
 Make a request and check its trace:
-发送请求并查看其追踪：
 
 ```bash
 # Make a request with a custom trace ID
 curl -X POST http://localhost:8080/v1/messages \
-  -H "Content-Type: application/json" \
-  -H "X-Trace-Id: my-custom-trace-001" \
+  -H Content-Type: application/json \
+  -H X-Trace-Id: my-custom-trace-001 \
   -d '{
-    "model": "claude-sonnet-4",
-    "max_tokens": 100,
-    "messages": [{"role": "user", "content": "Hello!"}]
+    model: claude-sonnet-4,
+    max_tokens: 100,
+    messages: [{role: user, content: Hello!}]
   }'
 
 # Check the trace
 curl http://localhost:8080/api/tracing/traces/my-custom-trace-001
 ```
 
-### Example 2: Distributed Tracing Across Services / 跨服务分布式追踪
-
+### Example 2: Distributed Tracing Across Services
 If you have multiple services, you can propagate the trace context:
-如果您有多个服务，可以传播追踪上下文：
 
 ```bash
 # Service A generates a trace ID
-TRACE_ID="trace-$(date +%s)-$(openssl rand -hex 8)"
+TRACE_ID=trace-$(date +%s)-$(openssl rand -hex 8)
 
 # Service A calls Routex
 curl -X POST http://localhost:8080/v1/messages \
-  -H "X-Trace-Id: $TRACE_ID" \
-  -H "X-Parent-Span-Id: service-a-span-123" \
+  -H X-Trace-Id: $TRACE_ID \
+  -H X-Parent-Span-Id: service-a-span-123 \
   -d '...'
 
 # Later, query the trace to see the complete flow
 curl http://localhost:8080/api/tracing/traces/$TRACE_ID
 ```
 
-### Example 3: Performance Analysis / 性能分析
-
+### Example 3: Performance Analysis
 Analyze request performance by examining span durations:
-通过检查 Span 持续时间分析请求性能：
+ Span 
 
 ```bash
 # Get trace
 curl http://localhost:8080/api/tracing/traces/trace-001 | \
-  jq '.data.spans[] | {name: .name, duration: .duration}'
+  jq '.data.spans | {name: .name, duration: .duration}'
 ```
 
 **Output:**
 ```json
-{"name": "proxy.handle", "duration": 1964}
-{"name": "proxy.parseRequest", "duration": 1}
-{"name": "proxy.routing", "duration": 5}
-{"name": "proxy.forward", "duration": 1954}
+{name: proxy.handle, duration: 1964}
+{name: proxy.parseRequest, duration: 1}
+{name: proxy.routing, duration: 5}
+{name: proxy.forward, duration: 1954}
 ```
 
 This shows that most time (1954ms) was spent forwarding to the upstream API, not in routing or parsing.
-这表明大部分时间（1954ms）花在转发到上游 API，而不是路由或解析。
+1954ms API
 
-## Implementation Details / 实现细节
-
-### Architecture / 架构
-
+## Implementation Details
+### Architecture
 The tracing system consists of:
-追踪系统包括：
 
 1. **RequestTracer Class** (`src/core/tracing.ts`)
    - Manages span lifecycle
@@ -230,7 +213,7 @@ The tracing system consists of:
    - `/api/tracing/spans/:spanId` - Span details
    - `/api/tracing/clear` - Cleanup
 
-### Span Lifecycle / Span 生命周期
+### Span Lifecycle / Span 
 
 ```typescript
 // 1. Start a span
@@ -248,49 +231,44 @@ tracer.addTags(span.spanId, { key: 'value' });
 tracer.endSpan(span.spanId, 'success', { finalTag: 'value' });
 ```
 
-### Memory Management / 内存管理
-
+### Memory Management
 The tracer implements two memory protection mechanisms:
-追踪器实现两种内存保护机制：
 
 1. **Maximum Span Limit** (10,000)
    - When exceeded, oldest spans are removed
-   - 超过限制时，删除最旧的 Spans
+   -  Spans
 
 2. **Time-based Cleanup**
    - Automatic cleanup of spans older than 1 hour
    - Manual cleanup via API endpoint
-   - 自动清理 1 小时前的 Spans
-   - 通过 API 端点手动清理
+   -  1  Spans
+   -  API 
 
-## Best Practices / 最佳实践
-
-### 1. Use Meaningful Trace IDs / 使用有意义的追踪 ID
+## Best Practices
+### 1. Use Meaningful Trace IDs /  ID
 
 ```bash
 # Good: Include service name and timestamp
-TRACE_ID="web-frontend-$(date +%s)-$(openssl rand -hex 4)"
+TRACE_ID=web-frontend-$(date +%s)-$(openssl rand -hex 4)
 
 # Bad: Random only
-TRACE_ID="$(openssl rand -hex 8)"
+TRACE_ID=$(openssl rand -hex 8)
 ```
 
-### 2. Regular Cleanup / 定期清理
-
+### 2. Regular Cleanup
 Set up a cron job to clean old spans:
-设置定时任务清理旧 Spans：
+ Spans
 
 ```bash
 # Every hour, clean spans older than 2 hours
 0 * * * * curl -X POST http://localhost:8080/api/tracing/clear \
-  -H "Content-Type: application/json" \
-  -d '{"olderThanMs": 7200000}'
+  -H Content-Type: application/json \
+  -d '{olderThanMs: 7200000}'
 ```
 
-### 3. Use Tags for Filtering / 使用标签进行过滤
-
+### 3. Use Tags for Filtering
 Add meaningful tags to spans for easier filtering:
-为 Spans 添加有意义的标签以便过滤：
+ Spans 
 
 ```typescript
 tracer.addTags(spanId, {
@@ -300,22 +278,19 @@ tracer.addTags(spanId, {
 });
 ```
 
-### 4. Monitor Tracing Stats / 监控追踪统计
-
+### 4. Monitor Tracing Stats
 Regularly check tracing statistics:
-定期检查追踪统计：
 
 ```bash
 curl http://localhost:8080/api/tracing/stats | \
   jq '.data | {spans: .totalSpans, errors: .error, avgDuration: .averageDuration}'
 ```
 
-## Integration with Monitoring / 与监控集成
-
-### Prometheus Metrics / Prometheus 指标
+## Integration with Monitoring
+### Prometheus Metrics / Prometheus 
 
 Tracing data can be used to enhance Prometheus metrics:
-追踪数据可用于增强 Prometheus 指标：
+ Prometheus 
 
 ```bash
 # Get average request duration from tracing
@@ -327,28 +302,26 @@ curl http://localhost:8080/metrics | \
   grep routex_request_duration
 ```
 
-### Grafana Dashboard / Grafana 仪表板
+### Grafana Dashboard / Grafana 
 
 You can build a Grafana dashboard that:
-您可以构建 Grafana 仪表板：
+ Grafana 
 
-1. Shows request traces over time / 显示随时间变化的请求追踪
-2. Graphs span durations / 绘制 Span 持续时间图表
-3. Highlights error traces / 突出显示错误追踪
-4. Compares routing decisions / 比较路由决策
-
-## Troubleshooting / 故障排除
-
-### Issue: Spans not appearing / 问题：Spans 未出现
+1. Shows request traces over time
+2. Graphs span durations /  Span 
+3. Highlights error traces
+4. Compares routing decisions
+## Troubleshooting
+### Issue: Spans not appearing / Spans 
 
 **Solution:** Check if tracing is working:
-**解决方案：**检查追踪是否工作：
+****
 
 ```bash
 # Make a test request
 curl -X POST http://localhost:8080/v1/messages \
-  -H "X-Trace-Id: test-trace-001" \
-  -H "Content-Type: application/json" \
+  -H X-Trace-Id: test-trace-001 \
+  -H Content-Type: application/json \
   -d '{...}'
 
 # Check stats
@@ -357,82 +330,70 @@ curl http://localhost:8080/api/tracing/stats
 # If totalSpans is 0, check server logs
 ```
 
-### Issue: Memory usage growing / 问题：内存使用增长
-
+### Issue: Memory usage growing
 **Solution:** Enable automatic cleanup:
-**解决方案：**启用自动清理：
+****
 
 ```bash
 # Clean spans older than 30 minutes
 curl -X POST http://localhost:8080/api/tracing/clear \
-  -d '{"olderThanMs": 1800000}'
+  -d '{olderThanMs: 1800000}'
 ```
 
-### Issue: Cannot find specific trace / 问题：无法找到特定追踪
-
+### Issue: Cannot find specific trace
 **Solution:** Traces are removed after 1 hour by default. Check timing:
-**解决方案：**追踪默认在 1 小时后删除。检查时间：
+**** 1 
 
 ```bash
 # Check when the request was made
-echo "Request time: 2025-01-15 10:00:00"
-echo "Current time: $(date)"
+echo Request time: 2025-01-15 10:00:00
+echo Current time: $(date)
 
 # If more than 1 hour, the trace may be cleaned
 ```
 
-## Performance Impact / 性能影响
-
+## Performance Impact
 The tracing system is designed to have minimal performance impact:
-追踪系统设计为对性能影响最小：
 
 - **CPU overhead:** <1% (span creation and management)
 - **Memory overhead:** ~1KB per span × maxSpans (default 10MB)
 - **No I/O overhead:** All operations are in-memory
 - **No blocking:** Span operations are synchronous but very fast
 
-## Future Enhancements / 未来增强
-
+## Future Enhancements
 Planned improvements:
-计划的改进：
 
-1. **Export to external tracing systems** / 导出到外部追踪系统
-   - Jaeger integration / Jaeger 集成
-   - Zipkin integration / Zipkin 集成
-   - OpenTelemetry export / OpenTelemetry 导出
+1. **Export to external tracing systems**
+   - Jaeger integration / Jaeger 
+   - Zipkin integration / Zipkin 
+   - OpenTelemetry export / OpenTelemetry 
 
-2. **Enhanced visualization** / 增强可视化
-   - Built-in trace visualizer / 内置追踪可视化器
-   - Flamegraph generation / 火焰图生成
-
-3. **Sampling** / 采样
-   - Configurable trace sampling rate / 可配置追踪采样率
-   - Smart sampling based on latency / 基于延迟的智能采样
-
-4. **Persistence** / 持久化
-   - Optional SQLite storage for traces / 可选的 SQLite 追踪存储
-   - Export to files / 导出到文件
-
+2. **Enhanced visualization**
+   - Built-in trace visualizer
+   - Flamegraph generation
+3. **Sampling**
+   - Configurable trace sampling rate
+   - Smart sampling based on latency
+4. **Persistence**
+   - Optional SQLite storage for traces /  SQLite 
+   - Export to files
 ---
 
-## Summary / 总结
-
+## Summary
 Routex's distributed tracing system provides production-ready request tracking with:
-Routex 的分布式追踪系统提供生产就绪的请求追踪：
+Routex 
 
-- ✅ W3C Trace Context compatibility / W3C 追踪上下文兼容
-- ✅ Complete request lifecycle tracking / 完整的请求生命周期追踪
-- ✅ Performance analysis tools / 性能分析工具
-- ✅ Memory-efficient design / 内存高效设计
-- ✅ Easy-to-use REST API / 易用的 REST API
-- ✅ Zero configuration required / 零配置要求
-
+- ✅ W3C Trace Context compatibility / W3C 
+- ✅ Complete request lifecycle tracking
+- ✅ Performance analysis tools
+- ✅ Memory-efficient design
+- ✅ Easy-to-use REST API /  REST API
+- ✅ Zero configuration required
 For more information, see:
-更多信息，请参阅：
 
 - [API Reference](../API_REFERENCE.md#tracing-api)
-- [Quick Start Guide](./QUICK_START.md#请求追踪-distributed-tracing)
-- [Code Review](./CODE_REVIEW.md#请求追踪功能)
+- [Quick Start Guide](./QUICK_START.md#-distributed-tracing)
+- [Code Review](./CODE_REVIEW.md#)
 
 ---
 

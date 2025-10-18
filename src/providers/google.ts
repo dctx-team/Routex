@@ -13,28 +13,28 @@ export class GoogleProvider extends BaseProvider {
     supportsTools: true,
     supportsVision: true,
     supportsSystemMessages: true,
-    maxTokens: 1000000, // Gemini 1.5 Pro 支持 1M context
+    maxTokens: 1000000, // Gemini 1.5 Pro  1M context
   };
 
-  getDefaultBaseUrl(): string {
+  getDefaultBaseUrl: string {
     return 'https://generativelanguage.googleapis.com';
   }
 
   prepareAuthHeaders(channel: Channel): Record<string, string> {
-    // Google 使用 API Key 作为查询参数，不在 header 中
+    // Google  API Key  header 
     return {};
   }
 
   /**
-   * Google Gemini 特殊的 URL 构建（API Key 作为查询参数）
+   * Google Gemini  URL API Key 
    */
   buildRequestUrl(channel: Channel, path: string): string {
-    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl();
+    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl;
     const cleanBase = baseUrl.replace(/\/$/, '');
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     const url = `${cleanBase}${cleanPath}`;
 
-    // 添加 API Key 作为查询参数
+    //  API Key 
     const separator = url.includes('?') ? '&' : '?';
     return `${url}${separator}key=${channel.apiKey || ''}`;
   }

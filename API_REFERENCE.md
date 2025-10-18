@@ -25,21 +25,21 @@ GET /api/routing/rules
 **Response**:
 ```json
 {
-  "success": true,
-  "data": [
+  success: true,
+  data: [
     {
-      "id": "uuid",
-      "name": "Long Context to Gemini",
-      "type": "longContext",
-      "condition": {
-        "tokenThreshold": 60000
+      id: uuid,
+      name: Long Context to Gemini,
+      type: longContext,
+      condition: {
+        tokenThreshold: 60000
       },
-      "targetChannel": "channel-id",
-      "targetModel": "gemini-2.5-pro",
-      "priority": 100,
-      "enabled": true,
-      "createdAt": 1234567890,
-      "updatedAt": 1234567890
+      targetChannel: channel-id,
+      targetModel: gemini-2.5-pro,
+      priority: 100,
+      enabled: true,
+      createdAt: 1234567890,
+      updatedAt: 1234567890
     }
   ]
 }
@@ -64,14 +64,14 @@ POST /api/routing/rules
 Content-Type: application/json
 
 {
-  "name": "Rule Name",
-  "type": "longContext|background|think|webSearch|image|custom",
-  "condition": {
+  name: Rule Name,
+  type: longContext|background|think|webSearch|image|custom,
+  condition: {
     // Condition based on type
   },
-  "targetChannel": "channel-id-or-name",
-  "targetModel": "optional-model-override",
-  "priority": 50
+  targetChannel: channel-id-or-name,
+  targetModel: optional-model-override,
+  priority: 50
 }
 ```
 
@@ -80,8 +80,8 @@ Content-Type: application/json
 1. **Long Context / ** (`type: longContext`):
    ```json
    {
-     "condition": {
-       "tokenThreshold": 60000
+     condition: {
+       tokenThreshold: 60000
      }
    }
    ```
@@ -89,8 +89,8 @@ Content-Type: application/json
 2. **Keywords / ** (`type: custom`):
    ```json
    {
-     "condition": {
-       "keywords": ["code review", "analyze", "explain"]
+     condition: {
+       keywords: [code review, analyze, explain]
      }
    }
    ```
@@ -98,8 +98,8 @@ Content-Type: application/json
 3. **User Pattern / ** (`type: custom`):
    ```json
    {
-     "condition": {
-       "userPattern": "^(analyze|review)\\s+code"
+     condition: {
+       userPattern: ^(analyze|review)\\s+code
      }
    }
    ```
@@ -107,8 +107,8 @@ Content-Type: application/json
 4. **Model Pattern / ** (`type: custom`):
    ```json
    {
-     "condition": {
-       "modelPattern": "^claude-opus"
+     condition: {
+       modelPattern: ^claude-opus
      }
    }
    ```
@@ -116,8 +116,8 @@ Content-Type: application/json
 5. **Has Tools / ** (`type: custom`):
    ```json
    {
-     "condition": {
-       "hasTools": true
+     condition: {
+       hasTools: true
      }
    }
    ```
@@ -125,8 +125,8 @@ Content-Type: application/json
 6. **Has Images / ** (`type: image`):
    ```json
    {
-     "condition": {
-       "hasImages": true
+     condition: {
+       hasImages: true
      }
    }
    ```
@@ -134,8 +134,8 @@ Content-Type: application/json
 7. **Custom Function / ** (`type: custom`):
    ```json
    {
-     "condition": {
-       "customFunction": "my-custom-router"
+     condition: {
+       customFunction: my-custom-router
      }
    }
    ```
@@ -147,9 +147,9 @@ PUT /api/routing/rules/:id
 Content-Type: application/json
 
 {
-  "name": "Updated Name",
-  "priority": 80,
-  "enabled": true
+  name: Updated Name,
+  priority: 80,
+  enabled: true
 }
 ```
 
@@ -159,8 +159,7 @@ Content-Type: application/json
 DELETE /api/routing/rules/:id
 ```
 
-### Enable/Disable Rule /
-
+### Enable/Disable Rule
 ```http
 POST /api/routing/rules/:id/enable
 POST /api/routing/rules/:id/disable
@@ -173,11 +172,11 @@ POST /api/routing/test
 Content-Type: application/json
 
 {
-  "model": "claude-opus-4",
-  "messages": [
+  model: claude-opus-4,
+  messages: [
     {
-      "role": "user",
-      "content": "Test message"
+      role: user,
+      content: Test message
     }
   ]
 }
@@ -196,15 +195,15 @@ GET /api/transformers
 **Response**:
 ```json
 {
-  "success": true,
-  "data": [
+  success: true,
+  data: [
     {
-      "name": "anthropic",
-      "description": "Anthropic Messages API format (base format)"
+      name: anthropic,
+      description: Anthropic Messages API format (base format)
     },
     {
-      "name": "openai",
-      "description": "OpenAI Chat Completions API format"
+      name: openai,
+      description: OpenAI Chat Completions API format
     }
   ]
 }
@@ -217,12 +216,12 @@ POST /api/transformers/test
 Content-Type: application/json
 
 {
-  "transformer": "openai",
-  "direction": "request|response",
-  "request": {
-    "model": "claude-opus-4",
-    "messages": [{"role": "user", "content": "Hello"}],
-    "max_tokens": 100
+  transformer: openai,
+  direction: request|response,
+  request: {
+    model: claude-opus-4,
+    messages: [{role: user, content: Hello}],
+    max_tokens: 100
   }
 }
 ```
@@ -230,12 +229,12 @@ Content-Type: application/json
 **Response**:
 ```json
 {
-  "success": true,
-  "data": {
-    "input": { /* original request */ },
-    "output": { /* transformed request */ },
-    "transformer": "openai",
-    "direction": "request"
+  success: true,
+  data: {
+    input: { /* original request */ },
+    output: { /* transformed request */ },
+    transformer: openai,
+    direction: request
   }
 }
 ```
@@ -263,15 +262,15 @@ POST /api/channels
 Content-Type: application/json
 
 {
-  "name": "Channel Name",
-  "type": "anthropic|openai|google|custom",
-  "apiKey": "your-api-key",
-  "baseUrl": "https://api.example.com",
-  "models": ["model-1", "model-2"],
-  "priority": 50,
-  "weight": 1,
-  "transformers": {
-    "use": ["openai"]
+  name: Channel Name,
+  type: anthropic|openai|google|custom,
+  apiKey: your-api-key,
+  baseUrl: https://api.example.com,
+  models: [model-1, model-2],
+  priority: 50,
+  weight: 1,
+  transformers: {
+    use: [openai]
   }
 }
 ```
@@ -280,10 +279,10 @@ Content-Type: application/json
 
 ```json
 {
-  "transformers": {
-    "use": [
-      "openai",
-      ["maxtoken", { "max_tokens": 8192 }]
+  transformers: {
+    use: [
+      openai,
+      [maxtoken, { max_tokens: 8192 }]
     ]
   }
 }
@@ -296,10 +295,10 @@ PUT /api/channels/:id
 Content-Type: application/json
 
 {
-  "name": "Updated Name",
-  "priority": 100,
-  "transformers": {
-    "use": ["anthropic"]
+  name: Updated Name,
+  priority: 100,
+  transformers: {
+    use: [anthropic]
   }
 }
 ```
@@ -323,8 +322,8 @@ POST /api/channels/import
 Content-Type: application/json
 
 {
-  "channels": [ /* array of channel configs */ ],
-  "replaceExisting": false
+  channels: [ /* array of channel configs */ ],
+  replaceExisting: false
 }
 ```
 
@@ -341,16 +340,16 @@ GET /api/analytics
 **Response**:
 ```json
 {
-  "success": true,
-  "data": {
-    "totalRequests": 1000,
-    "successfulRequests": 950,
-    "failedRequests": 50,
-    "averageLatency": 1234.5,
-    "totalInputTokens": 500000,
-    "totalOutputTokens": 200000,
-    "totalCachedTokens": 50000,
-    "estimatedCost": 12.34
+  success: true,
+  data: {
+    totalRequests: 1000,
+    successfulRequests: 950,
+    failedRequests: 50,
+    averageLatency: 1234.5,
+    totalInputTokens: 500000,
+    totalOutputTokens: 200000,
+    totalCachedTokens: 50000,
+    estimatedCost: 12.34
   }
 }
 ```
@@ -380,9 +379,9 @@ GET /api/load-balancer/strategy
 **Response**:
 ```json
 {
-  "success": true,
-  "data": {
-    "strategy": "priority"
+  success: true,
+  data: {
+    strategy: priority
   }
 }
 ```
@@ -394,16 +393,15 @@ PUT /api/load-balancer/strategy
 Content-Type: application/json
 
 {
-  "strategy": "priority|round_robin|weighted|least_used"
+  strategy: priority|round_robin|weighted|least_used
 }
 ```
 
 ---
 
-## Tracing API / 追踪 API
+## Tracing API /  API
 
-### Get Tracing Statistics / 获取追踪统计
-
+### Get Tracing Statistics
 ```http
 GET /api/tracing/stats
 ```
@@ -411,22 +409,21 @@ GET /api/tracing/stats
 **Response**:
 ```json
 {
-  "success": true,
-  "data": {
-    "totalSpans": 150,
-    "completed": 148,
-    "success": 145,
-    "error": 3,
-    "averageDuration": 234,
-    "maxSpans": 10000
+  success: true,
+  data: {
+    totalSpans: 150,
+    completed: 148,
+    success: 145,
+    error: 3,
+    averageDuration: 234,
+    maxSpans: 10000
   }
 }
 ```
 
-### Get Trace Details / 获取追踪详情
-
+### Get Trace Details
 Get all spans for a specific trace:
-获取特定追踪的所有 Spans：
+ Spans
 
 ```http
 GET /api/tracing/traces/:traceId
@@ -435,50 +432,50 @@ GET /api/tracing/traces/:traceId
 **Response**:
 ```json
 {
-  "success": true,
-  "data": {
-    "traceId": "trace-1697123456789-abc123",
-    "spans": [
+  success: true,
+  data: {
+    traceId: trace-1697123456789-abc123,
+    spans: [
       {
-        "traceId": "trace-1697123456789-abc123",
-        "spanId": "span-xyz789",
-        "parentSpanId": null,
-        "name": "proxy.handle",
-        "startTime": 1697123456789,
-        "endTime": 1697123458753,
-        "duration": 1964,
-        "status": "success",
-        "tags": {
-          "method": "POST",
-          "url": "http://localhost:8080/v1/messages",
-          "latency": 1960
+        traceId: trace-1697123456789-abc123,
+        spanId: span-xyz789,
+        parentSpanId: null,
+        name: proxy.handle,
+        startTime: 1697123456789,
+        endTime: 1697123458753,
+        duration: 1964,
+        status: success,
+        tags: {
+          method: POST,
+          url: http://localhost:8080/v1/messages,
+          latency: 1960
         },
-        "logs": []
+        logs: 
       },
       {
-        "traceId": "trace-1697123456789-abc123",
-        "spanId": "span-abc123",
-        "parentSpanId": "span-xyz789",
-        "name": "proxy.forward",
-        "startTime": 1697123456799,
-        "endTime": 1697123458753,
-        "duration": 1954,
-        "status": "success",
-        "tags": {
-          "channel": "Test Channel",
-          "model": "claude-sonnet-4"
+        traceId: trace-1697123456789-abc123,
+        spanId: span-abc123,
+        parentSpanId: span-xyz789,
+        name: proxy.forward,
+        startTime: 1697123456799,
+        endTime: 1697123458753,
+        duration: 1954,
+        status: success,
+        tags: {
+          channel: Test Channel,
+          model: claude-sonnet-4
         },
-        "logs": []
+        logs: 
       }
     ]
   }
 }
 ```
 
-### Get Span Details / 获取 Span 详情
+### Get Span Details /  Span 
 
 Get details of a specific span:
-获取特定 Span 的详细信息：
+ Span 
 
 ```http
 GET /api/tracing/spans/:spanId
@@ -487,73 +484,71 @@ GET /api/tracing/spans/:spanId
 **Response**:
 ```json
 {
-  "success": true,
-  "data": {
-    "traceId": "trace-1697123456789-abc123",
-    "spanId": "span-xyz789",
-    "parentSpanId": null,
-    "name": "proxy.handle",
-    "startTime": 1697123456789,
-    "endTime": 1697123458753,
-    "duration": 1964,
-    "status": "success",
-    "tags": {
-      "method": "POST",
-      "url": "http://localhost:8080/v1/messages"
+  success: true,
+  data: {
+    traceId: trace-1697123456789-abc123,
+    spanId: span-xyz789,
+    parentSpanId: null,
+    name: proxy.handle,
+    startTime: 1697123456789,
+    endTime: 1697123458753,
+    duration: 1964,
+    status: success,
+    tags: {
+      method: POST,
+      url: http://localhost:8080/v1/messages
     },
-    "logs": [
+    logs: [
       {
-        "timestamp": 1697123456790,
-        "message": "Request parsed",
-        "level": "info"
+        timestamp: 1697123456790,
+        message: Request parsed,
+        level: info
       }
     ]
   }
 }
 ```
 
-### Clear Old Spans / 清理旧 Spans
+### Clear Old Spans /  Spans
 
 Clear spans older than specified time (default 1 hour):
-清理指定时间之前的 Spans（默认 1 小时）：
+ Spans 1 
 
 ```http
 POST /api/tracing/clear
 Content-Type: application/json
 
 {
-  "olderThanMs": 3600000
+  olderThanMs: 3600000
 }
 ```
 
 **Response**:
 ```json
 {
-  "success": true,
-  "data": {
-    "removedCount": 42,
-    "remainingSpans": 108
+  success: true,
+  data: {
+    removedCount: 42,
+    remainingSpans: 108
   }
 }
 ```
 
-**Trace Context Headers / 追踪上下文头**:
+**Trace Context Headers / **:
 
 When making requests, you can pass trace context headers:
-发送请求时，可以传递追踪上下文头：
 
-- `X-Trace-Id`: Custom trace ID (optional) / 自定义追踪 ID（可选）
-- `X-Span-Id`: Custom span ID (optional) / 自定义 Span ID（可选）
-- `X-Parent-Span-Id`: Parent span ID (optional) / 父 Span ID（可选）
-- `traceparent`: W3C Trace Context format (optional) / W3C 追踪上下文格式（可选）
+- `X-Trace-Id`: Custom trace ID (optional) /  ID
+- `X-Span-Id`: Custom span ID (optional) /  Span ID
+- `X-Parent-Span-Id`: Parent span ID (optional) /  Span ID
+- `traceparent`: W3C Trace Context format (optional) / W3C 
 
-**Response Trace Headers / 响应追踪头**:
+**Response Trace Headers / **:
 
 All proxy responses include trace headers:
-所有代理响应都包含追踪头：
 
-- `X-Trace-Id`: Trace ID for this request / 本次请求的追踪 ID
-- `X-Span-Id`: Root span ID / 根 Span ID
+- `X-Trace-Id`: Trace ID for this request /  ID
+- `X-Span-Id`: Root span ID /  Span ID
 
 ---
 
@@ -566,10 +561,10 @@ GET /health
 **Response**:
 ```json
 {
-  "status": "healthy",
-  "version": "1.1.0-beta",
-  "uptime": 12345.67,
-  "timestamp": "2025-10-15T09:00:00.000Z"
+  status: healthy,
+  version: 1.1.0-beta,
+  uptime: 12345.67,
+  timestamp: 2025-10-15T09:00:00.000Z
 }
 ```
 
@@ -586,14 +581,14 @@ x-api-key: dummy
 x-session-id: optional-session-id
 
 {
-  "model": "claude-opus-4",
-  "messages": [
+  model: claude-opus-4,
+  messages: [
     {
-      "role": "user",
-      "content": "Hello!"
+      role: user,
+      content: Hello!
     }
   ],
-  "max_tokens": 1024
+  max_tokens: 1024
 }
 ```
 
@@ -612,10 +607,10 @@ API
 
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Error description"
+  success: false,
+  error: {
+    code: ERROR_CODE,
+    message: Error description
   }
 }
 ```

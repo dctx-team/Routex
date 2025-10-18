@@ -1,6 +1,6 @@
 /**
  * Content Analyzer for Smart Routing
- * 内容分析器用于智能路由
+ * 
  *
  * Provides advanced content analysis for intelligent request routing
  */
@@ -13,33 +13,33 @@ import type { Message, Tool } from '../../types';
 
 /**
  * Content analysis result
- * 内容分析结果
+ * 
  */
 export interface ContentAnalysis {
   // Basic metrics
-  // 基础指标
+  // 
   wordCount: number;
   characterCount: number;
   estimatedTokens: number;
 
   // Content features
-  // 内容特征
+  // 
   hasCode: boolean;
   hasUrls: boolean;
   hasImages: boolean;
   hasTools: boolean;
-  languages: string[]; // Programming languages detected
+  languages: string; // Programming languages detected
 
   // Content type classification
-  // 内容类型分类
+  // 
   topic?: string;
   category?: ContentCategory;
   complexity?: ComplexityLevel;
 
   // Intent detection
-  // 意图检测
+  // 
   intent?: RequestIntent;
-  keywords: string[];
+  keywords: string;
 }
 
 export type ContentCategory =
@@ -70,9 +70,9 @@ export type RequestIntent =
 export class ContentAnalyzer {
   /**
    * Analyze message content
-   * 分析消息内容
+   * 
    */
-  analyze(messages: Message[], tools?: Tool[]): ContentAnalysis {
+  analyze(messages: Message, tools?: Tool): ContentAnalysis {
     const fullText = this.extractAllText(messages);
 
     return {
@@ -101,10 +101,10 @@ export class ContentAnalyzer {
 
   /**
    * Extract all text from messages
-   * 提取所有文本
+   * 
    */
-  private extractAllText(messages: Message[]): string {
-    const parts: string[] = [];
+  private extractAllText(messages: Message): string {
+    const parts: string = ;
 
     for (const msg of messages) {
       if (typeof msg.content === 'string') {
@@ -123,7 +123,7 @@ export class ContentAnalyzer {
 
   /**
    * Count words in text
-   * 计算单词数
+   * 
    */
   private countWords(text: string): number {
     return text.split(/\s+/).filter((word) => word.length > 0).length;
@@ -131,7 +131,7 @@ export class ContentAnalyzer {
 
   /**
    * Detect code blocks and inline code
-   * 检测代码块和内联代码
+   * 
    */
   private detectCode(text: string): boolean {
     // Check for code blocks (``` or ~~~)
@@ -160,7 +160,7 @@ export class ContentAnalyzer {
 
   /**
    * Detect URLs
-   * 检测 URL
+   *  URL
    */
   private detectUrls(text: string): boolean {
     const urlPattern = /https?:\/\/[^\s]+/gi;
@@ -169,9 +169,9 @@ export class ContentAnalyzer {
 
   /**
    * Detect images in messages
-   * 检测图片
+   * 
    */
-  private detectImages(messages: Message[]): boolean {
+  private detectImages(messages: Message): boolean {
     for (const msg of messages) {
       if (Array.isArray(msg.content)) {
         for (const block of msg.content) {
@@ -186,11 +186,11 @@ export class ContentAnalyzer {
 
   /**
    * Detect programming languages
-   * 检测编程语言
+   * 
    */
-  private detectLanguages(text: string): string[] {
-    const languages: string[] = [];
-    const langPatterns: Record<string, RegExp[]> = {
+  private detectLanguages(text: string): string {
+    const languages: string = ;
+    const langPatterns: Record<string, RegExp> = {
       javascript: [/javascript/i, /\.js\b/, /node\.js/i, /npm/i, /const\s+\w+\s*=/],
       typescript: [/typescript/i, /\.ts\b/, /interface\s+\w+/, /type\s+\w+\s*=/],
       python: [/python/i, /\.py\b/, /def\s+\w+\s*\(/, /import\s+\w+/, /pip install/i],
@@ -216,10 +216,10 @@ export class ContentAnalyzer {
 
   /**
    * Detect main topic
-   * 检测主题
+   * 
    */
   private detectTopic(text: string): string | undefined {
-    const topics: Record<string, string[]> = {
+    const topics: Record<string, string> = {
       'API Development': ['api', 'endpoint', 'rest', 'graphql', 'http', 'request'],
       'Database': ['database', 'sql', 'query', 'table', 'schema', 'migration'],
       'Frontend': ['react', 'vue', 'angular', 'component', 'ui', 'css', 'html'],
@@ -232,7 +232,7 @@ export class ContentAnalyzer {
       'Documentation': ['document', 'readme', 'guide', 'tutorial', 'explanation'],
     };
 
-    const lowerText = text.toLowerCase();
+    const lowerText = text.toLowerCase;
     let maxScore = 0;
     let detectedTopic: string | undefined;
 
@@ -257,14 +257,14 @@ export class ContentAnalyzer {
 
   /**
    * Classify content category
-   * 分类内容类别
+   * 
    */
   private classifyContent(
     text: string,
-    messages: Message[],
-    tools?: Tool[]
+    messages: Message,
+    tools?: Tool
   ): ContentCategory {
-    const lowerText = text.toLowerCase();
+    const lowerText = text.toLowerCase;
 
     // Coding
     if (this.detectCode(text) || this.detectLanguages(text).length > 0) {
@@ -312,9 +312,9 @@ export class ContentAnalyzer {
 
   /**
    * Assess content complexity
-   * 评估内容复杂度
+   * 
    */
-  private assessComplexity(text: string, messages: Message[]): ComplexityLevel {
+  private assessComplexity(text: string, messages: Message): ComplexityLevel {
     const wordCount = this.countWords(text);
     const hasCode = this.detectCode(text);
     const messageCount = messages.length;
@@ -341,10 +341,10 @@ export class ContentAnalyzer {
 
   /**
    * Detect user intent
-   * 检测用户意图
+   * 
    */
-  private detectIntent(text: string, messages: Message[]): RequestIntent {
-    const lowerText = text.toLowerCase();
+  private detectIntent(text: string, messages: Message): RequestIntent {
+    const lowerText = text.toLowerCase;
     const lastUserMessage = this.getLastUserMessage(messages);
 
     // Question (ends with ?)
@@ -391,9 +391,9 @@ export class ContentAnalyzer {
 
   /**
    * Get last user message
-   * 获取最后一条用户消息
+   * 
    */
-  private getLastUserMessage(messages: Message[]): string {
+  private getLastUserMessage(messages: Message): string {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'user') {
         const content = messages[i].content;
@@ -412,10 +412,10 @@ export class ContentAnalyzer {
 
   /**
    * Extract important keywords
-   * 提取关键词
+   * 
    */
-  private extractKeywords(text: string): string[] {
-    const lowerText = text.toLowerCase();
+  private extractKeywords(text: string): string {
+    const lowerText = text.toLowerCase;
 
     // Common stop words to filter out
     const stopWords = new Set([

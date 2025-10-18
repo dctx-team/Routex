@@ -1,19 +1,17 @@
-# Function Calling 示例
+# Function Calling 
 
-本目录包含 Routex Function Calling 功能的实际使用示例。
+ Routex Function Calling 
 
-## 📁 示例列表
+## 📁 
 
-### 基础示例
-- [weather-query.js](#天气查询示例) - 简单的天气查询工具
-- [calculator.js](#计算器示例) - 数学计算工具
-
-### 高级示例
-- [parallel-tools.js](#并行工具调用) - 同时使用多个工具
-- [multi-turn.js](#多轮对话) - 工具调用的多轮对话
-- [error-handling.js](#错误处理) - 处理工具执行错误
-
-## 天气查询示例
+### 
+- [weather-query.js](#)
+- [calculator.js](#)
+### 
+- [parallel-tools.js](#)
+- [multi-turn.js](#)
+- [error-handling.js](#)
+## 
 
 ```javascript
 // examples/function-calling/weather-query.js
@@ -22,7 +20,7 @@ import fetch from 'node-fetch';
 const ROUTEX_URL = 'http://localhost:8080';
 const API_KEY = 'your-routex-api-key';
 
-// 定义天气查询工具
+// 
 const weatherTool = {
   name: 'get_weather',
   description: 'Get the current weather in a given location',
@@ -44,9 +42,9 @@ const weatherTool = {
   }
 };
 
-// 模拟天气 API
+//  API
 function getWeather(location, unit = 'celsius') {
-  // 实际应用中这里应该调用真实的天气 API
+  //  API
   const weatherData = {
     'San Francisco, CA': { temp: 22, condition: 'Partly cloudy' },
     'Tokyo, Japan': { temp: 18, condition: 'Rainy' },
@@ -62,8 +60,8 @@ function getWeather(location, unit = 'celsius') {
   return `The weather in ${location} is ${data.condition} with a temperature of ${data.temp}°${unit === 'celsius' ? 'C' : 'F'}.`;
 }
 
-// 主函数
-async function main() {
+// 
+async function main {
   const messages = [
     {
       role: 'user',
@@ -71,7 +69,7 @@ async function main() {
     }
   ];
 
-  // 第一次请求 - 模型决定是否使用工具
+  //
   let response = await fetch(`${ROUTEX_URL}/v1/messages`, {
     method: 'POST',
     headers: {
@@ -86,22 +84,22 @@ async function main() {
     })
   });
 
-  let result = await response.json();
+  let result = await response.json;
   console.log('First response:', JSON.stringify(result, null, 2));
 
-  // 检查是否有工具调用
+  // 
   if (result.stop_reason === 'tool_use') {
-    // 提取工具调用
+    // 
     const toolUse = result.content.find(block => block.type === 'tool_use');
 
     console.log(`\nTool called: ${toolUse.name}`);
     console.log(`Tool input:`, toolUse.input);
 
-    // 执行工具
+    // 
     const toolResult = getWeather(toolUse.input.location, toolUse.input.unit);
     console.log(`\nTool result: ${toolResult}`);
 
-    // 将助手回复和工具结果添加到消息历史
+    // 
     messages.push({
       role: 'assistant',
       content: result.content
@@ -118,7 +116,7 @@ async function main() {
       ]
     });
 
-    // 第二次请求 - 让模型使用工具结果生成最终回复
+    //
     response = await fetch(`${ROUTEX_URL}/v1/messages`, {
       method: 'POST',
       headers: {
@@ -133,17 +131,17 @@ async function main() {
       })
     });
 
-    result = await response.json();
+    result = await response.json;
     console.log('\nFinal response:', result.content[0].text);
   } else {
     console.log('\nNo tool use, direct response:', result.content[0].text);
   }
 }
 
-main().catch(console.error);
+main.catch(console.error);
 ```
 
-## 计算器示例
+## 
 
 ```javascript
 // examples/function-calling/calculator.js
@@ -188,16 +186,16 @@ function calculate(operation, a, b) {
   }
 }
 
-// 使用示例
-async function calculatorExample() {
-  const userQuestion = "What is 156 multiplied by 47, and then add 392?";
+// 
+async function calculatorExample {
+  const userQuestion = What is 156 multiplied by 47, and then add 392?;
 
   const response = await callClaude({
     tools: calculatorTools,
     messages: [{ role: 'user', content: userQuestion }]
   });
 
-  // 处理可能的多次工具调用
+  // 
   while (response.stop_reason === 'tool_use') {
     for (const block of response.content) {
       if (block.type === 'tool_use') {
@@ -209,15 +207,15 @@ async function calculatorExample() {
 
         console.log(`${block.input.operation}(${block.input.a}, ${block.input.b}) = ${result}`);
 
-        // 将结果提交回模型
-        // ... 继续对话
+        // 
+        // ... 
       }
     }
   }
 }
 ```
 
-## 并行工具调用
+## 
 
 ```javascript
 // examples/function-calling/parallel-tools.js
@@ -256,8 +254,8 @@ const multiTools = [
   }
 ];
 
-async function parallelToolsExample() {
-  const userQuestion = "What's the weather in New York, the current time there, and latest tech news?";
+async function parallelToolsExample {
+  const userQuestion = What's the weather in New York, the current time there, and latest tech news?;
 
   const response = await callClaude({
     model: 'claude-3-5-sonnet-20241022',
@@ -267,12 +265,12 @@ async function parallelToolsExample() {
   });
 
   if (response.stop_reason === 'tool_use') {
-    // 收集所有工具调用
+    // 
     const toolCalls = response.content.filter(block => block.type === 'tool_use');
 
     console.log(`Model wants to use ${toolCalls.length} tools in parallel:`);
 
-    // 并行执行所有工具
+    // 
     const toolResults = await Promise.all(
       toolCalls.map(async (toolCall) => {
         console.log(`- ${toolCall.name}(${JSON.stringify(toolCall.input)})`);
@@ -298,7 +296,7 @@ async function parallelToolsExample() {
       })
     );
 
-    // 将所有结果一起提交
+    // 
     const finalResponse = await callClaude({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 2048,
@@ -315,15 +313,15 @@ async function parallelToolsExample() {
 }
 ```
 
-## 多轮对话
+## 
 
 ```javascript
 // examples/function-calling/multi-turn.js
 class ConversationManager {
   constructor(tools) {
     this.tools = tools;
-    this.messages = [];
-    this.toolHandlers = new Map();
+    this.messages = ;
+    this.toolHandlers = new Map;
   }
 
   registerTool(name, handler) {
@@ -331,14 +329,14 @@ class ConversationManager {
   }
 
   async sendMessage(userMessage) {
-    // 添加用户消息
+    // 
     this.messages.push({
       role: 'user',
       content: userMessage
     });
 
     while (true) {
-      // 调用 AI
+      //  AI
       const response = await callClaude({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
@@ -346,19 +344,19 @@ class ConversationManager {
         messages: this.messages
       });
 
-      // 添加助手回复
+      // 
       this.messages.push({
         role: 'assistant',
         content: response.content
       });
 
-      // 如果不需要工具，返回结果
+      // 
       if (response.stop_reason !== 'tool_use') {
         return response.content[0].text;
       }
 
-      // 执行工具调用
-      const toolResults = [];
+      // 
+      const toolResults = ;
       for (const block of response.content) {
         if (block.type === 'tool_use') {
           const handler = this.toolHandlers.get(block.name);
@@ -375,27 +373,27 @@ class ConversationManager {
         }
       }
 
-      // 添加工具结果
+      // 
       this.messages.push({
         role: 'user',
         content: toolResults
       });
 
-      // 继续循环，让模型处理结果
+      // 
     }
   }
 
-  getHistory() {
+  getHistory {
     return this.messages;
   }
 
-  clearHistory() {
-    this.messages = [];
+  clearHistory {
+    this.messages = ;
   }
 }
 
-// 使用示例
-async function multiTurnExample() {
+// 
+async function multiTurnExample {
   const manager = new ConversationManager([
     weatherTool,
     calculatorTool,
@@ -420,13 +418,13 @@ async function multiTurnExample() {
 }
 ```
 
-## 错误处理
+## 
 
 ```javascript
 // examples/function-calling/error-handling.js
 async function robustToolExecution(toolUse) {
   try {
-    // 验证工具输入
+    // 
     if (!validateToolInput(toolUse.name, toolUse.input)) {
       return {
         type: 'tool_result',
@@ -436,10 +434,10 @@ async function robustToolExecution(toolUse) {
       };
     }
 
-    // 执行工具（带超时）
+    // 
     const result = await Promise.race([
       executeTool(toolUse.name, toolUse.input),
-      timeout(5000) // 5 秒超时
+      timeout(5000) // 5 
     ]);
 
     return {
@@ -451,7 +449,7 @@ async function robustToolExecution(toolUse) {
   } catch (error) {
     console.error(`Tool execution error:`, error);
 
-    // 返回错误信息给模型
+    // 
     return {
       type: 'tool_result',
       tool_use_id: toolUse.id,
@@ -463,23 +461,23 @@ async function robustToolExecution(toolUse) {
 
 function timeout(ms) {
   return new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Tool execution timeout')), ms)
+    setTimeout( => reject(new Error('Tool execution timeout')), ms)
   );
 }
 
 function validateToolInput(toolName, input) {
-  // 根据工具定义验证输入
+  // 
   const schema = toolSchemas[toolName];
   if (!schema) return false;
 
-  // 检查必需字段
-  for (const required of schema.required || []) {
+  // 
+  for (const required of schema.required || ) {
     if (!(required in input)) {
       return false;
     }
   }
 
-  // 检查枚举值
+  // 
   for (const [key, prop] of Object.entries(schema.properties)) {
     if (prop.enum && input[key] && !prop.enum.includes(input[key])) {
       return false;
@@ -489,7 +487,7 @@ function validateToolInput(toolName, input) {
   return true;
 }
 
-// 示例：处理 API 速率限制
+//  API 
 async function handleRateLimitedTool(toolUse) {
   const maxRetries = 3;
   let retries = 0;
@@ -500,7 +498,7 @@ async function handleRateLimitedTool(toolUse) {
     } catch (error) {
       if (error.status === 429) { // Too Many Requests
         retries++;
-        const backoff = Math.pow(2, retries) * 1000; // 指数退避
+        const backoff = Math.pow(2, retries) * 1000; // 
         console.log(`Rate limited, retrying in ${backoff}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoff));
       } else {
@@ -513,131 +511,131 @@ async function handleRateLimitedTool(toolUse) {
 }
 ```
 
-## Python 示例
+## Python 
 
 ```python
 # examples/function-calling/weather_query.py
 import anthropic
 import json
 
-# 配置 Routex 代理
+#  Routex 
 client = anthropic.Anthropic(
-    api_key="your-routex-api-key",
-    base_url="http://localhost:8080"
+    api_key=your-routex-api-key,
+    base_url=http://localhost:8080
 )
 
-# 定义工具
+# 
 tools = [
     {
-        "name": "get_weather",
-        "description": "Get the current weather in a given location",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "location": {
-                    "type": "string",
-                    "description": "The city and state, e.g. San Francisco, CA"
+        name: get_weather,
+        description: Get the current weather in a given location,
+        input_schema: {
+            type: object,
+            properties: {
+                location: {
+                    type: string,
+                    description: The city and state, e.g. San Francisco, CA
                 },
-                "unit": {
-                    "type": "string",
-                    "enum": ["celsius", "fahrenheit"]
+                unit: {
+                    type: string,
+                    enum: [celsius, fahrenheit]
                 }
             },
-            "required": ["location"]
+            required: [location]
         }
     }
 ]
 
-def get_weather(location, unit="celsius"):
-    """模拟天气 API"""
-    # 实际应用中调用真实 API
-    return f"The weather in {location} is sunny, 22°{unit[0].upper()}"
+def get_weather(location, unit=celsius):
+     API
+    #  API
+    return fThe weather in {location} is sunny, 22°{unit[0].upper}
 
 def process_tool_call(tool_name, tool_input):
-    """执行工具调用"""
-    if tool_name == "get_weather":
+    
+    if tool_name == get_weather:
         return get_weather(**tool_input)
     else:
-        return f"Unknown tool: {tool_name}"
+        return fUnknown tool: {tool_name}
 
-# 主对话循环
+# 
 def chat(user_message):
-    messages = [{"role": "user", "content": user_message}]
+    messages = [{role: user, content: user_message}]
 
     while True:
-        # 调用 Claude
+        #  Claude
         response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model=claude-3-5-sonnet-20241022,
             max_tokens=1024,
             tools=tools,
             messages=messages
         )
 
-        print(f"Stop reason: {response.stop_reason}")
+        print(fStop reason: {response.stop_reason})
 
-        # 如果不需要工具，返回结果
-        if response.stop_reason != "tool_use":
+        # 
+        if response.stop_reason != tool_use:
             final_text = next(
-                (block.text for block in response.content if hasattr(block, "text")),
+                (block.text for block in response.content if hasattr(block, text)),
                 None
             )
             return final_text
 
-        # 添加助手回复
-        messages.append({"role": "assistant", "content": response.content})
+        # 
+        messages.append({role: assistant, content: response.content})
 
-        # 处理工具调用
-        tool_results = []
+        # 
+        tool_results = 
         for block in response.content:
-            if block.type == "tool_use":
-                print(f"Tool called: {block.name}")
-                print(f"Tool input: {block.input}")
+            if block.type == tool_use:
+                print(fTool called: {block.name})
+                print(fTool input: {block.input})
 
-                # 执行工具
+                # 
                 result = process_tool_call(block.name, block.input)
-                print(f"Tool result: {result}")
+                print(fTool result: {result})
 
                 tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": result
+                    type: tool_result,
+                    tool_use_id: block.id,
+                    content: result
                 })
 
-        # 添加工具结果
-        messages.append({"role": "user", "content": tool_results})
+        # 
+        messages.append({role: user, content: tool_results})
 
-        # 继续循环
+        # 
 
-if __name__ == "__main__":
-    response = chat("What's the weather in Tokyo?")
-    print(f"\nFinal response: {response}")
+if __name__ == __main__:
+    response = chat(What's the weather in Tokyo?)
+    print(f\nFinal response: {response})
 ```
 
-## 运行示例
+## 
 
 ```bash
-# 安装依赖
+# 
 npm install node-fetch
 
-# 运行 JavaScript 示例
+#  JavaScript 
 node examples/function-calling/weather-query.js
 
-# 安装 Python 依赖
+#  Python 
 pip install anthropic
 
-# 运行 Python 示例
+#  Python 
 python examples/function-calling/weather_query.py
 ```
 
-## 注意事项
+## 
 
-1. **API 密钥**：将示例中的 `your-routex-api-key` 替换为实际的 API 密钥
-2. **服务地址**：确保 Routex 服务运行在 `http://localhost:8080`
-3. **工具安全**：实际应用中要验证和限制工具的执行权限
-4. **错误处理**：生产环境要添加完善的错误处理和日志
+1. **API ** `your-routex-api-key`  API 
+2. **** Routex  `http://localhost:8080`
+3. ****
+4. ****
 
-## 更多资源
+## 
 
-- [Function Calling 完整指南](../docs/function-calling.md)
-- [API 参考文档](../API_REFERENCE.md)
-- [Transformers 文档](../docs/transformers.md)
+- [Function Calling ](../docs/function-calling.md)
+- [API ](../API_REFERENCE.md)
+- [Transformers ](../docs/transformers.md)

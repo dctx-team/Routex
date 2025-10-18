@@ -1,6 +1,6 @@
 /**
  * Enhanced Transformer Pipeline System
- * 增强的 Transformer 流水线系统
+ *  Transformer 
  *
  * Provides advanced pipeline composition, conditional transformers, and presets
  */
@@ -52,7 +52,7 @@ export interface ConditionalTransformerSpec {
 export interface PipelinePreset {
   name: string;
   description: string;
-  transformers: ConditionalTransformerSpec[];
+  transformers: ConditionalTransformerSpec;
 }
 
 /**
@@ -63,8 +63,8 @@ export interface PipelineResult {
   body: any;
   headers?: Record<string, string>;
   metadata?: {
-    appliedTransformers: string[];
-    skippedTransformers: string[];
+    appliedTransformers: string;
+    skippedTransformers: string;
     errors: Array<{ transformer: string; error: string }>;
   };
 }
@@ -146,7 +146,7 @@ export const BUILTIN_PRESETS: Record<string, PipelinePreset> = {
  * Transformer
  */
 export class TransformerPipeline {
-  private presets = new Map<string, PipelinePreset>();
+  private presets = new Map<string, PipelinePreset>;
 
   constructor(private transformerManager: TransformerManager) {
     // Register built-in presets
@@ -176,8 +176,8 @@ export class TransformerPipeline {
    * List all available presets
    *
    */
-  listPresets(): PipelinePreset[] {
-    return Array.from(this.presets.values());
+  listPresets: PipelinePreset {
+    return Array.from(this.presets.values);
   }
 
   /**
@@ -186,14 +186,14 @@ export class TransformerPipeline {
    */
   async executeRequest(
     request: any,
-    specs: ConditionalTransformerSpec[],
+    specs: ConditionalTransformerSpec,
     context: PipelineContext = {}
   ): Promise<PipelineResult> {
     let resultBody = request;
     let mergedHeaders: Record<string, string> = {};
-    const appliedTransformers: string[] = [];
-    const skippedTransformers: string[] = [];
-    const errors: Array<{ transformer: string; error: string }> = [];
+    const appliedTransformers: string = ;
+    const skippedTransformers: string = ;
+    const errors: Array<{ transformer: string; error: string }> = ;
 
     for (const spec of specs) {
       // Check condition if present
@@ -206,7 +206,7 @@ export class TransformerPipeline {
             continue;
           }
         } catch (error) {
-          console.error(`Condition check failed for transformer "${spec.name}":`, error);
+          console.error(`Condition check failed for transformer ${spec.name}:`, error);
           skippedTransformers.push(spec.name);
           continue;
         }
@@ -216,7 +216,7 @@ export class TransformerPipeline {
       // Transformer
       const transformer = this.transformerManager.get(spec.name);
       if (!transformer) {
-        console.warn(`Transformer "${spec.name}" not found, skipping`);
+        console.warn(`Transformer ${spec.name} not found, skipping`);
         skippedTransformers.push(spec.name);
         continue;
       }
@@ -240,7 +240,7 @@ export class TransformerPipeline {
         appliedTransformers.push(spec.name);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`Transformer "${spec.name}" failed:`, error);
+        console.error(`Transformer ${spec.name} failed:`, error);
         errors.push({ transformer: spec.name, error: errorMessage });
 
         if (spec.skipOnError) {
@@ -268,13 +268,13 @@ export class TransformerPipeline {
    */
   async executeResponse(
     response: any,
-    specs: ConditionalTransformerSpec[],
+    specs: ConditionalTransformerSpec,
     context: PipelineContext = {}
   ): Promise<PipelineResult> {
     let result = response;
-    const appliedTransformers: string[] = [];
-    const skippedTransformers: string[] = [];
-    const errors: Array<{ transformer: string; error: string }> = [];
+    const appliedTransformers: string = ;
+    const skippedTransformers: string = ;
+    const errors: Array<{ transformer: string; error: string }> = ;
 
     // Apply in reverse order for response
     //
@@ -291,7 +291,7 @@ export class TransformerPipeline {
             continue;
           }
         } catch (error) {
-          console.error(`Condition check failed for transformer "${spec.name}":`, error);
+          console.error(`Condition check failed for transformer ${spec.name}:`, error);
           skippedTransformers.push(spec.name);
           continue;
         }
@@ -301,7 +301,7 @@ export class TransformerPipeline {
       // Transformer
       const transformer = this.transformerManager.get(spec.name);
       if (!transformer) {
-        console.warn(`Transformer "${spec.name}" not found, skipping`);
+        console.warn(`Transformer ${spec.name} not found, skipping`);
         skippedTransformers.push(spec.name);
         continue;
       }
@@ -313,7 +313,7 @@ export class TransformerPipeline {
         appliedTransformers.push(spec.name);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`Transformer "${spec.name}" failed:`, error);
+        console.error(`Transformer ${spec.name} failed:`, error);
         errors.push({ transformer: spec.name, error: errorMessage });
 
         if (spec.skipOnError) {
@@ -345,7 +345,7 @@ export class TransformerPipeline {
   ): Promise<PipelineResult> {
     const preset = this.getPreset(presetName);
     if (!preset) {
-      throw new Error(`Preset "${presetName}" not found`);
+      throw new Error(`Preset ${presetName} not found`);
     }
 
     return this.executeRequest(request, preset.transformers, context);
@@ -355,15 +355,15 @@ export class TransformerPipeline {
    * Compose multiple presets into a single pipeline
    *
    */
-  composePresets(...presetNames: string[]): ConditionalTransformerSpec[] {
-    const transformers: ConditionalTransformerSpec[] = [];
+  composePresets(...presetNames: string): ConditionalTransformerSpec {
+    const transformers: ConditionalTransformerSpec = ;
 
     for (const name of presetNames) {
       const preset = this.getPreset(name);
       if (preset) {
         transformers.push(...preset.transformers);
       } else {
-        console.warn(`Preset "${name}" not found, skipping`);
+        console.warn(`Preset ${name} not found, skipping`);
       }
     }
 
@@ -382,12 +382,12 @@ export class TransformerPipeline {
 export function parseTransformerConfig(
   config: TransformerConfig | undefined,
   model?: string
-): ConditionalTransformerSpec[] {
+): ConditionalTransformerSpec {
   if (!config) {
-    return [];
+    return ;
   }
 
-  const specs: ConditionalTransformerSpec[] = [];
+  const specs: ConditionalTransformerSpec = ;
 
   // Add global transformers
   // Transformer
@@ -406,7 +406,7 @@ export function parseTransformerConfig(
   if (model && config[model]) {
     const modelConfig = config[model];
     if (modelConfig && typeof modelConfig === 'object' && 'use' in modelConfig) {
-      for (const spec of modelConfig.use || []) {
+      for (const spec of modelConfig.use || ) {
         if (typeof spec === 'string') {
           specs.push({ name: spec });
         } else {
@@ -468,7 +468,7 @@ export const Conditions = {
    * Combine multiple conditions with AND logic
    *  AND
    */
-  and: (...conditions: TransformerCondition[]): TransformerCondition => {
+  and: (...conditions: TransformerCondition): TransformerCondition => {
     return async (data, context) => {
       for (const condition of conditions) {
         const result = await condition(data, context);
@@ -482,7 +482,7 @@ export const Conditions = {
    * Combine multiple conditions with OR logic
    *  OR
    */
-  or: (...conditions: TransformerCondition[]): TransformerCondition => {
+  or: (...conditions: TransformerCondition): TransformerCondition => {
     return async (data, context) => {
       for (const condition of conditions) {
         const result = await condition(data, context);

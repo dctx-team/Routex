@@ -33,14 +33,14 @@ export class LoadBalancer {
     });
 
     // Start periodic cleanup of expired sessions
-    this.startCleanup();
+    this.startCleanup;
   }
 
   /**
    * Select a channel based on the configured strategy
  *
    */
-  async select(channels: Channel[], context: LoadBalancerContext = {}): Promise<Channel> {
+  async select(channels: Channel, context: LoadBalancerContext = {}): Promise<Channel> {
     //// Filter enabled channels
     const available = channels.filter((ch) => ch.status === 'enabled');
 
@@ -95,9 +95,9 @@ export class LoadBalancer {
 
   /**
    * Priority strategy: select channel with highest priority (lowest number)
-   * 优先级策略：选择优先级最高的渠道（数值越小优先级越高）
+   * 
    */
-  private selectByPriority(channels: Channel[]): Channel {
+  private selectByPriority(channels: Channel): Channel {
     return channels.reduce((highest, current) =>
       current.priority < highest.priority ? current : highest,
     );
@@ -107,7 +107,7 @@ export class LoadBalancer {
    * Round robin strategy: rotate through channels
  *
    */
-  private selectByRoundRobin(channels: Channel[]): Channel {
+  private selectByRoundRobin(channels: Channel): Channel {
     const selected = channels[this.roundRobinIndex % channels.length];
     this.roundRobinIndex = (this.roundRobinIndex + 1) % channels.length;
     return selected;
@@ -115,20 +115,20 @@ export class LoadBalancer {
 
   /**
    * Weighted strategy: select based on weight using binary search
-   * 加权策略: 使用二分查找优化，O(log n) 复杂度
+   * : O(log n) 
    *
    * Algorithm:
    * 1. Build cumulative weight array [w1, w1+w2, w1+w2+w3, ...]
    * 2. Generate random number in [0, totalWeight)
    * 3. Binary search for the first cumulative weight >= random
    */
-  private selectByWeight(channels: Channel[]): Channel {
+  private selectByWeight(channels: Channel): Channel {
     if (channels.length === 1) {
       return channels[0];
     }
 
     // Build cumulative weight array
-    const cumulativeWeights: number[] = [];
+    const cumulativeWeights: number = ;
     let sum = 0;
 
     for (const channel of channels) {
@@ -140,11 +140,11 @@ export class LoadBalancer {
 
     // Handle edge case: all weights are 0
     if (totalWeight === 0) {
-      return channels[Math.floor(Math.random() * channels.length)];
+      return channels[Math.floor(Math.random * channels.length)];
     }
 
     // Generate random value
-    const random = Math.random() * totalWeight;
+    const random = Math.random * totalWeight;
 
     // Binary search for the target channel
     let left = 0;
@@ -167,7 +167,7 @@ export class LoadBalancer {
    * Least used strategy: select channel with fewest requests
  *
    */
-  private selectByLeastUsed(channels: Channel[]): Channel {
+  private selectByLeastUsed(channels: Channel): Channel {
     return channels.reduce((least, current) =>
       current.requestCount < least.requestCount ? current : least,
     );
@@ -177,7 +177,7 @@ export class LoadBalancer {
    * Get session channel if it exists and is still valid
  *
    */
-  private getSessionChannel(channels: Channel[], sessionId: string): Channel | null {
+  private getSessionChannel(channels: Channel, sessionId: string): Channel | null {
     // LRU cache automatically handles TTL expiration
     const entry = this.sessionCache.get(sessionId);
     if (!entry) return null;
@@ -199,17 +199,17 @@ export class LoadBalancer {
     // LRU cache automatically handles eviction when full
     this.sessionCache.set(sessionId, {
       channelId,
-      timestamp: Date.now(),
+      timestamp: Date.now,
     });
   }
 
   /**
    * Start periodic cleanup of expired sessions
    */
-  private startCleanup() {
+  private startCleanup {
     // Run cleanup every 10 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.clearExpiredSessions();
+    this.cleanupInterval = setInterval( => {
+      this.clearExpiredSessions;
     }, 10 * 60 * 1000);
   }
 
@@ -217,14 +217,14 @@ export class LoadBalancer {
    * Clear expired sessions (periodic cleanup)
  *
    */
-  clearExpiredSessions() {
-    // LRU cache's prune() method removes all expired entries
-    const removedCount = this.sessionCache.prune();
+  clearExpiredSessions {
+    // LRU cache's prune method removes all expired entries
+    const removedCount = this.sessionCache.prune;
 
     if (removedCount > 0) {
       logger.info({
         removedCount,
-        cacheStats: this.getCacheStats(),
+        cacheStats: this.getCacheStats,
       }, `🧹 Cleared ${removedCount} expired cache entries`);
     }
   }
@@ -232,27 +232,27 @@ export class LoadBalancer {
   /**
    * Get cache statistics
    */
-  getCacheStats() {
-    return this.sessionCache.stats();
+  getCacheStats {
+    return this.sessionCache.stats;
   }
 
   /**
    * Clear all session cache (for cache warming)
    */
-  clearCache() {
-    this.sessionCache.clear();
+  clearCache {
+    this.sessionCache.clear;
     logger.debug('🗑️  Session cache cleared');
   }
 
   /**
    * Cleanup resources
    */
-  destroy() {
+  destroy {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
-    this.sessionCache.clear();
+    this.sessionCache.clear;
   }
 
   /**
@@ -267,7 +267,7 @@ export class LoadBalancer {
    * Get current strategy
  *
    */
-  getStrategy(): LoadBalanceStrategy {
+  getStrategy: LoadBalanceStrategy {
     return this.strategy;
   }
 }

@@ -1,427 +1,404 @@
-# CLI 模型选择器
+# CLI 
 
-Routex 的交互式命令行工具，提供友好的界面来管理渠道和选择模型。
+Routex 
 
-## 📖 目录
+## 📖 
 
-- [概述](#概述)
-- [快速开始](#快速开始)
-- [功能介绍](#功能介绍)
-- [使用指南](#使用指南)
-- [模型数据库](#模型数据库)
-- [常见问题](#常见问题)
+- (#)
+- (#)
+- (#)
+- (#)
+- (#)
+- (#)
 
-## 概述
+## 
 
-CLI 模型选择器是一个交互式命令行工具，帮助您：
+CLI 
 
-- 📋 查看和管理所有渠道
-- ➕ 快速添加新渠道
-- 🎯 选择最适合的模型
-- 🧪 测试渠道连接
-- 📊 查看统计信息
+- 📋 
+- ➕ 
+- 🎯 
+- 🧪 
+- 📊 
 
-### 主要特性
+### 
 
-- **零依赖**：仅使用 Node.js/Bun 内置模块
-- **交互式**：友好的菜单和提示
-- **彩色输出**：清晰的视觉反馈
-- **模型数据库**：内置 Anthropic 和 OpenAI 模型信息
-- **统计信息**：实时显示渠道性能数据
+- **** Node.js/Bun 
+- ****
+- ****
+- **** Anthropic  OpenAI 
+- ****
 
-## 快速开始
+## 
 
-### 方式 1：使用 npm 脚本
+###  1 npm 
 
 ```bash
-# 启动 CLI
+#  CLI
 bun run cli
 
-# 或使用完整命令名
+# 
 bun run select-model
 ```
 
-### 方式 2：直接执行
+###  2
 
 ```bash
-# 使用 Bun
+#  Bun
 bun src/cli/model-selector.ts
 
-# 使用 shell 脚本
+#  shell 
 ./scripts/model-selector.sh
 ```
 
-### 方式 3：独立可执行文件
+###  3
 
 ```bash
-# 赋予执行权限
+# 
 chmod +x src/cli/model-selector.ts
 
-# 直接执行
+# 
 ./src/cli/model-selector.ts
 ```
 
-## 功能介绍
+## 
 
-### 主菜单
+### 
 
-启动 CLI 后，您将看到主菜单：
+ CLI 
 
 ```
 ══════════════════════════════════════════════════════════
   🚀 Routex Model Selector
 ══════════════════════════════════════════════════════════
 
-请选择操作:
-  1. 查看所有渠道
-  2. 添加新渠道
-  3. 选择模型
-  4. 测试渠道连接
-  5. 渠道统计信息
-  0. 退出
+:
+  1. 
+  2. 
+  3. 
+  4. 
+  5. 
+  0. 
 
-请输入选项 (0-5):
+ (0-5):
 ```
 
-### 1. 查看所有渠道
+### 1. 
 
-显示所有配置的渠道，包括：
-
-- ✓/✗ 状态指示
-- 渠道名称和 ID
-- 提供商类型
-- 支持的模型列表
-- 优先级和权重
-- 请求统计（如有）
-
-**示例输出：**
+- ✓/✗ 
+-  ID
+****
 
 ```
-═ 所有渠道 ═
+═  ═
 
 ✓ Anthropic Main
   ID: ch_abc123
-  类型: anthropic
-  模型: claude-3-5-sonnet-20241022, claude-3-opus-20240229
-  优先级: 90
-  权重: 70
-  请求数: 150 (成功率: 98.7%)
+  : anthropic
+  : claude-3-5-sonnet-20241022, claude-3-opus-20240229
+  : 90
+  : 70
+  : 150 (: 98.7%)
 
 ✓ OpenAI Backup
   ID: ch_def456
-  类型: openai
-  模型: gpt-4-turbo, gpt-3.5-turbo
-  优先级: 70
-  权重: 50
-  请求数: 45 (成功率: 100.0%)
+  : openai
+  : gpt-4-turbo, gpt-3.5-turbo
+  : 70
+  : 50
+  : 45 (: 100.0%)
 ```
 
-### 2. 添加新渠道
+### 2. 
 
-交互式引导创建新渠道：
-
-#### 步骤 1：选择提供商
+####  1
 
 ```
-支持的提供商:
+:
   1. Anthropic (Claude)
   2. OpenAI (GPT)
   3. Custom
 
-选择提供商 (1-3):
+ (1-3):
 ```
 
-#### 步骤 2：输入基本信息
+####  2
 
 ```
-渠道名称: My Claude Channel
+: My Claude Channel
 API Key: sk-ant-...
 ```
 
-#### 步骤 3：选择模型
-
-系统会显示该提供商的所有可用模型：
+####  3
 
 ```
-可用模型:
+:
   1. claude-3-5-sonnet-20241022
-     Claude 3.5 Sonnet - 最新版本，最强性能
-     能力: 200K context, Function Calling, Vision, Artifacts
+     Claude 3.5 Sonnet
+     : 200K context, Function Calling, Vision, Artifacts
 
   2. claude-3-opus-20240229
-     Claude 3 Opus - 最强能力，适合复杂任务
-     能力: 200K context, Function Calling, Vision
+     Claude 3 Opus
+     : 200K context, Function Calling, Vision
 
   3. claude-3-haiku-20240307
-     Claude 3 Haiku - 快速响应，低成本
-     能力: 200K context, Function Calling, Vision
+     Claude 3 Haiku
+     : 200K context, Function Calling, Vision
 
-选择模型 (输入序号，多个用逗号分隔，或 all):
+ ( all):
 ```
 
-可以：
-- 输入单个序号：`1`
-- 输入多个序号：`1,2,3`
-- 输入 `all` 选择所有模型
+- `1`
+- `1,2,3`
+-  `all` 
 
-#### 步骤 4：配置优先级和权重
-
-```
-优先级 (0-100, 默认 50): 80
-权重 (0-100, 默认 50): 60
-```
-
-#### 步骤 5：完成
+####  4
 
 ```
-✓ 渠道创建成功: My Claude Channel (ID: ch_xyz789)
-  模型: claude-3-5-sonnet-20241022, claude-3-opus-20240229
+ (0-100,  50): 80
+ (0-100,  50): 60
 ```
 
-### 3. 选择模型
-
-查看所有可用模型，并选择要使用的模型。
-
-**示例：**
+####  5
 
 ```
-═ 选择模型 ═
+✓ : My Claude Channel (ID: ch_xyz789)
+  : claude-3-5-sonnet-20241022, claude-3-opus-20240229
+```
 
-可用模型:
+### 3. 
+
+****
+
+```
+═  ═
+
+:
 
 1. claude-3-5-sonnet-20241022
-   Claude 3.5 Sonnet - 最新版本，最强性能
-   能力: 200K context, Function Calling, Vision, Artifacts
-   可用渠道: Anthropic Main, Anthropic Backup
+   Claude 3.5 Sonnet
+   : 200K context, Function Calling, Vision, Artifacts
+   : Anthropic Main, Anthropic Backup
 
 2. gpt-4-turbo
-   GPT-4 Turbo - 最新 GPT-4，128K 上下文
-   能力: 128K context, Function Calling, JSON mode
-   可用渠道: OpenAI Main
+   GPT-4 Turbo -  GPT-4128K 
+   : 128K context, Function Calling, JSON mode
+   : OpenAI Main
 
-选择模型 (输入序号): 1
+ : 1
 
-已选择: claude-3-5-sonnet-20241022
+: claude-3-5-sonnet-20241022
 
-该模型在以下渠道可用:
+:
   1. Anthropic Main
-     优先级: 90, 权重: 70
-     成功率: 98.7% (150 请求)
+     : 90, : 70
+     : 98.7% (150 )
 
   2. Anthropic Backup
-     优先级: 70, 权重: 50
-     成功率: 100.0% (20 请求)
+     : 70, : 50
+     : 100.0% (20 )
 
-提示: 在实际使用中，Routex 会根据负载均衡策略自动选择最佳渠道
+: Routex 
 ```
 
-### 4. 测试渠道连接
+### 4. 
 
-测试指定渠道的连接状态。
-
-**流程：**
+****
 
 ```
-═ 测试渠道连接 ═
+═  ═
 
-选择要测试的渠道:
+:
   1. Anthropic Main (anthropic)
   2. OpenAI Backup (openai)
 
-输入序号: 1
+: 1
 
-ℹ 正在测试渠道: Anthropic Main...
-  检查 API Key...
-  检查网络连接...
-  发送测试请求...
+ℹ : Anthropic Main...
+   API Key...
+  ...
+  ...
 
-✓ 连接测试成功！
-  响应时间: ~350ms
+✓ 
+  : ~350ms
 ```
 
-### 5. 渠道统计信息
+### 5. 
 
-显示所有渠道的详细统计数据。
-
-**示例输出：**
+****
 
 ```
-═ 渠道统计信息 ═
+═  ═
 
-总体统计:
-  总请求数: 195
-  成功: 193
-  失败: 2
-  成功率: 99.0%
+:
+  : 195
+  : 193
+  : 2
+  : 99.0%
 
-各渠道详情:
+:
 
 ✓ Anthropic Main
-  请求数: 150
-  成功: 148
-  失败: 2
-  成功率: 98.7%
-  平均延迟: ~200ms
-  最后使用: 2024-01-15 14:30:25
+  : 150
+  : 148
+  : 2
+  : 98.7%
+  : ~200ms
+  : 2024-01-15 14:30:25
 
 ✓ OpenAI Backup
-  请求数: 45
-  成功: 45
-  失败: 0
-  成功率: 100.0%
-  平均延迟: ~200ms
-  最后使用: 2024-01-15 12:15:10
+  : 45
+  : 45
+  : 0
+  : 100.0%
+  : ~200ms
+  : 2024-01-15 12:15:10
 ```
 
-## 使用指南
+## 
 
-### 典型工作流
+### 
 
-#### 场景 1：初始设置
+####  1
 
-1. 启动 CLI
-2. 选择 "添加新渠道"
-3. 添加 Anthropic 渠道
-4. 添加 OpenAI 渠道（备用）
-5. 查看所有渠道验证配置
+1.  CLI
+2.  
+3.  Anthropic 
+4.  OpenAI 
+5. 
 
-#### 场景 2：选择模型进行开发
+####  2
 
-1. 启动 CLI
-2. 选择 "选择模型"
-3. 浏览可用模型
-4. 查看每个模型的能力和可用渠道
-5. 记录选择的模型名称
+1.  CLI
+2.  
+3. 
+4. 
+5. 
 
-#### 场景 3：排查问题
+####  3
 
-1. 启动 CLI
-2. 选择 "渠道统计信息"
-3. 检查失败率
-4. 选择 "测试渠道连接"
-5. 测试有问题的渠道
+1.  CLI
+2.  
+3. 
+4.  
+5. 
 
-### 环境变量
+### 
 
 #### ROUTEX_DB_PATH
-
-指定数据库文件路径。
 
 ```bash
 export ROUTEX_DB_PATH=/path/to/custom/routex.db
 bun run cli
 ```
 
-默认值：`./data/routex.db`
+`./data/routex.db`
 
-## 模型数据库
+## 
 
-CLI 内置了主流 AI 模型的信息数据库（截至 2025年10月）。
+CLI  AI  202510
 
-> **📝 说明**: 模型数据库包含 46+ 个模型，涵盖 Anthropic、OpenAI、Google、DeepSeek、Zhipu、Qwen 等提供商。部分 2025 年模型信息基于公开资料，可能需要根据实际情况调整。
+> **📝 **:  46+  AnthropicOpenAIGoogleDeepSeekZhipuQwen  2025 
 
-### 提供商覆盖
+### 
 
-- **Anthropic Claude**: Claude 4.5、4.1、4.0、3.5 系列
-- **OpenAI GPT**: o1 推理系列、GPT-4o、GPT-4 Turbo
-- **Google Gemini**: Gemini 2.0、1.5 系列
-- **DeepSeek**: V3、Reasoner (R1)、Coder V2
-- **Zhipu GLM**: GLM-4 全系列
-- **Qwen (通义千问)**: Qwen 2.5、Long、VL 系列
+- **Anthropic Claude**: Claude 4.54.14.03.5 
+- **OpenAI GPT**: o1 GPT-4oGPT-4 Turbo
+- **Google Gemini**: Gemini 2.01.5 
+- **DeepSeek**: V3Reasoner (R1)Coder V2
+- **Zhipu GLM**: GLM-4 
+- **Qwen **: Qwen 2.5LongVL 
 
-### Anthropic Claude 模型（精选）
+### Anthropic Claude 
 
-| 模型 | 描述 | 上下文 | 能力 |
+|  |  |  |  |
 |------|------|--------|------|
-| claude-sonnet-4-5-20250929 | 最新旗舰模型 | 200K | Function Calling, Vision, Artifacts, Extended thinking |
-| claude-opus-4-1-20250805 | 最强推理能力 | 200K | Function Calling, Vision, Advanced reasoning |
-| claude-haiku-4-5-20251001 | 最新快速模型 | 200K | Function Calling, Vision, Fast response |
-| claude-3-5-sonnet-20241022 | Extended Thinking 版本 | 200K | Function Calling, Vision, Artifacts |
-| claude-3-5-haiku-20241022 | 快速响应，智能升级 | 200K | Function Calling, Vision |
+| claude-sonnet-4-5-20250929 |  | 200K | Function Calling, Vision, Artifacts, Extended thinking |
+| claude-opus-4-1-20250805 |  | 200K | Function Calling, Vision, Advanced reasoning |
+| claude-haiku-4-5-20251001 |  | 200K | Function Calling, Vision, Fast response |
+| claude-3-5-sonnet-20241022 | Extended Thinking  | 200K | Function Calling, Vision, Artifacts |
+| claude-3-5-haiku-20241022 |  | 200K | Function Calling, Vision |
 
-### OpenAI GPT 模型（精选）
+### OpenAI GPT 
 
-| 模型 | 描述 | 上下文 | 能力 |
+|  |  |  |  |
 |------|------|--------|------|
-| o1 | 最新推理模型 | 200K | Advanced reasoning, Chain-of-thought |
-| o1-mini | 快速推理模型 | 128K | Reasoning, Fast response |
-| gpt-4o-2025-01-31 | 最新多模态旗舰 | 128K | Function Calling, Vision, Audio, Structured Outputs |
-| gpt-4o-mini-2025-01-17 | 最新小型高效模型 | 128K | Function Calling, Vision, Fast |
-| gpt-4-turbo | 128K 上下文 | 128K | Function Calling, Vision, JSON mode |
+| o1 |  | 200K | Advanced reasoning, Chain-of-thought |
+| o1-mini |  | 128K | Reasoning, Fast response |
+| gpt-4o-2025-01-31 |  | 128K | Function Calling, Vision, Audio, Structured Outputs |
+| gpt-4o-mini-2025-01-17 |  | 128K | Function Calling, Vision, Fast |
+| gpt-4-turbo | 128K  | 128K | Function Calling, Vision, JSON mode |
 
-### Google Gemini 模型（精选）
+### Google Gemini 
 
-| 模型 | 描述 | 上下文 | 能力 |
+|  |  |  |  |
 |------|------|--------|------|
-| gemini-2.0-flash | 正式版，极快速度 | 1M | Function Calling, Vision, Audio, Native tool use |
-| gemini-2.0-flash-thinking | 推理增强版本 | 1M | Advanced reasoning, Chain-of-thought |
-| gemini-1.5-pro | 超长上下文 | 2M | Function Calling, Vision, Audio, Code execution |
-| gemini-1.5-flash-8b | 超高性价比小模型 | 1M | Function Calling, Vision, Very fast |
+| gemini-2.0-flash |  | 1M | Function Calling, Vision, Audio, Native tool use |
+| gemini-2.0-flash-thinking |  | 1M | Advanced reasoning, Chain-of-thought |
+| gemini-1.5-pro |  | 2M | Function Calling, Vision, Audio, Code execution |
+| gemini-1.5-flash-8b |  | 1M | Function Calling, Vision, Very fast |
 
-### 中国 AI 提供商（精选）
+###  AI 
 
 **DeepSeek**:
-- `deepseek-chat` (V3) - 671B MoE 架构
-- `deepseek-reasoner` (R1) - 推理专用模型
-- `deepseek-coder-v2` - 代码专用模型
-
+- `deepseek-chat` (V3) - 671B MoE 
+- `deepseek-reasoner` (R1)
+- `deepseek-coder-v2`
 **Zhipu GLM**:
-- `glm-4-plus` - 增强版本，更强推理能力
-- `glm-4-alltools` - 多工具协作模型
-- `glm-4-flash` - 极速响应版本
+- `glm-4-plus`
+- `glm-4-alltools`
+- `glm-4-flash`
+**Qwen **:
+- `qwen-max` -  (Qwen 2.5)
+- `qwen-long` -  (1M)
+- `qwen-vl-max`
+### 
 
-**Qwen (通义千问)**:
-- `qwen-max` - 旗舰模型 (Qwen 2.5)
-- `qwen-long` - 超长上下文 (1M)
-- `qwen-vl-max` - 视觉旗舰
-
-### 自定义模型
-
-对于不在数据库中的模型，CLI 支持手动输入：
+CLI 
 
 ```
-模型列表 (用逗号分隔): custom-model-1, custom-model-2
+ : custom-model-1, custom-model-2
 ```
 
-### 更新模型数据库
+### 
 
-如需添加或更新模型，编辑 `src/cli/model-selector.ts` 中的 `MODEL_DATABASE`：
+ `src/cli/model-selector.ts`  `MODEL_DATABASE`
 
 ```typescript
 const MODEL_DATABASE = {
   'your-model-name': {
-    provider: 'anthropic', // 或 'openai', 'google', 'custom' 等
-    description: '模型描述',
-    capabilities: ['能力1', '能力2', ...],
+    provider: 'anthropic', //  'openai', 'google', 'custom' 
+    description: '',
+    capabilities: ['1', '2', ...],
   },
 };
 ```
 
-## 高级功能
+## 
 
-### 批量添加渠道
+### 
 
-虽然 CLI 是交互式的，但您可以通过脚本自动化：
+ CLI 
 
 ```bash
 #!/bin/bash
-# 批量添加渠道的示例脚本
+# 
 
-# 使用 Routex API 或直接操作数据库
-# 这里展示概念，实际实现需要更多代码
+#  Routex API 
+# 
 ```
 
-### 导出配置
+### 
 
-CLI 读写相同的 SQLite 数据库，配置可以通过：
+CLI  SQLite 
 
-1. 复制数据库文件
-2. 使用 Web 界面导出
-3. 直接查询数据库
+1. 
+2.  Web 
+3. 
 
-### 自动化集成
+### 
 
-将 CLI 集成到 CI/CD 流程：
+ CLI  CI/CD 
 
 ```yaml
 # .github/workflows/setup-routex.yml
@@ -441,140 +418,122 @@ jobs:
 
       - name: Configure channels
         run: |
-          # 使用环境变量配置
+          # 
           export ANTHROPIC_KEY=${{ secrets.ANTHROPIC_KEY }}
           export OPENAI_KEY=${{ secrets.OPENAI_KEY }}
 
-          # 运行配置脚本
+          # 
           bun run scripts/setup-channels.ts
 ```
 
-## 常见问题
+## 
 
-### Q: CLI 无法启动？
+### Q: CLI 
 
-**A:** 检查：
+**A:** 
 
-1. Bun 是否已安装：`bun --version`
-2. 是否在项目根目录
-3. 数据库路径是否有写入权限
+1. Bun `bun --version`
+2. 
+3. 
 
-### Q: 看不到彩色输出？
+### Q: 
 
-**A:** 某些终端不支持 ANSI 颜色代码。尝试：
+**A:**  ANSI 
 
-- 使用现代终端（iTerm2、Windows Terminal 等）
-- 设置 `FORCE_COLOR=1` 环境变量
+- iTerm2Windows Terminal 
+-  `FORCE_COLOR=1` 
 
-### Q: 如何重置所有配置？
+### Q: 
 
-**A:** 删除数据库文件：
+**A:** 
 
 ```bash
 rm ./data/routex.db
 ```
 
-下次启动时会创建新数据库。
+### Q: CLI 
 
-### Q: CLI 支持哪些操作系统？
+**A:**  Bun 
 
-**A:** 支持所有 Bun 支持的平台：
+- macOS (Intel  Apple Silicon)
+- Linux (x64  ARM64)
+- Windows ( WSL)
 
-- macOS (Intel 和 Apple Silicon)
-- Linux (x64 和 ARM64)
-- Windows (通过 WSL)
+### Q:  CLI 
 
-### Q: 可以同时运行多个 CLI 实例吗？
+**A:** 
 
-**A:** 可以，但要注意：
+- SQLite
+### Q: 
 
-- SQLite 支持并发读
-- 并发写入可能有冲突
-- 建议一次只运行一个实例进行写操作
-
-### Q: 如何添加新的模型到数据库？
-
-**A:** 编辑 `src/cli/model-selector.ts` 中的 `MODEL_DATABASE`：
+**A:**  `src/cli/model-selector.ts`  `MODEL_DATABASE`
 
 ```typescript
 const MODEL_DATABASE = {
-  // ... 现有模型
+  // ... 
   'your-custom-model': {
     provider: 'custom',
-    description: '你的自定义模型描述',
+    description: '',
     capabilities: ['Feature 1', 'Feature 2'],
   },
 };
 ```
 
-### Q: CLI 会修改运行中的服务器吗？
+### Q: CLI 
 
-**A:** 不会直接影响。CLI 修改的是数据库，服务器需要重启才能加载新配置。
+**A:** CLI 
 
-建议流程：
-1. 使用 CLI 配置
-2. 重启 Routex 服务器
-3. 验证新配置生效
+1.  CLI 
+2.  Routex 
+3. 
 
-## 最佳实践
+## 
 
-### 1. 开发环境设置
-
-开发时使用独立的数据库：
+### 1. 
 
 ```bash
 export ROUTEX_DB_PATH=./data/dev.db
 bun run cli
 ```
 
-### 2. 生产环境配置
+### 2. 
 
-生产环境建议：
-
-- 使用 Web 界面进行配置
-- CLI 用于快速查看状态
-- 定期备份数据库
-
-### 3. 团队协作
-
-- 提交示例配置到版本控制
-- 不提交包含真实 API Key 的数据库
-- 使用环境变量管理敏感信息
-
-### 4. 快速测试
-
-快速测试新模型：
+-  Web 
+- CLI
+### 3.
+-  API Key
+### 4. 
 
 ```bash
-# 1. 添加测试渠道
+# 1. 
 bun run cli
-# 选择 "添加新渠道"
+#  
 
-# 2. 启动服务器
+# 2. 
 bun run dev
 
-# 3. 发送测试请求
+# 3. 
 curl http://localhost:3000/v1/messages \
-  -H "Content-Type: application/json" \
-  -d '{"model":"your-test-model","messages":[...]}'
+  -H Content-Type: application/json \
+  -d '{model:your-test-model,messages:[...]}'
 ```
 
-## 相关文档
+## 
 
-- [渠道配置](./channels.md)
-- [负载均衡](./load-balancing.md)
+- (./channels.md)
+- (./load-balancing.md)
 - [Smart Router](./smart-router.md)
-- [Web 控制面板](./dashboard.md)
+- [Web ](./dashboard.md)
 
-## 贡献
+## 
 
-欢迎改进 CLI 工具！可以添加的功能：
+ CLI 
 
-- [ ] 模型性能对比
-- [ ] 成本估算
-- [ ] 配置导入/导出
-- [ ] 批量操作
-- [ ] 配置验证
-- [ ] 更丰富的统计图表
+-  
+-  
+- 
+-  
+-  
+-  
 
-提交 PR 到：https://github.com/dctx-team/Routex
+ PR https://github.com/dctx-team/Routex

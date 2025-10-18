@@ -38,11 +38,11 @@ export function createAPI(
   transformerManager?: TransformerManager,
   cacheWarmer?: CacheWarmer,
 ): Hono {
-  const app = new Hono();
-  const channelTester = new ChannelTester();
+  const app = new Hono;
+  const channelTester = new ChannelTester;
 
   //// CORS middleware / CORS
-  app.use('/*', cors());
+  app.use('/*', cors);
 
   //// Static file middleware with caching
   // Cache static assets for 1 hour in production
@@ -82,25 +82,25 @@ export function createAPI(
 
   //// API info endpoint
   app.get('/api', (c) => {
-    const channels = db.getChannels();
+    const channels = db.getChannels;
     const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
-    const routingRules = db.getEnabledRoutingRules();
+    const routingRules = db.getEnabledRoutingRules;
 
     return c.json({
       name: 'Routex',
       version: '1.1.0-beta',
       description: 'Next-generation AI API router and load balancer',
       status: 'running',
-      uptime: process.uptime(),
+      uptime: process.uptime,
       stats: {
         totalChannels: channels.length,
         enabledChannels: enabledChannels.length,
         routingRules: routingRules.length,
-        transformers: transformerManager ? transformerManager.list().length : 0,
+        transformers: transformerManager ? transformerManager.list.length : 0,
       },
       loadBalancer: {
-        strategy: loadBalancer.getStrategy(),
-        cacheStats: loadBalancer.getCacheStats(),
+        strategy: loadBalancer.getStrategy,
+        cacheStats: loadBalancer.getCacheStats,
       },
       endpoints: {
         health: '/health',
@@ -111,7 +111,7 @@ export function createAPI(
         analytics: '/api/analytics',
       },
       documentation: 'https://github.com/dctx-team/Routex',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date.toISOString,
     });
   });
 
@@ -120,19 +120,19 @@ export function createAPI(
     return c.json({
       status: 'healthy',
       version: '1.1.0-beta',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
+      uptime: process.uptime,
+      timestamp: new Date.toISOString,
     });
   });
 
   //// Health check - Detailed
   app.get('/health/detailed', async (c) => {
-    const channels = db.getChannels();
+    const channels = db.getChannels;
     const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
-    const routingRules = db.getEnabledRoutingRules();
+    const routingRules = db.getEnabledRoutingRules;
 
     // Memory usage
-    const memUsage = process.memoryUsage();
+    const memUsage = process.memoryUsage;
 
     // Check if any channels are configured and enabled
     const hasChannels = channels.length > 0;
@@ -140,7 +140,7 @@ export function createAPI(
 
     // Determine overall health status
     let status = 'healthy';
-    const issues: string[] = [];
+    const issues: string = ;
 
     if (!hasChannels) {
       status = 'degraded';
@@ -153,8 +153,8 @@ export function createAPI(
     return c.json({
       status,
       version: '1.1.0-beta',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
+      uptime: process.uptime,
+      timestamp: new Date.toISOString,
       system: {
         platform: process.platform,
         nodeVersion: process.version,
@@ -173,11 +173,11 @@ export function createAPI(
       },
       routing: {
         rules: routingRules.length,
-        transformers: transformerManager ? transformerManager.list().length : 0,
+        transformers: transformerManager ? transformerManager.list.length : 0,
       },
       loadBalancer: {
-        strategy: loadBalancer.getStrategy(),
-        cacheSize: loadBalancer.getCacheStats().size,
+        strategy: loadBalancer.getStrategy,
+        cacheSize: loadBalancer.getCacheStats.size,
       },
       issues: issues.length > 0 ? issues : undefined,
     });
@@ -188,13 +188,13 @@ export function createAPI(
     // Check if the process is responsive
     return c.json({
       status: 'alive',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date.toISOString,
     });
   });
 
   //// Health check - Ready (for Kubernetes readiness probe)
   app.get('/health/ready', (c) => {
-    const channels = db.getChannels();
+    const channels = db.getChannels;
     const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
 
     // Check if the service is ready to handle traffic
@@ -205,7 +205,7 @@ export function createAPI(
         {
           status: 'not_ready',
           reason: 'No enabled channels available',
-          timestamp: new Date().toISOString(),
+          timestamp: new Date.toISOString,
         },
         503,
       );
@@ -214,7 +214,7 @@ export function createAPI(
     return c.json({
       status: 'ready',
       enabledChannels: enabledChannels.length,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date.toISOString,
     });
   });
 
@@ -224,7 +224,7 @@ export function createAPI(
 
   //// List channels
   app.get('/api/channels', (c) => {
-    const channels = db.getChannels();
+    const channels = db.getChannels;
     return c.json({ success: true, data: channels });
   });
 
@@ -242,7 +242,7 @@ export function createAPI(
 
   //// Create channel
   app.post('/api/channels', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json;
 
     //// Validate required fields
     if (!body.name || !body.type || !body.models || body.models.length === 0) {
@@ -270,7 +270,7 @@ export function createAPI(
   //// Update channel
   app.put('/api/channels/:id', async (c) => {
     const id = c.req.param('id');
-    const body = await c.req.json();
+    const body = await c.req.json;
 
     const channel = db.updateChannel(id, body);
 
@@ -301,10 +301,10 @@ export function createAPI(
 
   //// Export channels
   app.get('/api/channels/export', (c) => {
-    const channels = db.getChannels();
+    const channels = db.getChannels;
     return c.json({
       version: '1.0',
-      exportedAt: new Date().toISOString(),
+      exportedAt: new Date.toISOString,
       channels: channels.map((ch) => ({
         name: ch.name,
         type: ch.type,
@@ -318,7 +318,7 @@ export function createAPI(
 
   //// Import channels
   app.post('/api/channels/import', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json;
     const { channels, replaceExisting } = body;
 
     if (!Array.isArray(channels)) {
@@ -328,12 +328,12 @@ export function createAPI(
     const results = {
       imported: 0,
       skipped: 0,
-      errors: [] as string[],
+      errors:  as string,
     };
 
     for (const channelData of channels) {
       try {
-        const existing = db.getChannels().find((ch) => ch.name === channelData.name);
+        const existing = db.getChannels.find((ch) => ch.name === channelData.name);
 
         if (existing && !replaceExisting) {
           results.skipped++;
@@ -384,7 +384,7 @@ export function createAPI(
 
   //// Test all channels
   app.post('/api/channels/test/all', async (c) => {
-    const channels = db.getChannels();
+    const channels = db.getChannels;
     const results = await channelTester.testChannels(channels);
     const summary = channelTester.getTestSummary(results);
 
@@ -399,7 +399,7 @@ export function createAPI(
 
   //// Test enabled channels only
   app.post('/api/channels/test/enabled', async (c) => {
-    const channels = db.getChannels().filter((ch) => ch.status === 'enabled');
+    const channels = db.getChannels.filter((ch) => ch.status === 'enabled');
     const results = await channelTester.testChannels(channels);
     const summary = channelTester.getTestSummary(results);
 
@@ -440,7 +440,7 @@ export function createAPI(
 
   //// Get analytics
   app.get('/api/analytics', (c) => {
-    const analytics = db.getAnalytics();
+    const analytics = db.getAnalytics;
     return c.json({ success: true, data: analytics });
   });
 
@@ -466,7 +466,7 @@ export function createAPI(
 
   //// Get all providers info
   app.get('/api/providers', (c) => {
-    const providers = providerRegistry.getAllProvidersInfo();
+    const providers = providerRegistry.getAllProvidersInfo;
     return c.json({ success: true, data: providers });
   });
 
@@ -488,13 +488,13 @@ export function createAPI(
 
   //// Get current strategy
   app.get('/api/load-balancer/strategy', (c) => {
-    const strategy = loadBalancer.getStrategy();
+    const strategy = loadBalancer.getStrategy;
     return c.json({ success: true, data: { strategy } });
   });
 
   //// Update strategy
   app.put('/api/load-balancer/strategy', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json;
     const { strategy } = body;
 
     if (!strategy || !['priority', 'round_robin', 'weighted', 'least_used'].includes(strategy)) {
@@ -507,12 +507,12 @@ export function createAPI(
 
   //// Shortcut endpoints for strategy (for dashboard compatibility)
   app.get('/api/strategy', (c) => {
-    const strategy = loadBalancer.getStrategy();
+    const strategy = loadBalancer.getStrategy;
     return c.json({ success: true, data: { strategy } });
   });
 
   app.put('/api/strategy', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json;
     const { strategy } = body;
 
     if (!strategy || !['priority', 'round_robin', 'weighted', 'least_used'].includes(strategy)) {
@@ -529,7 +529,7 @@ export function createAPI(
 
   //// List tee destinations
   app.get('/api/tee', (c) => {
-    const destinations = db.getTeeDestinations();
+    const destinations = db.getTeeDestinations;
     return c.json({ success: true, data: destinations });
   });
 
@@ -547,7 +547,7 @@ export function createAPI(
 
   //// Create tee destination
   app.post('/api/tee', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json;
 
     //// Validate required fields
     validateRequired(body, ['name', 'type']);
@@ -578,7 +578,7 @@ export function createAPI(
     });
 
     // Update proxy engine's tee destinations
-    proxy.updateTeeDestinations();
+    proxy.updateTeeDestinations;
 
     return c.json({ success: true, data: destination }, 201);
   });
@@ -586,12 +586,12 @@ export function createAPI(
   //// Update tee destination
   app.put('/api/tee/:id', async (c) => {
     const id = c.req.param('id');
-    const body = await c.req.json();
+    const body = await c.req.json;
 
     const destination = db.updateTeeDestination(id, body);
 
     // Update proxy engine's tee destinations
-    proxy.updateTeeDestinations();
+    proxy.updateTeeDestinations;
 
     return c.json({ success: true, data: destination });
   });
@@ -606,7 +606,7 @@ export function createAPI(
     }
 
     // Update proxy engine's tee destinations
-    proxy.updateTeeDestinations();
+    proxy.updateTeeDestinations;
 
     return c.json({ success: true, message: 'Tee destination deleted' });
   });
@@ -617,25 +617,25 @@ export function createAPI(
 
   //// Get metrics summary
   app.get('/api/metrics', (c) => {
-    const summary = metrics.getSummary();
+    const summary = metrics.getSummary;
     return c.json({ success: true, data: summary });
   });
 
   //// Get all metrics (detailed)
   app.get('/api/metrics/all', (c) => {
-    const allMetrics = metrics.getAllMetrics();
+    const allMetrics = metrics.getAllMetrics;
     return c.json({ success: true, data: allMetrics });
   });
 
   //// Reset metrics
   app.post('/api/metrics/reset', (c) => {
-    metrics.reset();
+    metrics.reset;
     return c.json({ success: true, message: 'Metrics reset' });
   });
 
   //// Prometheus metrics endpoint
   app.get('/metrics', (c) => {
-    return getPrometheusMetricsResponse();
+    return getPrometheusMetricsResponse;
   });
 
   // ============================================================================
@@ -644,7 +644,7 @@ export function createAPI(
 
   //// Get tracing statistics
   app.get('/api/tracing/stats', (c) => {
-    const stats = tracer.getStats();
+    const stats = tracer.getStats;
     return c.json({ success: true, data: stats });
   });
 
@@ -674,14 +674,14 @@ export function createAPI(
 
   //// Clear old spans
   app.post('/api/tracing/clear', async (c) => {
-    const body = await c.req.json().catch(() => ({}));
+    const body = await c.req.json.catch( => ({}));
     const olderThanMs = body.olderThanMs || 3600000; // Default 1 hour
 
     const removedCount = tracer.clearOldSpans(olderThanMs);
 
     return c.json({
       success: true,
-      data: { removedCount, remainingSpans: tracer.getStats().totalSpans },
+      data: { removedCount, remainingSpans: tracer.getStats.totalSpans },
     });
   });
 
@@ -694,7 +694,7 @@ export function createAPI(
     return c.json({
       success: true,
       data: {
-        locale: i18n.getLocale(),
+        locale: i18n.getLocale,
         available: ['en', 'zh-CN'],
       },
     });
@@ -702,7 +702,7 @@ export function createAPI(
 
   //// Set locale
   app.put('/api/i18n/locale', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json;
     const { locale } = body;
 
     if (!locale || !['en', 'zh-CN'].includes(locale)) {
@@ -718,45 +718,45 @@ export function createAPI(
   });
 
   // ============================================================================
-  //// Cache Warmer API / 缓存预热 API
+  //// Cache Warmer API /  API
   // ============================================================================
 
   if (cacheWarmer) {
     //// Get cache warmer stats
     app.get('/api/cache/stats', (c) => {
-      const stats = cacheWarmer.getStats();
+      const stats = cacheWarmer.getStats;
       return c.json({ success: true, data: stats });
     });
 
     //// Get cache warmer config
     app.get('/api/cache/config', (c) => {
-      const config = cacheWarmer.getConfig();
+      const config = cacheWarmer.getConfig;
       return c.json({ success: true, data: config });
     });
 
     //// Update cache warmer config
     app.put('/api/cache/config', async (c) => {
-      const body = await c.req.json();
+      const body = await c.req.json;
       cacheWarmer.updateConfig(body);
-      return c.json({ success: true, data: cacheWarmer.getConfig() });
+      return c.json({ success: true, data: cacheWarmer.getConfig });
     });
 
     //// Manually warm cache
     app.post('/api/cache/warm', async (c) => {
-      const body = await c.req.json().catch(() => ({}));
+      const body = await c.req.json.catch( => ({}));
       const items = body.items;
 
       await cacheWarmer.warmCache(items);
 
       return c.json({
         success: true,
-        data: cacheWarmer.getStats(),
+        data: cacheWarmer.getStats,
       });
     });
 
     //// Invalidate cache
     app.post('/api/cache/invalidate', async (c) => {
-      const body = await c.req.json().catch(() => ({}));
+      const body = await c.req.json.catch( => ({}));
       const type = body.type;
 
       cacheWarmer.invalidateCache(type);
@@ -769,20 +769,20 @@ export function createAPI(
 
     //// Invalidate and warm cache
     app.post('/api/cache/invalidate-and-warm', async (c) => {
-      const body = await c.req.json().catch(() => ({}));
+      const body = await c.req.json.catch( => ({}));
       const type = body.type;
 
       await cacheWarmer.invalidateAndWarm(type);
 
       return c.json({
         success: true,
-        data: cacheWarmer.getStats(),
+        data: cacheWarmer.getStats,
       });
     });
 
     //// Reset cache warmer stats
     app.post('/api/cache/reset-stats', (c) => {
-      cacheWarmer.resetStats();
+      cacheWarmer.resetStats;
       return c.json({
         success: true,
         message: 'Cache warmer stats reset',
@@ -796,10 +796,10 @@ export function createAPI(
 
   //// Forward all /v1/* requests to proxy /  /v1/*
   app.all('/v1/*', async (c) => {
-    const start = Date.now();
+    const start = Date.now;
     try {
       const response = await proxy.handle(c.req.raw);
-      const duration = Date.now() - start;
+      const duration = Date.now - start;
 
       logRequest({
         method: c.req.method,
@@ -810,7 +810,7 @@ export function createAPI(
 
       return response;
     } catch (error) {
-      const duration = Date.now() - start;
+      const duration = Date.now - start;
       logRequest({
         method: c.req.method,
         url: c.req.url,
@@ -833,7 +833,7 @@ export function createAPI(
       return c.json(
         {
           success: false,
-          ...err.toJSON(),
+          ...err.toJSON,
         },
         err.statusCode,
       );

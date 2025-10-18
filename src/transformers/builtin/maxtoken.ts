@@ -1,14 +1,14 @@
 /**
  * MaxToken Transformer
- * 限制最大 token 数量，防止超额使用
+ *  token 
  */
 
 import { BaseTransformer, TransformResult } from '../base';
 
 export interface MaxTokenOptions {
-  maxTokens?: number; // 最大 tokens 数量
-  defaultMaxTokens?: number; // 默认最大值（当未指定时）
-  enforceStrict?: boolean; // 严格模式：超过限制直接拒绝
+  maxTokens?: number; //  tokens 
+  defaultMaxTokens?: number; // 
+  enforceStrict?: boolean; // 
 }
 
 export class MaxTokenTransformer extends BaseTransformer {
@@ -18,7 +18,7 @@ export class MaxTokenTransformer extends BaseTransformer {
   private enforceStrict: boolean;
 
   constructor(options: MaxTokenOptions = {}) {
-    super();
+    super;
     this.maxTokens = options.maxTokens || 4096;
     this.defaultMaxTokens = options.defaultMaxTokens || 1024;
     this.enforceStrict = options.enforceStrict ?? false;
@@ -27,7 +27,7 @@ export class MaxTokenTransformer extends BaseTransformer {
   async transformRequest(request: any, options?: any): Promise<TransformResult> {
     const requestedTokens = request.max_tokens || this.defaultMaxTokens;
 
-    // 检查是否超过限制
+    // 
     if (requestedTokens > this.maxTokens) {
       if (this.enforceStrict) {
         throw new Error(
@@ -35,7 +35,7 @@ export class MaxTokenTransformer extends BaseTransformer {
         );
       }
 
-      // 非严格模式：限制到最大值
+      // 
       console.log(
         `⚠️  MaxToken: Limiting max_tokens from ${requestedTokens} to ${this.maxTokens}`,
       );
@@ -48,7 +48,7 @@ export class MaxTokenTransformer extends BaseTransformer {
       };
     }
 
-    // 如果未指定 max_tokens，使用默认值
+    //  max_tokens
     if (!request.max_tokens) {
       return {
         body: {
@@ -58,12 +58,12 @@ export class MaxTokenTransformer extends BaseTransformer {
       };
     }
 
-    // 在限制范围内，不做修改
+    // 
     return { body: request };
   }
 
   async transformResponse(response: any, options?: any): Promise<any> {
-    // 响应不需要转换
+    // 
     return response;
   }
 }

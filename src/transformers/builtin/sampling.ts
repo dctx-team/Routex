@@ -1,6 +1,6 @@
 /**
  * Sampling Transformer
- * 控制采样参数（temperature、top_p、top_k）
+ * temperaturetop_ptop_k
  */
 
 import { BaseTransformer, TransformResult } from '../base';
@@ -21,7 +21,7 @@ export interface SamplingOptions {
     max?: number;
     default?: number;
   };
-  enforceDefaults?: boolean; // 强制使用默认值（忽略客户端设置）
+  enforceDefaults?: boolean; // 
 }
 
 export class SamplingTransformer extends BaseTransformer {
@@ -29,7 +29,7 @@ export class SamplingTransformer extends BaseTransformer {
   private options: SamplingOptions;
 
   constructor(options: SamplingOptions = {}) {
-    super();
+    super;
     this.options = {
       temperature: {
         min: 0,
@@ -57,19 +57,19 @@ export class SamplingTransformer extends BaseTransformer {
     const transformed = { ...request };
     let modified = false;
 
-    // 处理 temperature
+    //  temperature
     if (this.options.temperature) {
       const temp = this.options.temperature;
 
       if (this.options.enforceDefaults && temp.default !== undefined) {
-        // 强制使用默认值
+        // 
         if (transformed.temperature !== temp.default) {
           console.log(`🌡️  Sampling: Enforcing temperature=${temp.default}`);
           transformed.temperature = temp.default;
           modified = true;
         }
       } else if (transformed.temperature !== undefined) {
-        // 限制范围
+        // 
         if (transformed.temperature < temp.min!) {
           console.log(`🌡️  Sampling: Limiting temperature from ${transformed.temperature} to ${temp.min}`);
           transformed.temperature = temp.min!;
@@ -80,13 +80,13 @@ export class SamplingTransformer extends BaseTransformer {
           modified = true;
         }
       } else if (temp.default !== undefined) {
-        // 设置默认值
+        // 
         transformed.temperature = temp.default;
         modified = true;
       }
     }
 
-    // 处理 top_p
+    //  top_p
     if (this.options.topP) {
       const topP = this.options.topP;
 
@@ -112,7 +112,7 @@ export class SamplingTransformer extends BaseTransformer {
       }
     }
 
-    // 处理 top_k
+    //  top_k
     if (this.options.topK) {
       const topK = this.options.topK;
 

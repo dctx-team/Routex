@@ -1,6 +1,6 @@
 /**
  * True LRU (Least Recently Used) Cache implementation
- * 真正的 LRU（最近最少使用）缓存实现
+ *  LRU
  *
  * Features:
  * - O(1) get and set operations using Map + doubly-linked list
@@ -16,7 +16,7 @@ class LRUNode<K, V> {
   constructor(
     public key: K,
     public value: V,
-    public timestamp: number = Date.now(),
+    public timestamp: number = Date.now,
     public prev: LRUNode<K, V> | null = null,
     public next: LRUNode<K, V> | null = null
   ) {}
@@ -37,7 +37,7 @@ export class LRUCache<K, V> {
   private onEvict?: (key: K, value: V) => void;
 
   constructor(options: LRUCacheOptions) {
-    this.cache = new Map();
+    this.cache = new Map;
     this.maxSize = options.maxSize;
     this.ttl = options.ttl ?? null;
     this.onEvict = options.onEvict;
@@ -55,7 +55,7 @@ export class LRUCache<K, V> {
     }
 
     // Check if expired
-    if (this.ttl && Date.now() - node.timestamp > this.ttl) {
+    if (this.ttl && Date.now - node.timestamp > this.ttl) {
       this.delete(key);
       return undefined;
     }
@@ -77,7 +77,7 @@ export class LRUCache<K, V> {
     if (existing) {
       // Update value and move to front
       existing.value = value;
-      existing.timestamp = Date.now();
+      existing.timestamp = Date.now;
       this.moveToFront(existing);
       return;
     }
@@ -98,7 +98,7 @@ export class LRUCache<K, V> {
 
     // Evict if over capacity
     if (this.cache.size > this.maxSize) {
-      this.evictLRU();
+      this.evictLRU;
     }
   }
 
@@ -113,7 +113,7 @@ export class LRUCache<K, V> {
     }
 
     // Check if expired
-    if (this.ttl && Date.now() - node.timestamp > this.ttl) {
+    if (this.ttl && Date.now - node.timestamp > this.ttl) {
       this.delete(key);
       return false;
     }
@@ -148,15 +148,15 @@ export class LRUCache<K, V> {
   /**
    * Clear all entries
    */
-  clear(): void {
+  clear: void {
     // Call eviction callback for all entries if needed
     if (this.onEvict) {
-      for (const [key, node] of this.cache.entries()) {
+      for (const [key, node] of this.cache.entries) {
         this.onEvict(key, node.value);
       }
     }
 
-    this.cache.clear();
+    this.cache.clear;
     this.head = null;
     this.tail = null;
   }
@@ -164,15 +164,15 @@ export class LRUCache<K, V> {
   /**
    * Get cache size
    */
-  get size(): number {
+  get size: number {
     return this.cache.size;
   }
 
   /**
    * Get all keys in LRU order (most recent first)
    */
-  keys(): K[] {
-    const keys: K[] = [];
+  keys: K {
+    const keys: K = ;
     let node = this.head;
 
     while (node) {
@@ -186,8 +186,8 @@ export class LRUCache<K, V> {
   /**
    * Get all values in LRU order (most recent first)
    */
-  values(): V[] {
-    const values: V[] = [];
+  values: V {
+    const values: V = ;
     let node = this.head;
 
     while (node) {
@@ -201,8 +201,8 @@ export class LRUCache<K, V> {
   /**
    * Get all entries in LRU order (most recent first)
    */
-  entries(): [K, V][] {
-    const entries: [K, V][] = [];
+  entries: [K, V] {
+    const entries: [K, V] = ;
     let node = this.head;
 
     while (node) {
@@ -217,15 +217,15 @@ export class LRUCache<K, V> {
    * Remove expired entries
    * Returns number of entries removed
    */
-  prune(): number {
+  prune: number {
     if (!this.ttl) {
       return 0;
     }
 
-    const now = Date.now();
-    const keysToDelete: K[] = [];
+    const now = Date.now;
+    const keysToDelete: K = ;
 
-    for (const [key, node] of this.cache.entries()) {
+    for (const [key, node] of this.cache.entries) {
       if (now - node.timestamp > this.ttl) {
         keysToDelete.push(key);
       }
@@ -241,14 +241,14 @@ export class LRUCache<K, V> {
   /**
    * Get cache statistics
    */
-  stats() {
+  stats {
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       utilizationPercent: (this.cache.size / this.maxSize) * 100,
       ttl: this.ttl,
-      oldestAge: this.tail ? Date.now() - this.tail.timestamp : 0,
-      newestAge: this.head ? Date.now() - this.head.timestamp : 0,
+      oldestAge: this.tail ? Date.now - this.tail.timestamp : 0,
+      newestAge: this.head ? Date.now - this.head.timestamp : 0,
     };
   }
 
@@ -301,7 +301,7 @@ export class LRUCache<K, V> {
   /**
    * Evict least recently used item
    */
-  private evictLRU(): void {
+  private evictLRU: void {
     if (!this.tail) {
       return;
     }
@@ -350,7 +350,7 @@ export class LRUCache<K, V> {
     }
 
     // Check if expired
-    if (this.ttl && Date.now() - node.timestamp > this.ttl) {
+    if (this.ttl && Date.now - node.timestamp > this.ttl) {
       return undefined;
     }
 
@@ -367,7 +367,7 @@ export class LRUCache<K, V> {
       return false;
     }
 
-    node.timestamp = Date.now();
+    node.timestamp = Date.now;
     return true;
   }
 }

@@ -1,5 +1,5 @@
 /**
- * OpenAI Provider (包括 Azure OpenAI)
+ * OpenAI Provider ( Azure OpenAI)
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base';
@@ -13,10 +13,10 @@ export class OpenAIProvider extends BaseProvider {
     supportsTools: true,
     supportsVision: true,
     supportsSystemMessages: true,
-    maxTokens: 128000, // GPT-4 Turbo 支持 128K context
+    maxTokens: 128000, // GPT-4 Turbo  128K context
   };
 
-  getDefaultBaseUrl(): string {
+  getDefaultBaseUrl: string {
     return 'https://api.openai.com';
   }
 
@@ -27,7 +27,7 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   /**
-   * 提取 token 使用信息（OpenAI 格式）
+   *  token OpenAI 
    */
   extractTokenUsage(responseBody: any) {
     const usage = responseBody?.usage || {};
@@ -46,8 +46,8 @@ export class AzureOpenAIProvider extends OpenAIProvider {
   readonly name = 'Azure OpenAI';
   readonly type = 'azure';
 
-  getDefaultBaseUrl(): string {
-    // Azure 没有默认 URL，必须由用户配置
+  getDefaultBaseUrl: string {
+    // Azure  URL
     return '';
   }
 
