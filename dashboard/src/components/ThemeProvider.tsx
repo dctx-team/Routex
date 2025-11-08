@@ -1,66 +1,107 @@
 /**
- * 主题提供者组件
- * Theme Provider Component
+ * Simplified Theme Provider (Self-contained)
  */
 
-import React, { useEffect } from 'react';
-import { useGlobalStore } from '../stores/globalStore';
-import { themes } from '../config/themes';
+import React, { useEffect, useState } from 'react';
+
+type ThemeMode = 'light' | 'dark';
 
 interface ThemeProviderProps {
   children: React.ReactNode;
 }
 
+// Simple theme configuration
+const themes = {
+  light: {
+    mode: 'light' as ThemeMode,
+    colors: {
+      background: '#f3f4f6',
+      foreground: '#111827',
+      primary: '#3b82f6',
+      secondary: '#8b5cf6',
+    },
+  },
+  dark: {
+    mode: 'dark' as ThemeMode,
+    colors: {
+      background: '#111827',
+      foreground: '#f3f4f6',
+      primary: '#60a5fa',
+      secondary: '#a78bfa',
+    },
+  },
+};
+
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const { preferences } = useGlobalStore();
-  const theme = themes[preferences.theme.mode] || themes.light;
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('routex-theme') as ThemeMode;
+    return saved || 'dark';
+  });
 
   useEffect(() => {
-    // 应用主题到CSS变量
     const root = document.documentElement;
+    const themeConfig = themes[theme];
 
-    // 设置所有颜色变量
-    Object.entries(theme.colors).forEach(([key, value]) => {
+    // Apply CSS variables
+    Object.entries(themeConfig.colors).forEach(([key, value]) => {
       root.style.setProperty(`--color-${key}`, value);
     });
 
-    // 添加/移除 dark class
-    if (theme.mode === 'dark') {
+    // Toggle dark class
+    if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
 
-    // 设置 meta theme-color
+    // Update meta theme-color
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', theme.colors.background);
+      metaThemeColor.setAttribute('content', themeConfig.colors.background);
     }
+
+    // Save to localStorage
+    localStorage.setItem('routex-theme', theme);
   }, [theme]);
 
   return <>{children}</>;
 }
 
 /**
- * 主题切换按钮组件
+ * Theme Toggle Button
  */
 export function ThemeToggle() {
-  const { preferences, setTheme } = useGlobalStore();
-  const currentMode = preferences.theme.mode;
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('routex-theme') as ThemeMode;
+    return saved || 'dark';
+  });
 
   const toggleTheme = () => {
-    const newMode = currentMode === 'light' ? 'dark' : 'light';
-    setTheme(themes[newMode]);
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('routex-theme', newTheme);
+
+    // Dispatch custom event for ThemeProvider
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: { theme: newTheme } }));
   };
+
+  // Listen for theme changes from other components
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ theme: ThemeMode }>;
+      setTheme(customEvent.detail.theme);
+    };
+    window.addEventListener('theme-change', handleThemeChange);
+    return () => window.removeEventListener('theme-change', handleThemeChange);
+  }, []);
 
   return (
     <button
       onClick={toggleTheme}
       className="p-2 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors"
-      title={`Switch to ${currentMode === 'light' ? 'dark' : 'light'} mode`}
+      title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
     >
-      {currentMode === 'light' ? (
-        // 月亮图标（暗黑模式）
+      {theme === 'light' ? (
         <svg
           className="w-5 h-5 text-white"
           fill="none"
@@ -75,7 +116,6 @@ export function ThemeToggle() {
           />
         </svg>
       ) : (
-        // 太阳图标（明亮模式）
         <svg
           className="w-5 h-5 text-white"
           fill="none"
@@ -95,10 +135,10 @@ export function ThemeToggle() {
 }
 
 /**
- * 自动检测系统主题
+ * Auto-detect system theme
  */
-export function useSystemTheme(): 'light' | 'dark' {
-  const [systemTheme, setSystemTheme] = React.useState<'light' | 'dark'>('light');
+export function useSystemTheme(): ThemeMode {
+  const [systemTheme, setSystemTheme] = useState<ThemeMode>('light');
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -107,10 +147,7 @@ export function useSystemTheme(): 'light' | 'dark' {
       setSystemTheme(e.matches ? 'dark' : 'light');
     };
 
-    // 设置初始值
     setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
-
-    // 监听变化
     mediaQuery.addEventListener('change', handleChange);
 
     return () => {

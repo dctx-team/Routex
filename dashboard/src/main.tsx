@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { queryClient } from './config/queryClient';
+import { queryClient } from './utils/queryClient';
 import { ThemeProvider } from './components/ThemeProvider';
 import App from './App';
 import './index.css';
