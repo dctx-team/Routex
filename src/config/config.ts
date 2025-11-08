@@ -1,5 +1,5 @@
 /**
- * 
+ * 配置管理（具有智能默认值）
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -8,7 +8,7 @@ import type { Config, LoadBalanceStrategy } from '../types';
 import { logger } from '../utils/logger';
 
 /**
- * 
+ * 配置验证错误
  */
 export class ConfigValidationError extends Error {
   constructor(message: string, public field?: string) {
@@ -22,28 +22,28 @@ export class ConfigManager {
   private config: Config;
   private configFilePath?: string;
 
-  private constructor {
-    this.config = this.loadConfig;
+  private constructor() {
+    this.config = this.loadConfig();
   }
 
-  static getInstance: ConfigManager {
+  static getInstance(): ConfigManager {
     if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager;
+      ConfigManager.instance = new ConfigManager();
     }
     return ConfigManager.instance;
   }
 
   /**
-   * 
-   *  >  > 
+   * 加载配置（具有智能默认值）
+   * 优先级：配置文件 > 环境变量 > 默认值
    */
-  private loadConfig: Config {
-    const env = this.detectEnvironment;
-    const dataDir = this.ensureDataDirectory;
+  private loadConfig(): Config {
+    const env = this.detectEnvironment();
+    const dataDir = this.ensureDataDirectory();
 
-    // 
+    // 首先尝试从配置文件加载
     let fileConfig: Partial<Config> = {};
-    const configPath = this.findConfigFile;
+    const configPath = this.findConfigFile();
 
     if (configPath) {
       try {
@@ -58,7 +58,7 @@ export class ConfigManager {
       }
     }
 
-    //  >  > 
+    // 按优先级构建配置：文件 > 环境变量 > 默认值
     const config: Config = {
       server: {
         port: fileConfig.server?.port ?? (Number(process.env.PORT) || 3000),
@@ -66,7 +66,7 @@ export class ConfigManager {
         cors: {
           enabled: fileConfig.server?.cors?.enabled ?? true,
           origins: fileConfig.server?.cors?.origins ??
-            (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim) : ['*']),
+            (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : ['*']),
         },
       },
       database: {
@@ -85,21 +85,21 @@ export class ConfigManager {
       firstRun: !existsSync(join(dataDir, 'routex.db')),
     };
 
-    // 
+    // 验证配置
     this.validateConfig(config);
 
     return config;
   }
 
   /**
-   * 
+   * 在标准位置查找配置文件
    */
-  private findConfigFile: string | null {
+  private findConfigFile(): string | null {
     const locations = [
-      process.env.CONFIG_FILE, // 
-      join(process.cwd, 'routex.config.json'),
-      join(process.cwd, 'config', 'routex.json'),
-      join(process.cwd, '.routex', 'config.json'),
+      process.env.CONFIG_FILE, // 来自环境变量的显式路径
+      join(process.cwd(), 'routex.config.json'),
+      join(process.cwd(), 'config', 'routex.json'),
+      join(process.cwd(), '.routex', 'config.json'),
     ];
 
     for (const location of locations) {
@@ -112,7 +112,7 @@ export class ConfigManager {
   }
 
   /**
-   *  JSON 
+   * 从 JSON 文件加载配置
    */
   private loadConfigFile(path: string): Partial<Config> {
     try {
@@ -128,10 +128,10 @@ export class ConfigManager {
   }
 
   /**
-   * 
+   * 验证配置
    */
   private validateConfig(config: Config): void {
-    // 
+    // 验证服务器端口
     if (config.server.port < 1 || config.server.port > 65535) {
       throw new ConfigValidationError(
         `Invalid server port: ${config.server.port}. Must be between 1 and 65535`,
@@ -139,8 +139,8 @@ export class ConfigManager {
       );
     }
 
-    // 
-    const validStrategies: LoadBalanceStrategy = ['priority', 'round_robin', 'weighted', 'least_used'];
+    // 验证策略
+    const validStrategies: LoadBalanceStrategy[] = ['priority', 'round_robin', 'weighted', 'least_used'];
     if (!validStrategies.includes(config.strategy)) {
       throw new ConfigValidationError(
         `Invalid load balance strategy: ${config.strategy}. Must be one of: ${validStrategies.join(', ')}`,
@@ -148,7 +148,7 @@ export class ConfigManager {
       );
     }
 
-    // 
+    // 验证国际化语言环境
     const validLocales = ['en', 'zh-CN'];
     if (!validLocales.includes(config.i18n.locale)) {
       throw new ConfigValidationError(
@@ -157,7 +157,7 @@ export class ConfigManager {
       );
     }
 
-    //  CORS 
+    // 验证 CORS 源
     if (!Array.isArray(config.server.cors.origins)) {
       throw new ConfigValidationError(
         'CORS origins must be an array',
@@ -169,9 +169,9 @@ export class ConfigManager {
   }
 
   /**
-   * 
+   * 检测部署环境
    */
-  private detectEnvironment: 'local' | 'claw' | 'railway' | 'fly' | 'render' {
+  private detectEnvironment(): 'local' | 'claw' | 'railway' | 'fly' | 'render' {
     if (process.env.CLAW_RUNTIME) return 'claw';
     if (process.env.RAILWAY_ENVIRONMENT) return 'railway';
     if (process.env.FLY_APP_NAME) return 'fly';
@@ -180,17 +180,17 @@ export class ConfigManager {
   }
 
   /**
-   * 
+   * 确保数据目录存在
    */
-  private ensureDataDirectory: string {
-    const env = this.detectEnvironment;
+  private ensureDataDirectory(): string {
+    const env = this.detectEnvironment();
 
     let dataDir: string;
 
     if (env === 'local') {
-      dataDir = join(process.cwd, 'data');
+      dataDir = join(process.cwd(), 'data');
     } else {
-      // 
+      // 使用云平台的持久卷路径
       dataDir = process.env.DATA_DIR || '/data';
     }
 
@@ -202,15 +202,15 @@ export class ConfigManager {
   }
 
   /**
-   * 
+   * 获取配置
    */
-  getConfig: Config {
+  getConfig(): Config {
     return this.config;
   }
 
   /**
-   * 
-   * 
+   * 运行时更新配置
+   * 应用前验证更新
    */
   updateConfig(updates: Partial<Config>) {
     const newConfig = {
@@ -222,7 +222,7 @@ export class ConfigManager {
       i18n: updates.i18n ? { ...this.config.i18n, ...updates.i18n } : this.config.i18n,
     };
 
-    // 
+    // 应用前验证
     this.validateConfig(newConfig);
 
     this.config = newConfig;
@@ -230,12 +230,12 @@ export class ConfigManager {
   }
 
   /**
-   * 
-   * 
+   * 从文件重新加载配置
+   * 用于热重载配置更改
    */
-  reloadConfig: void {
+  reloadConfig(): void {
     try {
-      const newConfig = this.loadConfig;
+      const newConfig = this.loadConfig();
       this.config = newConfig;
       logger.info('🔄 Configuration reloaded successfully');
     } catch (error) {
@@ -247,10 +247,10 @@ export class ConfigManager {
   }
 
   /**
-   * 
+   * 将当前配置保存到文件
    */
   saveConfig(path?: string): void {
-    const savePath = path || this.configFilePath || join(process.cwd, 'routex.config.json');
+    const savePath = path || this.configFilePath || join(process.cwd(), 'routex.config.json');
 
     try {
       const configData = JSON.stringify(this.config, null, 2);
@@ -267,30 +267,30 @@ export class ConfigManager {
   }
 
   /**
-   *  JSON 
+   * 将配置导出为 JSON 字符串
    */
-  exportConfig: string {
+  exportConfig(): string {
     return JSON.stringify(this.config, null, 2);
   }
 
   /**
-   * 
+   * 获取配置文件路径
    */
-  getConfigFilePath: string | undefined {
+  getConfigFilePath(): string | undefined {
     return this.configFilePath;
   }
 
   /**
-   * 
+   * 检查是否为首次运行
    */
-  isFirstRun: boolean {
+  isFirstRun(): boolean {
     return this.config.firstRun;
   }
 
   /**
-   * 
+   * 标记首次运行为完成
    */
-  markFirstRunComplete {
+  markFirstRunComplete() {
     this.config.firstRun = false;
   }
 }

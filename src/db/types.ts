@@ -1,10 +1,10 @@
 /**
- * 
+ * 数据库行类型定义
  * Database Row Type Definitions
  */
 
 /**
- * 
+ * 频道表行类型
  * Channel table row type
  */
 export interface ChannelRow {
@@ -14,7 +14,7 @@ export interface ChannelRow {
   base_url: string | null;
   api_key: string | null;
   refresh_token: string | null;
-  models: string; // JSON 
+  models: string; // JSON 字符串
   priority: number;
   weight: number;
   status: string;
@@ -28,11 +28,11 @@ export interface ChannelRow {
   last_used_at: number | null;
   created_at: number;
   updated_at: number;
-  transformers: string | null; // JSON 
+  transformers: string | null; // JSON 字符串
 }
 
 /**
- * 
+ * 请求记录表行类型
  * Request log table row type
  */
 export interface RequestRow {
@@ -53,7 +53,7 @@ export interface RequestRow {
 }
 
 /**
- * 
+ * 分析统计查询结果类型
  * Analytics query result type
  */
 export interface AnalyticsRow {
@@ -67,14 +67,14 @@ export interface AnalyticsRow {
 }
 
 /**
- * 
+ * 路由规则表行类型
  * Routing rule table row type
  */
 export interface RoutingRuleRow {
   id: string;
   name: string;
   type: string;
-  condition: string; // JSON 
+  condition: string; // JSON 字符串
   target_channel: string;
   target_model: string | null;
   priority: number;
@@ -84,7 +84,7 @@ export interface RoutingRuleRow {
 }
 
 /**
- * Tee 
+ * Tee 目标表行类型
  * Tee destination table row type
  */
 export interface TeeDestinationRow {
@@ -93,11 +93,11 @@ export interface TeeDestinationRow {
   type: string;
   enabled: number; // SQLite boolean (0/1)
   url: string | null;
-  headers: string | null; // JSON 
+  headers: string | null; // JSON 字符串
   method: string | null;
   file_path: string | null;
   custom_handler: string | null;
-  filter: string | null; // JSON 
+  filter: string | null; // JSON 字符串
   retries: number;
   timeout: number;
   created_at: number;
@@ -105,7 +105,7 @@ export interface TeeDestinationRow {
 }
 
 /**
- * OAuth 
+ * OAuth 会话表行类型
  * OAuth session table row type
  */
 export interface OAuthSessionRow {
@@ -115,14 +115,14 @@ export interface OAuthSessionRow {
   access_token: string;
   refresh_token: string | null;
   expires_at: number;
-  scopes: string; // JSON 
-  user_info: string | null; // JSON 
+  scopes: string; // JSON 字符串
+  user_info: string | null; // JSON 字符串
   created_at: number;
   updated_at: number;
 }
 
 /**
- * 
+ * 计数查询结果
  * Count query result
  */
 export interface CountRow {
@@ -130,7 +130,7 @@ export interface CountRow {
 }
 
 /**
- * 
+ * 用户版本查询结果
  * User version query result
  */
 export interface UserVersionRow {
@@ -138,7 +138,7 @@ export interface UserVersionRow {
 }
 
 /**
- * 
+ * 通用聚合查询结果
  * Generic aggregate query result
  */
 export interface AggregateRow {
