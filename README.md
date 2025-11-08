@@ -185,24 +185,29 @@ curl -X POST http://localhost:3000/api/transformers/test \
 ## 📖 Documentation
 
 ### Core Documentation
-- [🎯 API Reference](./API_REFERENCE.md) ⭐
+- [🎯 API Reference](./API_REFERENCE.md)
 - [🗺️ Development Roadmap](./ROADMAP.md)
-- [📊 Implementation Status](./IMPLEMENTATION_STATUS_V2.md)
-- [Architecture Overview](./docs/architecture.md)
-- [Configuration Guide](./docs/configuration.md)
-- [Deployment Guide](./docs/deployment.md)
+- [⚙️ Configuration Guide](./docs/configuration.md)
+- [🌍 Environment Variables](./docs/environment-variables.md)
+- [🚀 Deployment Guide](./docs/deployment.md)
 
 ### Feature Guides
 - [🛠️ Function Calling Guide](./docs/function-calling.md)
-- [📝 Function Calling Examples](./examples/function-calling.md)
-- [🌐 i18n Documentation](./docs/i18n.md) ⭐ NEW
-- [🎨 Models Database](./docs/models-database.md) ⭐ NEW
+- [🌐 i18n Documentation](./docs/i18n.md)
+- [🎯 Content-Based Routing](./docs/content-based-routing.md)
+- [🔄 Custom Routing Functions](./docs/custom-routing-functions.md)
+- [🔧 Transformer Pipeline](./docs/transformer-pipeline.md)
+- [📊 Cache Warmer](./docs/CACHE_WARMER.md)
+- [🔍 Tracing Implementation](./docs/TRACING_IMPLEMENTATION.md)
+- [⏱️ Dynamic TTL Implementation](./docs/DYNAMIC_TTL_IMPLEMENTATION.md)
 
-### Quality & Optimization
-- [✅ Code Review Report](./docs/CODE_REVIEW.md) ⭐ NEW
-- [🔧 Test Fixes Documentation](./docs/TEST_FIXES.md) ⭐ NEW
-- [📈 Optimization Summary](./docs/OPTIMIZATION_SUMMARY.md) ⭐ NEW
-- [📋 Optimization Plan](./OPTIMIZATION_PLAN.md)
+### Dashboard & CLI
+- [📱 Dashboard Features](./docs/dashboard-features.md)
+- [🖥️ CLI Model Selector](./docs/cli-model-selector.md)
+
+### Testing & Security
+- [🧪 Testing Guide](./docs/TESTING.md)
+- [🔒 Security Guide](./docs/SECURITY.md)
 
 ## 🎯 Use Cases
 
