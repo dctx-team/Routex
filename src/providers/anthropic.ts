@@ -28,17 +28,17 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   /**
-   * Anthropic 
+   * Anthropic
    */
-  async transformRequest(body: unknown, channel: Channel): Promise<unknown> {
-    // Anthropic API 
+  async transformRequest(body: unknown, _channel: Channel): Promise<unknown> {
+    // Anthropic API
     return body;
   }
 
   /**
-   * Anthropic 
+   * Anthropic
    */
-  async transformResponse(body: unknown, channel: Channel): Promise<unknown> {
+  async transformResponse(body: unknown, _channel: Channel): Promise<unknown> {
     // Anthropic API 
     return body;
   }

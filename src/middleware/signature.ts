@@ -161,7 +161,7 @@ export function signatureVerification(config: SignatureConfig) {
         );
       }
 
-      const now = Date.now;
+      const now = Date.now();
       const timeDiff = Math.abs(now - requestTime);
 
       if (timeDiff > tolerance) {
@@ -184,10 +184,10 @@ export function signatureVerification(config: SignatureConfig) {
         );
       }
 
-      // 
-      const body = await c.req.text;
+      //
+      const body = await c.req.text();
 
-      // 
+      //
       const signedHeaders: Record<string, string> = {};
       for (const headerName of headersToSign) {
         const value = c.req.header(headerName);

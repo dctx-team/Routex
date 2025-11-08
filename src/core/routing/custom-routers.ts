@@ -8,7 +8,7 @@
 
 import type { Channel } from '../../types';
 import { logger } from '../../utils/logger';
-import type { RouterContext, RouterResult } from './smart-router';
+import type { RouterContext } from './smart-router';
 import type { ContentAnalysis } from './content-analyzer';
 
 // ============================================================================
@@ -139,13 +139,13 @@ export class CustomRouterRegistry {
 export const BuiltinRouters = {
   /**
    * Route based on time of day
-   * 
+   *
    *
    * Example: Use cheaper models during off-peak hours
    */
-  timeBasedRouter: (peakHours: number = [9, 10, 11, 14, 15, 16, 17]): CustomRouterFunction => {
-    return (context, analysis, availableChannels) => {
-      const hour = new Date.getHours;
+  timeBasedRouter: (peakHours: number[] = [9, 10, 11, 14, 15, 16, 17]): CustomRouterFunction => {
+    return (_context, _analysis, availableChannels) => {
+      const hour = new Date().getHours();
       const isPeakTime = peakHours.includes(hour);
 
       if (!availableChannels || availableChannels.length === 0) {
@@ -177,7 +177,7 @@ export const BuiltinRouters = {
    * Example: VIP users get priority channels
    */
   userTierRouter: (tierField: string = 'userTier'): CustomRouterFunction => {
-    return (context, analysis, availableChannels) => {
+    return (context, _analysis, availableChannels) => {
       const tier = context.metadata?.[tierField] || 'free';
 
       if (!availableChannels || availableChannels.length === 0) {
@@ -219,7 +219,7 @@ export const BuiltinRouters = {
   costOptimizedRouter: (
     costThreshold: 'low' | 'medium' | 'high' = 'medium'
   ): CustomRouterFunction => {
-    return (context, analysis, availableChannels) => {
+    return (_context, analysis, availableChannels) => {
       if (!analysis || !availableChannels || availableChannels.length === 0) {
         return true;
       }
@@ -263,7 +263,7 @@ export const BuiltinRouters = {
    * Example: Prefer channels with high success rates
    */
   healthBasedRouter: (minSuccessRate: number = 0.95): CustomRouterFunction => {
-    return (context, analysis, availableChannels) => {
+    return (_context, _analysis, availableChannels) => {
       if (!availableChannels || availableChannels.length === 0) {
         return true;
       }
@@ -300,7 +300,7 @@ export const BuiltinRouters = {
    * Example: Avoid overloaded channels
    */
   loadBalancedRouter: (maxLoad: number = 100): CustomRouterFunction => {
-    return (context, analysis, availableChannels) => {
+    return (_context, _analysis, availableChannels) => {
       if (!availableChannels || availableChannels.length === 0) {
         return true;
       }
@@ -353,7 +353,7 @@ export const BuiltinRouters = {
       }
 
       // Model capability mappings
-      const capabilityModels: Record<string, RegExp> = {
+      const capabilityModels: Record<string, RegExp[]> = {
         function_calling: [/claude-3/, /gpt-4/, /gpt-3.5-turbo/],
         vision: [/claude-3/, /gpt-4.*vision/, /gemini.*pro.*vision/],
         long_context: [/claude-3/, /gpt-4-turbo/, /gemini.*pro/],
@@ -385,7 +385,7 @@ export const BuiltinRouters = {
     experimentalChannelName: string,
     trafficPercentage: number = 10
   ): CustomRouterFunction => {
-    return (context, analysis, availableChannels) => {
+    return (context, _analysis, availableChannels) => {
       if (!availableChannels || availableChannels.length === 0) {
         return false;
       }
@@ -419,7 +419,7 @@ export const BuiltinRouters = {
  * Compose multiple router functions with AND logic
  *  AND 
  */
-export function composeAnd(...routers: CustomRouterFunction): CustomRouterFunction {
+export function composeAnd(...routers: CustomRouterFunction[]): CustomRouterFunction {
   return async (context, analysis, availableChannels) => {
     for (const router of routers) {
       const result = await router(context, analysis, availableChannels);
@@ -443,7 +443,7 @@ export function composeAnd(...routers: CustomRouterFunction): CustomRouterFuncti
  * Compose multiple router functions with OR logic
  *  OR 
  */
-export function composeOr(...routers: CustomRouterFunction): CustomRouterFunction {
+export function composeOr(...routers: CustomRouterFunction[]): CustomRouterFunction {
   return async (context, analysis, availableChannels) => {
     for (const router of routers) {
       const result = await router(context, analysis, availableChannels);
@@ -502,7 +502,7 @@ export function when(
  * Create a fallback chain of routers
  * 
  */
-export function fallback(...routers: CustomRouterFunction): CustomRouterFunction {
+export function fallback(...routers: CustomRouterFunction[]): CustomRouterFunction {
   return async (context, analysis, availableChannels) => {
     for (const router of routers) {
       try {
@@ -536,7 +536,7 @@ export async function testRouter(
     name: string;
     context: RouterContext;
     analysis?: ContentAnalysis;
-    availableChannels?: Channel;
+    availableChannels?: Channel[];
     expectedResult?: boolean | string; // channel name or boolean
   }>
 ): Promise<{ passed: number; failed: number; results: any }> {

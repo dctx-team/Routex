@@ -2,9 +2,9 @@
  * 用于转发请求到 AI 提供商的代理引擎
  */
 
-import type { Channel, ParsedRequest, ProxyResponse, RequestLog } from '../types';
+import type { Channel, ParsedRequest, ProxyResponse, RequestLog, Message } from '../types';
 import type { AIRequestBody, AIResponseBody } from '../types/api-body';
-import { isAIRequestBody, isAIResponseBody } from '../types/api-body';
+import { isAIRequestBody } from '../types/api-body';
 import { Database } from '../db/database';
 import { LoadBalancer } from './loadbalancer';
 import type { SmartRouter } from './routing/smart-router';
@@ -93,9 +93,9 @@ export class ProxyEngine {
 
           const routerContext = {
             model: parsed.model || '',
-            messages: body.messages || [],
+            messages: (body.messages || []) as Message[],
             system: body.system,
-            tools: body.tools,
+            tools: body.tools as any,
             metadata: {
               sessionId: req.headers.get('x-session-id') || undefined,
             },

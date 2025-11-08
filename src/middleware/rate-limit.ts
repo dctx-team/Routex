@@ -159,7 +159,7 @@ export function rateLimit(config: RateLimitConfig) {
         path: c.req.path,
       }, '🚫 Rate limit exceeded');
 
-      c.header('Retry-After', Math.ceil(windowMs / 1000).toString);
+      c.header('Retry-After', Math.ceil(windowMs / 1000).toString());
 
       return c.json(
         {

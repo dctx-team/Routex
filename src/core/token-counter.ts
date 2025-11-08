@@ -3,7 +3,7 @@
  * Provides accurate token counting for different model families
  */
 
-import type { Message, ContentBlock } from '../types';
+import type { Message } from '../types';
 
 export interface TokenCounter {
   name: string;
@@ -144,7 +144,7 @@ export class OpenAITokenCounter implements TokenCounter {
         for (const block of msg.content) {
           if (block.type === 'text' && block.text) {
             messageTokens += this.countTokens(block.text);
-          } else if (block.type === 'image' || block.type === 'image_url') {
+          } else if (block.type === 'image') {
             // GPT-4 Vision: depends on detail level
             // high: ~1000-2000 tokens, low: ~85 tokens
             messageTokens += 1000; // Default to high detail estimate

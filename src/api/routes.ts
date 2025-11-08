@@ -108,10 +108,10 @@ export async function createAPI(
     app.use('/api/*', rateLimiter);
     app.use('/v1/*', rateLimiter);
 
-    logger.info('🛡️  Rate limiting enabled', {
+    logger.info({
       max: rateLimitMax,
       window: `${rateLimitWindow}ms`,
-    });
+    }, '🛡️  Rate limiting enabled');
   }
 
   // 静态文件中间件（带缓存）
@@ -940,7 +940,7 @@ export async function createAPI(
   });
 
   // 导出配置为 JSON
-  app.get('/api/config/export', async (c) => {
+  app.get('/api/config/export', async (_c) => {
     const { ConfigManager } = await import('../config/config');
     const configManager = ConfigManager.getInstance();
     const configJson = configManager.exportConfig();
@@ -1288,7 +1288,7 @@ export async function createAPI(
     logError(err, { component: 'API', path: c.req.path, requestId });
 
     if (err instanceof RoutexError) {
-      c.status(err.statusCode);
+      c.status(err.statusCode as any);
       return c.json({
         success: false,
         ...err.toJSON(),
@@ -1296,7 +1296,7 @@ export async function createAPI(
     }
 
     const handled = errorHandler(err);
-    c.status(handled.status);
+    c.status(handled.status as any);
     return c.json({
       success: false,
       ...handled.body,

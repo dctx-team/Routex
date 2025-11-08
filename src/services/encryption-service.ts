@@ -3,7 +3,7 @@
  * Encryption Service - Manage encryption and decryption of sensitive data
  */
 
-import { encrypt, decrypt } from '../utils/encryption';
+import { encryptApiKey as encrypt, decryptApiKey as decrypt } from '../utils/encryption';
 import { logger } from '../utils/logger';
 
 export class EncryptionService {
@@ -39,7 +39,7 @@ export class EncryptionService {
     }
 
     try {
-      return encrypt(apiKey, this.masterPassword);
+      return encrypt(apiKey);
     } catch (error) {
       logger.error({ error }, '❌ Failed to encrypt API key');
       throw new Error('Failed to encrypt API key');
@@ -56,7 +56,7 @@ export class EncryptionService {
     }
 
     try {
-      return decrypt(encryptedApiKey, this.masterPassword);
+      return decrypt(encryptedApiKey);
     } catch (error) {
       logger.error({ error }, '❌ Failed to decrypt API key');
       throw new Error('Failed to decrypt API key');

@@ -180,7 +180,7 @@ export class RequestTracer {
       headers.get('traceparent')?.split('-')[1]; // W3C Trace Context
 
     const spanId = headers.get('x-span-id') || this.generateSpanId();
-    const parentSpanId = headers.get('x-parent-span-id');
+    const parentSpanId = headers.get('x-parent-span-id') || undefined;
 
     if (!traceId) return null;
 

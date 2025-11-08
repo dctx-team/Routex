@@ -20,8 +20,8 @@ export class GoogleProvider extends BaseProvider {
     return 'https://generativelanguage.googleapis.com';
   }
 
-  prepareAuthHeaders(channel: Channel): Record<string, string> {
-    // Google  API Key  header 
+  prepareAuthHeaders(_channel: Channel): Record<string, string> {
+    // Google  API Key  header
     return {};
   }
 

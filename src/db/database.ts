@@ -10,9 +10,11 @@ import type {
   RequestLog,
   Analytics,
   RoutingRule,
+  RoutingRuleType,
   CreateRoutingRuleInput,
   UpdateRoutingRuleInput,
   TeeDestination,
+  TeeDestinationType,
   CreateTeeDestinationInput,
   UpdateTeeDestinationInput,
 } from '../types';
@@ -28,7 +30,7 @@ import type {
 } from './types';
 import { logger } from '../utils/logger';
 import { DynamicTTLManager, type CacheType } from './dynamic-ttl';
-import { getEncryptionService, isEncrypted, getApiKey } from '../utils/encryption';
+import { getEncryptionService, getApiKey } from '../utils/encryption';
 import { assertValidChannelType, assertValidChannelStatus } from './type-guards';
 
 export class Database {
@@ -37,9 +39,9 @@ export class Database {
   private flushInterval: Timer | null = null;
 
   // 可配置 TTL 的查询缓存
-  private channelCache = new Map<string, { data: Channel, timestamp: number }>();
+  private channelCache = new Map<string, { data: Channel[], timestamp: number }>();
   private singleChannelCache = new Map<string, { data: Channel, timestamp: number }>();
-  private routingRuleCache: { data: RoutingRule, timestamp: number } | null = null;
+  private routingRuleCache: { data: RoutingRule[], timestamp: number } | null = null;
   private readonly CACHE_TTL: number;
   private cacheCleanupInterval: Timer | null = null;
 
@@ -1092,7 +1094,7 @@ export class Database {
     return {
       id: row.id,
       name: row.name,
-      type: row.type,
+      type: row.type as RoutingRuleType,
       condition: JSON.parse(row.condition),
       targetChannel: row.target_channel,
       targetModel: row.target_model || undefined,
@@ -1232,7 +1234,7 @@ export class Database {
     return {
       id: row.id,
       name: row.name,
-      type: row.type,
+      type: row.type as TeeDestinationType,
       enabled: row.enabled === 1,
       url: row.url || undefined,
       headers: row.headers ? JSON.parse(row.headers) : undefined,

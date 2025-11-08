@@ -13,9 +13,7 @@
 import type {
   Channel,
   RoutingRule,
-  RoutingRuleType,
   Message,
-  ContentBlock,
   Tool,
 } from '../../types';
 import { estimateMessageTokens } from '../token-counter';
@@ -27,8 +25,6 @@ import {
 } from './custom-routers';
 import {
   isContentCondition,
-  type ContentCondition,
-  type RoutingCondition,
 } from './types';
 
 export interface RouterContext {

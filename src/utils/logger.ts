@@ -100,8 +100,9 @@ export function logRequest(context: {
   status?: number;
   duration?: number;
   error?: Error;
+  requestId?: string;
 }) {
-  const { method, url, status, duration, error } = context;
+  const { method, url, status, duration, error, requestId } = context;
 
   if (error) {
     logger.error(
@@ -110,6 +111,7 @@ export function logRequest(context: {
         url,
         status,
         duration,
+        requestId,
         error: {
           message: error.message,
           stack: error.stack,
@@ -124,6 +126,7 @@ export function logRequest(context: {
         url,
         status,
         duration,
+        requestId,
       },
       `${method} ${url} - ${status} (${duration}ms)`
     );

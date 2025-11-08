@@ -158,7 +158,7 @@ export class ConfigManager {
     }
 
     // 验证 CORS 源
-    if (!Array.isArray(config.server.cors.origins)) {
+    if (config.server.cors && !Array.isArray(config.server.cors.origins)) {
       throw new ConfigValidationError(
         'CORS origins must be an array',
         'server.cors.origins'

@@ -15,7 +15,7 @@ export class ZhipuTransformer extends BaseTransformer {
    * Transform Anthropic format to Zhipu GLM format
    * 将 Anthropic 格式转换为智谱 GLM 格式
    */
-  async transformRequest(request: any, options?: any): Promise<any> {
+  async transformRequest(request: any, _options?: any): Promise<any> {
     const transformed: any = {
       model: request.model,
       messages: this.convertMessagesToGLM(request.messages, request.system),
@@ -41,8 +41,8 @@ export class ZhipuTransformer extends BaseTransformer {
     }
 
     // GLM specific parameters / GLM 特定参数
-    if (options?.doSample !== undefined) transformed.do_sample = options.doSample;
-    if (options?.requestId !== undefined) transformed.request_id = options.requestId;
+    if (_options?.doSample !== undefined) transformed.do_sample = _options?.doSample;
+    if (_options?.requestId !== undefined) transformed.request_id = _options?.requestId;
 
     return transformed;
   }
@@ -51,7 +51,7 @@ export class ZhipuTransformer extends BaseTransformer {
    * Transform Zhipu GLM response to Anthropic format
    * 将智谱 GLM 响应转换为 Anthropic 格式
    */
-  async transformResponse(response: any, options?: any): Promise<any> {
+  async transformResponse(response: any, _options?: any): Promise<any> {
     if (!response.choices || response.choices.length === 0) {
       throw new Error('Invalid Zhipu GLM response: no choices');
     }

@@ -61,7 +61,7 @@ export const createTeeDestinationSchema = z.object({
 
   method: httpMethodSchema.default('POST').optional(),
 
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
 
   // File 配置
   filePath: z.string().optional(),

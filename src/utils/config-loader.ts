@@ -191,7 +191,9 @@ export function generateEnvExampleFromDb(
 
   // 从 TeeDestinations 提取
   for (const dest of destinations) {
-    extractVarsFromString(dest.url, envVars);
+    if (dest.url) {
+      extractVarsFromString(dest.url, envVars);
+    }
   }
 
   if (envVars.size === 0) {

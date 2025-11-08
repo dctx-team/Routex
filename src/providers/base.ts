@@ -84,16 +84,16 @@ export abstract class BaseProvider {
   }
 
   /**
-   * 
+   *
    */
-  async transformRequest(body: unknown, channel: Channel): Promise<unknown> {
+  async transformRequest(body: unknown, _channel: Channel): Promise<unknown> {
     return body;
   }
 
   /**
-   * 
+   *
    */
-  async transformResponse(body: unknown, channel: Channel): Promise<unknown> {
+  async transformResponse(body: unknown, _channel: Channel): Promise<unknown> {
     return body;
   }
 

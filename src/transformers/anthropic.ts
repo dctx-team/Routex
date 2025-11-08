@@ -20,7 +20,7 @@ export class AnthropicTransformer extends BaseTransformer {
    * - agentrouter.org: Requires user-agent header 'claude-cli/2.0.14 (external, cli)'
    * - anyrouter.top, q.quuvv.cn, etc.: Requires system[0] to contain You are Claude Code
    */
-  async transformRequest(request: any, options?: any): Promise<TransformResult> {
+  async transformRequest(request: any, _options?: any): Promise<TransformResult> {
     // Anthropic format is our base format, so minimal transformation needed
     //// Anthropic
 
@@ -43,7 +43,7 @@ export class AnthropicTransformer extends BaseTransformer {
 
     // Prepare headers for public welfare sites adaptations
     const headers: Record<string, string> = {};
-    const baseUrl = options?.baseUrl || '';
+    const baseUrl = _options?.baseUrl || '';
 
     // agentrouter.org: Set user-agent header
     if (['agentrouter.org'].some((host) => baseUrl.includes(host))) {
@@ -91,7 +91,7 @@ export class AnthropicTransformer extends BaseTransformer {
    * Transform response from Anthropic format
  * Anthropic
    */
-  async transformResponse(response: any, options?: any): Promise<any> {
+  async transformResponse(response: any, _options?: any): Promise<any> {
     // Response is already in Anthropic format
     //// Anthropic
     return response;

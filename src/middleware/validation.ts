@@ -25,7 +25,7 @@ export function validateBody<T extends z.ZodType>(schema: T) {
     } catch (error) {
       if (error instanceof z.ZodError) {
         // 格式化 Zod 错误信息
-        const formattedErrors = error.errors.map((err) => ({
+        const formattedErrors = error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
           code: err.code,
@@ -59,7 +59,7 @@ export function validateQuery<T extends z.ZodType>(schema: T) {
       await next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const formattedErrors = error.errors.map((err) => ({
+        const formattedErrors = error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
           code: err.code,
@@ -88,7 +88,7 @@ export function validateParams<T extends z.ZodType>(schema: T) {
       await next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const formattedErrors = error.errors.map((err) => ({
+        const formattedErrors = error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
           code: err.code,

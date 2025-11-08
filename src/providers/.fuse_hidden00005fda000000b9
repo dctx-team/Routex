@@ -1,0 +1,54 @@
+/**
+ * Anthropic Claude Provider
+ */
+
+import { BaseProvider, type ProviderCapabilities } from './base';
+import type { Channel } from '../types';
+
+export class AnthropicProvider extends BaseProvider {
+  readonly name = 'Anthropic';
+  readonly type = 'anthropic';
+  readonly capabilities: ProviderCapabilities = {
+    supportsStreaming: true,
+    supportsTools: true,
+    supportsVision: true,
+    supportsSystemMessages: true,
+    maxTokens: 200000, // Claude 3.5 Sonnet  200K context
+  };
+
+  getDefaultBaseUrl(): string {
+    return 'https://api.anthropic.com';
+  }
+
+  prepareAuthHeaders(_channel: Channel): Record<string, string> {
+    return {
+      'x-api-key': channel.apiKey || '',
+      'anthropic-version': '2023-06-01',
+    };
+  }
+
+  /**
+   * Anthropic 
+   */
+  async transformRequest(body: unknown, channel: Channel): Promise<unknown> {
+    // Anthropic API 
+    return body;
+  }
+
+  /**
+   * Anthropic 
+   */
+  async transformResponse(body: unknown, channel: Channel): Promise<unknown> {
+    // Anthropic API 
+    return body;
+  }
+
+  extractTokenUsage(responseBody: any) {
+    const usage = responseBody?.usage || {};
+    return {
+      inputTokens: usage.input_tokens || 0,
+      outputTokens: usage.output_tokens || 0,
+      cachedTokens: usage.cache_read_input_tokens || 0,
+    };
+  }
+}

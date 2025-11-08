@@ -116,7 +116,7 @@ export class ChannelTester {
         url: `${baseURL}/v1/messages`,
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': channel.apiKey,
+          'x-api-key': channel.apiKey || '',
           'anthropic-version': '2023-06-01',
         },
         body: {

@@ -264,8 +264,6 @@ export class ContentAnalyzer {
     messages: Message[],
     tools?: Tool[]
   ): ContentCategory {
-    const lowerText = text.toLowerCase();
-
     // Coding
     if (this.detectCode(text) || this.detectLanguages(text).length > 0) {
       return 'coding';
@@ -318,7 +316,6 @@ export class ContentAnalyzer {
     const wordCount = this.countWords(text);
     const hasCode = this.detectCode(text);
     const messageCount = messages.length;
-    const avgWordsPerMessage = wordCount / Math.max(messageCount, 1);
 
     // Very complex: long context with code
     if (wordCount > 2000 || (hasCode && wordCount > 500)) {
@@ -344,7 +341,6 @@ export class ContentAnalyzer {
    * 
    */
   private detectIntent(text: string, messages: Message[]): RequestIntent {
-    const lowerText = text.toLowerCase();
     const lastUserMessage = this.getLastUserMessage(messages);
 
     // Question (ends with ?)
