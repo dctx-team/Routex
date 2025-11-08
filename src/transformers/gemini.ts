@@ -1,9 +1,9 @@
 /**
  * Google Gemini API Transformer
- * Google Gemini API 转换器
+ * Google Gemini API 
  *
  * Converts between Google Gemini API and Anthropic Messages API
- * Google Gemini API 与 Anthropic Messages API 之间的转换
+ * Google Gemini API  Anthropic Messages API 
  */
 
 import { BaseTransformer } from './base';
@@ -13,7 +13,7 @@ export class GeminiTransformer extends BaseTransformer {
 
   /**
    * Transform Anthropic format to Google Gemini format
-   * 将 Anthropic 格式转换为 Google Gemini 格式
+   *  Anthropic  Google Gemini 
    */
   async transformRequest(request: any, options?: any): Promise<any> {
     const transformed: any = {
@@ -21,7 +21,7 @@ export class GeminiTransformer extends BaseTransformer {
       generationConfig: {},
     };
 
-    // Add system instruction if present / 添加系统指令
+    // Add system instruction if present
     if (request.system) {
       const systemContent = Array.isArray(request.system)
         ? request.system.map((s: any) => s.text || s).join('\n')
@@ -32,7 +32,7 @@ export class GeminiTransformer extends BaseTransformer {
       };
     }
 
-    // Map generation parameters / 映射生成参数
+    // Map generation parameters
     if (request.max_tokens !== undefined) {
       transformed.generationConfig.maxOutputTokens = request.max_tokens;
     }
@@ -49,7 +49,7 @@ export class GeminiTransformer extends BaseTransformer {
       transformed.generationConfig.stopSequences = request.stop_sequences;
     }
 
-    // Convert tools if present / 转换工具
+    // Convert tools if present
     if (request.tools) {
       transformed.tools = [{
         functionDeclarations: request.tools.map((tool: any) => ({
@@ -61,7 +61,7 @@ export class GeminiTransformer extends BaseTransformer {
     }
 
     // Gemini uses different model names
-    // Gemini 使用不同的模型名称
+    // Gemini 
     transformed.model = this.mapModelName(request.model);
 
     return transformed;
@@ -69,7 +69,7 @@ export class GeminiTransformer extends BaseTransformer {
 
   /**
    * Transform Google Gemini response to Anthropic format
-   * 将 Google Gemini 响应转换为 Anthropic 格式
+   *  Google Gemini  Anthropic 
    */
   async transformResponse(response: any, options?: any): Promise<any> {
     if (!response.candidates || response.candidates.length === 0) {
@@ -80,10 +80,10 @@ export class GeminiTransformer extends BaseTransformer {
     const content = candidate.content;
 
     const transformed: any = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now}`,
       type: 'message',
       role: 'assistant',
-      content: [],
+      content: ,
       model: response.modelVersion || 'gemini-pro',
       stop_reason: this.mapFinishReason(candidate.finishReason),
       usage: {
@@ -92,7 +92,7 @@ export class GeminiTransformer extends BaseTransformer {
       },
     };
 
-    // Convert content parts / 转换内容部分
+    // Convert content parts
     if (content && content.parts) {
       for (const part of content.parts) {
         if (part.text) {
@@ -103,7 +103,7 @@ export class GeminiTransformer extends BaseTransformer {
         } else if (part.functionCall) {
           transformed.content.push({
             type: 'tool_use',
-            id: `tool-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            id: `tool-${Date.now}-${Math.random.toString(36).substring(2, 9)}`,
             name: part.functionCall.name,
             input: part.functionCall.args,
           });
@@ -116,15 +116,15 @@ export class GeminiTransformer extends BaseTransformer {
 
   /**
    * Convert Anthropic messages to Google Gemini format
-   * 将 Anthropic 消息转换为 Google Gemini 格式
+   *  Anthropic  Google Gemini 
    */
-  private convertMessagesToGemini(messages: any[]): any[] {
-    const result: any[] = [];
+  private convertMessagesToGemini(messages: any): any {
+    const result: any = ;
 
     for (const msg of messages) {
       const geminiMsg: any = {
         role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [],
+        parts: ,
       };
 
       if (typeof msg.content === 'string') {
@@ -135,7 +135,7 @@ export class GeminiTransformer extends BaseTransformer {
             geminiMsg.parts.push({ text: block.text });
           } else if (block.type === 'image') {
             // Gemini supports inline images
-            // Gemini 支持内联图像
+            // Gemini 
             if (block.source.type === 'base64') {
               geminiMsg.parts.push({
                 inlineData: {
@@ -145,7 +145,7 @@ export class GeminiTransformer extends BaseTransformer {
               });
             } else if (block.source.url) {
               // Convert URL to base64 or use fileData
-              // 将 URL 转换为 base64 或使用 fileData
+              //  URL  base64  fileData
               geminiMsg.parts.push({
                 text: `[Image: ${block.source.url}]`,
               });
@@ -159,7 +159,7 @@ export class GeminiTransformer extends BaseTransformer {
             });
           } else if (block.type === 'tool_result') {
             // Tool results as function responses
-            // 工具结果作为函数响应
+            // 
             geminiMsg.parts.push({
               functionResponse: {
                 name: block.tool_use_id,
@@ -180,17 +180,17 @@ export class GeminiTransformer extends BaseTransformer {
 
   /**
    * Map model names between Anthropic and Gemini
-   * 在 Anthropic 和 Gemini 之间映射模型名称
+   *  Anthropic  Gemini 
    */
   private mapModelName(model: string): string {
     // If already a Gemini model name, return as is
-    // 如果已经是 Gemini 模型名称，直接返回
+    //  Gemini 
     if (model.startsWith('gemini-')) {
       return model;
     }
 
     // Map common patterns
-    // 映射常见模式
+    // 
     const mappings: Record<string, string> = {
       'claude-3-opus': 'gemini-pro',
       'claude-3-sonnet': 'gemini-pro',
@@ -204,7 +204,7 @@ export class GeminiTransformer extends BaseTransformer {
 
   /**
    * Map Gemini finishReason to Anthropic stop_reason
-   * 将 Gemini finishReason 映射为 Anthropic stop_reason
+   *  Gemini finishReason  Anthropic stop_reason
    */
   private mapFinishReason(finishReason: string): string {
     const mapping: Record<string, string> = {

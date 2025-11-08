@@ -60,7 +60,7 @@ export interface RegisteredRouter {
  * 
  */
 export class CustomRouterRegistry {
-  private routers = new Map<string, RegisteredRouter>();
+  private routers = new Map<string, RegisteredRouter>;
 
   /**
    * Register a custom router function
@@ -99,8 +99,8 @@ export class CustomRouterRegistry {
    * List all registered routers
    *
    */
-  list(): RouterFunctionInfo[] {
-    return Array.from(this.routers.values()).map((r) => r.info);
+  list: RouterFunctionInfo {
+    return Array.from(this.routers.values).map((r) => r.info);
   }
 
   /**
@@ -123,8 +123,8 @@ export class CustomRouterRegistry {
    * Clear all routers
    * 
    */
-  clear() {
-    this.routers.clear();
+  clear {
+    this.routers.clear;
   }
 }
 
@@ -329,7 +329,7 @@ export const BuiltinRouters = {
   capabilityRouter: (requiredCapability: string): CustomRouterFunction => {
     return (context, analysis, availableChannels) => {
       // Check if capability is needed
-      const needsCapability = (() => {
+      const needsCapability = ( => {
         switch (requiredCapability) {
           case 'function_calling':
             return context.tools && context.tools.length > 0;
@@ -360,7 +360,7 @@ export const BuiltinRouters = {
         code_generation: [/claude.*opus/, /claude.*sonnet/, /gpt-4/],
       };
 
-      const patterns = capabilityModels[requiredCapability] || [];
+      const patterns = capabilityModels[requiredCapability] || ;
       const capableChannels = availableChannels.filter((c) =>
         c.models.some((m) => patterns.some((p) => p.test(m)))
       );
@@ -540,7 +540,7 @@ export async function testRouter(
     expectedResult?: boolean | string; // channel name or boolean
   }>
 ): Promise<{ passed: number; failed: number; results: any }> {
-  const results = [];
+  const results = ;
   let passed = 0;
   let failed = 0;
 
@@ -592,7 +592,7 @@ export async function testRouter(
 export const globalRouterRegistry = new CustomRouterRegistry;
 
 // Register all built-in routers
-// 注册所有内置路由器
+// 
 Object.entries(BuiltinRouters).forEach(([name, factory]) => {
   // Built-in routers are factory functions that return CustomRouterFunction
   // Type assertion is safe here as we control the BuiltinRouters object
