@@ -509,20 +509,9 @@ export async function createAPI(
 
   // 列出请求记录（增强版 + 过滤器 + 分页）
   app.get('/api/requests', validateQuery(requestLogQuerySchema), (c) => {
-    const query = c.get('validatedQuery') as {
-      status?: number;
-      channelId?: string;
-      model?: string;
-      q?: string;
-      since?: number;
-      until?: number;
-      limit?: number;
-      offset?: number;
-    };
+    const query = c.get('validatedQuery');
 
     const { rows, total } = db.getRequestsFiltered(query);
-    const limit = query.limit || DEFAULT_QUERY_LIMIT;
-    const offset = query.offset || 0;
 
     const channels = db.getChannels();
     const channelMap = new Map(channels.map((ch) => [ch.id, ch.name]));

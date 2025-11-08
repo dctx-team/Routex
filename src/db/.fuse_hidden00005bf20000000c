@@ -29,7 +29,6 @@ import type {
 import { logger } from '../utils/logger';
 import { DynamicTTLManager, type CacheType } from './dynamic-ttl';
 import { getEncryptionService, isEncrypted, getApiKey } from '../utils/encryption';
-import { assertValidChannelType, assertValidChannelStatus } from './type-guards';
 
 export class Database {
   private db: BunSQLite;
@@ -769,21 +768,17 @@ export class Database {
       }
     }
 
-    // ✅ Validate types from database
-    assertValidChannelType(row.type);
-    assertValidChannelStatus(row.status);
-
     return {
       id: row.id,
       name: row.name,
-      type: row.type,  // ✅ Now type-safe: ChannelType
+      type: row.type,
       baseUrl: row.base_url || undefined,
       apiKey: decryptedApiKey,
       refreshToken: row.refresh_token || null,
       models: JSON.parse(row.models),
       priority: row.priority,
       weight: row.weight,
-      status: row.status,  // ✅ Now type-safe: ChannelStatus
+      status: row.status,
       requestCount: row.request_count,
       successCount: row.success_count,
       failureCount: row.failure_count,

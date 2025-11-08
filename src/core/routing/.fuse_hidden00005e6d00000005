@@ -150,7 +150,7 @@ export class SmartRouter {
    * Get content analysis for a request
    * 
    */
-  analyzeContent(messages: Message[], tools?: Tool[]): ContentAnalysis {
+  analyzeContent(messages: Message, tools?: Tool): ContentAnalysis {
     return this.contentAnalyzer.analyze(messages, tools);
   }
 
@@ -352,7 +352,7 @@ export class SmartRouter {
    * Extract user message content
  *
    */
-  private extractUserMessage(messages: Message[]): string {
+  private extractUserMessage(messages: Message): string {
     const parts: string[] = [];
 
     for (const msg of messages) {
@@ -376,7 +376,7 @@ export class SmartRouter {
    * Check if messages contain images
  *
    */
-  private containsImages(messages: Message[]): boolean {
+  private containsImages(messages: Message): boolean {
     for (const msg of messages) {
       if (Array.isArray(msg.content)) {
         for (const block of msg.content) {
@@ -392,7 +392,7 @@ export class SmartRouter {
   /**
    * Estimate token count using improved token counter
    */
-  private estimateTokenCount(messages: Message[], model: string = 'claude'): number {
+  private estimateTokenCount(messages: Message, model: string = 'claude'): number {
     return estimateMessageTokens(messages, model);
   }
 

@@ -17,7 +17,7 @@ import type { ContentAnalysis } from './content-analyzer';
 
 /**
  * Custom router function signature
- *
+ * 
  *
  * @param context - Request context
  * @param analysis - Content analysis result
@@ -27,7 +27,7 @@ import type { ContentAnalysis } from './content-analyzer';
 export type CustomRouterFunction = (
   context: RouterContext,
   analysis?: ContentAnalysis,
-  availableChannels?: Channel[]  // ✅ Fixed: should be an array
+  availableChannels?: Channel
 ) => boolean | Channel | Promise<boolean | Channel>;
 
 /**
