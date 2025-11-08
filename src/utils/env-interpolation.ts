@@ -1,13 +1,13 @@
 /**
- * 
- *  $VAR_NAME  ${VAR_NAME} 
- * : claude-code-router  cce-master
+ * 环境变量插值工具
+ * 支持 $VAR_NAME 和 ${VAR_NAME} 两种语法
+ * 灵感来源: claude-code-router 和 cce-master
  */
 
 /**
- * 
- * @param obj 
- * @returns 
+ * 递归替换对象中的环境变量引用
+ * @param obj 需要处理的对象
+ * @returns 替换后的对象
  */
 export function interpolateEnvVars<T>(obj: T): T {
   if (typeof obj === 'string') {
@@ -30,27 +30,27 @@ export function interpolateEnvVars<T>(obj: T): T {
 }
 
 /**
- * 
- * :
+ * 替换字符串中的环境变量
+ * 支持两种语法:
  * - $VAR_NAME
  * - ${VAR_NAME}
  */
 function interpolateString(str: string): string {
-  //  ${VAR_NAME} 
+  // 替换 ${VAR_NAME} 格式
   let result = str.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_, varName) => {
     const value = process.env[varName];
     if (value === undefined) {
-      console.warn(` :  ${varName} ,`);
+      console.warn(`[环境变量插值] 警告: 环境变量 ${varName} 未定义,保留原样`);
       return `\${${varName}}`;
     }
     return value;
   });
 
-  //  $VAR_NAME  
+  // 替换 $VAR_NAME 格式 (不在大括号中)
   result = result.replace(/\$([A-Z_][A-Z0-9_]*)(?![}\w])/g, (_, varName) => {
     const value = process.env[varName];
     if (value === undefined) {
-      console.warn(` :  ${varName} ,`);
+      console.warn(`[环境变量插值] 警告: 环境变量 ${varName} 未定义,保留原样`);
       return `$${varName}`;
     }
     return value;
@@ -60,16 +60,16 @@ function interpolateString(str: string): string {
 }
 
 /**
- * 
- * @param obj 
- * @returns 
+ * 验证配置中引用的环境变量是否都已定义
+ * @param obj 需要验证的配置对象
+ * @returns 缺失的环境变量列表
  */
-export function validateEnvVars(obj: unknown): string {
-  const missing = new Set<string>;
+export function validateEnvVars(obj: unknown): string[] {
+  const missing = new Set<string>();
 
   function check(value: unknown): void {
     if (typeof value === 'string') {
-      //  ${VAR_NAME}
+      // 检查 ${VAR_NAME}
       const bracketMatches = value.matchAll(/\$\{([A-Z_][A-Z0-9_]*)\}/g);
       for (const match of bracketMatches) {
         if (process.env[match[1]] === undefined) {
@@ -77,7 +77,7 @@ export function validateEnvVars(obj: unknown): string {
         }
       }
 
-      //  $VAR_NAME
+      // 检查 $VAR_NAME
       const simpleMatches = value.matchAll(/\$([A-Z_][A-Z0-9_]*)(?![}\w])/g);
       for (const match of simpleMatches) {
         if (process.env[match[1]] === undefined) {
@@ -92,26 +92,26 @@ export function validateEnvVars(obj: unknown): string {
   }
 
   check(obj);
-  return Array.from(missing).sort;
+  return Array.from(missing).sort();
 }
 
 /**
- * 
- * @param obj 
- * @returns 
+ * 提取配置中所有引用的环境变量名称
+ * @param obj 配置对象
+ * @returns 环境变量名称列表
  */
-export function extractEnvVars(obj: unknown): string {
-  const vars = new Set<string>;
+export function extractEnvVars(obj: unknown): string[] {
+  const vars = new Set<string>();
 
   function extract(value: unknown): void {
     if (typeof value === 'string') {
-      //  ${VAR_NAME}
+      // 提取 ${VAR_NAME}
       const bracketMatches = value.matchAll(/\$\{([A-Z_][A-Z0-9_]*)\}/g);
       for (const match of bracketMatches) {
         vars.add(match[1]);
       }
 
-      //  $VAR_NAME
+      // 提取 $VAR_NAME
       const simpleMatches = value.matchAll(/\$([A-Z_][A-Z0-9_]*)(?![}\w])/g);
       for (const match of simpleMatches) {
         vars.add(match[1]);
@@ -124,23 +124,23 @@ export function extractEnvVars(obj: unknown): string {
   }
 
   extract(obj);
-  return Array.from(vars).sort;
+  return Array.from(vars).sort();
 }
 
 /**
- * 
- * @param configObj 
- * @returns .env 
+ * 创建环境变量示例文件内容
+ * @param configObj 配置对象
+ * @returns .env 文件内容
  */
 export function generateEnvExample(configObj: unknown): string {
   const vars = extractEnvVars(configObj);
   if (vars.length === 0) {
-    return '# \n';
+    return '# 当前配置未使用环境变量\n';
   }
 
   const lines = [
-    '# Routex ',
-    '#  .env ',
+    '# Routex 环境变量配置',
+    '# 复制此文件为 .env 并填写实际值',
     '',
   ];
 

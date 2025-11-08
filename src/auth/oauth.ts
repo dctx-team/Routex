@@ -1,9 +1,9 @@
 /**
  * OAuth Authentication Service
- * OAuth 
+ * OAuth 认证服务
  *
  * Handles OAuth 2.0 authentication flow for official provider accounts
- *  OAuth 2.0 
+ * 处理官方提供商账户的 OAuth 2.0 认证流程
  */
 
 import { Database } from '../db/database';
@@ -12,20 +12,20 @@ import type { ChannelType } from '../types';
 
 /**
  * OAuth provider configuration
- * OAuth 
+ * OAuth 提供商配置
  */
 export interface OAuthProviderConfig {
   clientId: string;
   clientSecret: string;
   authorizationUrl: string;
   tokenUrl: string;
-  scopes: string;
+  scopes: string[];
   redirectUri: string;
 }
 
 /**
  * OAuth token response
- * OAuth token 
+ * OAuth token 响应
  */
 export interface OAuthTokenResponse {
   access_token: string;
@@ -37,7 +37,7 @@ export interface OAuthTokenResponse {
 
 /**
  * Stored OAuth session
- *  OAuth 
+ * 存储的 OAuth 会话
  */
 export interface OAuthSession {
   id: string;
@@ -46,7 +46,7 @@ export interface OAuthSession {
   accessToken: string;
   refreshToken?: string;
   expiresAt: number;
-  scopes: string;
+  scopes: string[];
   userInfo?: {
     id: string;
     email?: string;
@@ -58,7 +58,7 @@ export interface OAuthSession {
 
 /**
  * OAuth provider configurations for major AI providers
- *  AI  OAuth 
+ * 主要 AI 提供商的 OAuth 配置
  */
 export const OAUTH_PROVIDERS: Record<string, Partial<OAuthProviderConfig>> = {
   anthropic: {
@@ -80,25 +80,25 @@ export const OAUTH_PROVIDERS: Record<string, Partial<OAuthProviderConfig>> = {
 
 /**
  * OAuth Authentication Service
- * OAuth 
+ * OAuth 认证服务
  */
 export class OAuthService {
-  private sessions = new Map<string, OAuthSession>;
+  private sessions = new Map<string, OAuthSession>();
 
   constructor(
     private db: Database,
     private configs: Map<ChannelType, OAuthProviderConfig>
   ) {
-    this.loadSessions;
+    this.loadSessions();
   }
 
   /**
    * Load OAuth sessions from database
-   *  OAuth 
+   * 从数据库加载 OAuth 会话
    */
-  private async loadSessions {
+  private async loadSessions() {
     try {
-      const sessions = this.db.getOAuthSessions;
+      const sessions = this.db.getOAuthSessions();
       for (const session of sessions) {
         this.sessions.set(session.id, session);
       }
@@ -110,7 +110,7 @@ export class OAuthService {
 
   /**
    * Generate authorization URL for OAuth flow
-   *  OAuth  URL
+   * 生成 OAuth 流程的授权 URL
    */
   generateAuthUrl(provider: ChannelType, state: string): string {
     const config = this.configs.get(provider);
@@ -126,12 +126,12 @@ export class OAuthService {
       state,
     });
 
-    return `${config.authorizationUrl}?${params.toString}`;
+    return `${config.authorizationUrl}?${params.toString()}`;
   }
 
   /**
    * Exchange authorization code for access token
-   * 
+   * 交换授权码以获取访问令牌
    */
   async exchangeCode(
     provider: ChannelType,
@@ -143,7 +143,7 @@ export class OAuthService {
       throw new Error(`OAuth not configured for provider: ${provider}`);
     }
 
-    // Exchange code for tokens
+    // Exchange code for tokens / 交换代码获取令牌
     const response = await fetch(config.tokenUrl, {
       method: 'POST',
       headers: {
@@ -159,26 +159,26 @@ export class OAuthService {
     });
 
     if (!response.ok) {
-      const error = await response.text;
+      const error = await response.text();
       throw new Error(`OAuth token exchange failed: ${error}`);
     }
 
-    const tokens = (await response.json) as OAuthTokenResponse;
+    const tokens = (await response.json()) as OAuthTokenResponse;
 
-    // Create session
+    // Create session / 创建会话
     const session: OAuthSession = {
-      id: crypto.randomUUID,
-      channelId: '', // Will be set when linking to channel
+      id: crypto.randomUUID(),
+      channelId: '', // Will be set when linking to channel / 链接到通道时设置
       provider,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
-      expiresAt: Date.now + tokens.expires_in * 1000,
+      expiresAt: Date.now() + tokens.expires_in * 1000,
       scopes: tokens.scope?.split(' ') || config.scopes,
-      createdAt: Date.now,
-      updatedAt: Date.now,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
-    // Save session
+    // Save session / 保存会话
     this.sessions.set(session.id, session);
     this.db.createOAuthSession(session);
 
@@ -192,7 +192,7 @@ export class OAuthService {
 
   /**
    * Refresh access token using refresh token
-   * 
+   * 使用刷新令牌刷新访问令牌
    */
   async refreshToken(sessionId: string): Promise<OAuthSession> {
     const session = this.sessions.get(sessionId);
@@ -209,7 +209,7 @@ export class OAuthService {
       throw new Error(`OAuth not configured for provider: ${session.provider}`);
     }
 
-    // Refresh token
+    // Refresh token / 刷新令牌
     const response = await fetch(config.tokenUrl, {
       method: 'POST',
       headers: {
@@ -224,19 +224,19 @@ export class OAuthService {
     });
 
     if (!response.ok) {
-      const error = await response.text;
+      const error = await response.text();
       throw new Error(`Token refresh failed: ${error}`);
     }
 
-    const tokens = (await response.json) as OAuthTokenResponse;
+    const tokens = (await response.json()) as OAuthTokenResponse;
 
-    // Update session
+    // Update session / 更新会话
     session.accessToken = tokens.access_token;
     if (tokens.refresh_token) {
       session.refreshToken = tokens.refresh_token;
     }
-    session.expiresAt = Date.now + tokens.expires_in * 1000;
-    session.updatedAt = Date.now;
+    session.expiresAt = Date.now() + tokens.expires_in * 1000;
+    session.updatedAt = Date.now();
 
     this.sessions.set(sessionId, session);
     this.db.updateOAuthSession(sessionId, session);
@@ -251,7 +251,7 @@ export class OAuthService {
 
   /**
    * Get OAuth session by ID
-   *  ID  OAuth 
+   * 通过 ID 获取 OAuth 会话
    */
   getSession(sessionId: string): OAuthSession | undefined {
     return this.sessions.get(sessionId);
@@ -259,10 +259,10 @@ export class OAuthService {
 
   /**
    * Get OAuth session by channel ID
-   *  ID  OAuth 
+   * 通过通道 ID 获取 OAuth 会话
    */
   getSessionByChannel(channelId: string): OAuthSession | undefined {
-    for (const session of this.sessions.values) {
+    for (const session of this.sessions.values()) {
       if (session.channelId === channelId) {
         return session;
       }
@@ -272,7 +272,7 @@ export class OAuthService {
 
   /**
    * Link OAuth session to a channel
-   *  OAuth 
+   * 将 OAuth 会话链接到通道
    */
   async linkSessionToChannel(sessionId: string, channelId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
@@ -281,7 +281,7 @@ export class OAuthService {
     }
 
     session.channelId = channelId;
-    session.updatedAt = Date.now;
+    session.updatedAt = Date.now();
 
     this.sessions.set(sessionId, session);
     this.db.updateOAuthSession(sessionId, session);
@@ -294,7 +294,7 @@ export class OAuthService {
 
   /**
    * Revoke OAuth session
-   *  OAuth 
+   * 撤销 OAuth 会话
    */
   async revokeSession(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
@@ -313,15 +313,15 @@ export class OAuthService {
 
   /**
    * Check if token is expired
-   * 
+   * 检查令牌是否过期
    */
   isTokenExpired(session: OAuthSession): boolean {
-    return Date.now >= session.expiresAt - 60000; // 1 minute buffer / 1
+    return Date.now() >= session.expiresAt - 60000; // 1 minute buffer / 1分钟缓冲
   }
 
   /**
    * Get valid access token (auto-refresh if needed)
-   * 
+   * 获取有效的访问令牌（如需要则自动刷新）
    */
   async getValidAccessToken(sessionId: string): Promise<string> {
     let session = this.sessions.get(sessionId);

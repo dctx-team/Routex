@@ -1,10 +1,10 @@
 /**
- * 
+ * 路由条件类型定义
  * Routing Condition Type Definitions
  */
 
 /**
- * 
+ * 内容分析条件
  * Content analysis condition
  */
 export interface ContentCondition {
@@ -18,7 +18,7 @@ export interface ContentCondition {
 }
 
 /**
- * 
+ * 模型条件
  * Model condition
  */
 export interface ModelCondition {
@@ -27,17 +27,17 @@ export interface ModelCondition {
 }
 
 /**
- * Header 
+ * Header 条件
  * Header condition
  */
 export interface HeaderCondition {
   header: string;
-  value: string | string;
+  value: string | string[];
   operator?: 'equals' | 'contains' | 'matches';
 }
 
 /**
- * 
+ * 路径条件
  * Path condition
  */
 export interface PathCondition {
@@ -46,7 +46,7 @@ export interface PathCondition {
 }
 
 /**
- * 
+ * 时间条件
  * Time condition
  */
 export interface TimeCondition {
@@ -54,11 +54,11 @@ export interface TimeCondition {
     start: string;
     end: string;
   };
-  weekdays?: number;
+  weekdays?: number[];
 }
 
 /**
- * 
+ * 路由条件联合类型
  * Routing condition union type
  */
 export type RoutingCondition =
@@ -70,7 +70,7 @@ export type RoutingCondition =
   | Record<string, unknown>;
 
 /**
- * 
+ * 类型守卫：检查是否为内容条件
  * Type guard: check if it's a content condition
  */
 export function isContentCondition(condition: RoutingCondition): condition is ContentCondition {
@@ -86,7 +86,7 @@ export function isContentCondition(condition: RoutingCondition): condition is Co
 }
 
 /**
- * 
+ * 类型守卫：检查是否为模型条件
  * Type guard: check if it's a model condition
  */
 export function isModelCondition(condition: RoutingCondition): condition is ModelCondition {
@@ -94,7 +94,7 @@ export function isModelCondition(condition: RoutingCondition): condition is Mode
 }
 
 /**
- *  Header 
+ * 类型守卫：检查是否为 Header 条件
  * Type guard: check if it's a header condition
  */
 export function isHeaderCondition(condition: RoutingCondition): condition is HeaderCondition {
@@ -102,7 +102,7 @@ export function isHeaderCondition(condition: RoutingCondition): condition is Hea
 }
 
 /**
- * 
+ * 类型守卫：检查是否为路径条件
  * Type guard: check if it's a path condition
  */
 export function isPathCondition(condition: RoutingCondition): condition is PathCondition {
@@ -110,7 +110,7 @@ export function isPathCondition(condition: RoutingCondition): condition is PathC
 }
 
 /**
- * 
+ * 类型守卫：检查是否为时间条件
  * Type guard: check if it's a time condition
  */
 export function isTimeCondition(condition: RoutingCondition): condition is TimeCondition {

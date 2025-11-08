@@ -100,7 +100,7 @@ async function main() {
 
   // Create API
   log.info(t('init.routes'));
-  const app = createAPI(db, proxy, loadBalancer, smartRouter, transformerManager, cacheWarmer, oauthService);
+  const app = await createAPI(db, proxy, loadBalancer, smartRouter, transformerManager, cacheWarmer, oauthService);
 
   //// Start server
   const server = serve({

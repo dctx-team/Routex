@@ -24,9 +24,9 @@ export interface SignatureConfig {
   // 
   tolerance?: number;
   // 
-  headersToSign?: string;
+  headersToSign?: string[];
   // 
-  skipPaths?: string;
+  skipPaths?: string[];
 }
 
 /**
@@ -54,7 +54,7 @@ export function computeSignature(
 ): string {
   // 
   const parts = [
-    method.toUpperCase,
+    method.toUpperCase(),
     path,
     timestamp,
     body || '',
@@ -107,7 +107,7 @@ export function signatureVerification(config: SignatureConfig) {
     timestampHeader = DEFAULT_CONFIG.timestampHeader,
     tolerance = DEFAULT_CONFIG.tolerance,
     headersToSign = DEFAULT_CONFIG.headersToSign,
-    skipPaths = ,
+    skipPaths = [],
   } = config;
 
   if (!secret) {
@@ -119,7 +119,7 @@ export function signatureVerification(config: SignatureConfig) {
 
     // 
     if (skipPaths.some((skipPath) => path.startsWith(skipPath))) {
-      return next;
+      return next();
     }
 
     try {
@@ -228,11 +228,11 @@ export function signatureVerification(config: SignatureConfig) {
 
       // 
       // 
-      // Hono 
+      // Hono 的请求对象不可直接替换，这里仅完成校验，不改写请求
 
       logger.debug({ path }, '✅ Signature verified');
 
-      return next;
+      return next();
     } catch (error) {
       logger.error({
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -267,7 +267,7 @@ export function generateRequestSignature(
     algorithm?: string;
   } = {}
 ): { signature: string; timestamp: string } {
-  const timestamp = Date.now.toString;
+  const timestamp = Date.now().toString();
   const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
 
   const signature = computeSignature(
