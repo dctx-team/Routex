@@ -35,23 +35,23 @@ export interface RateLimitStore {
   increment(key: string): Promise<number>;
   decrement(key: string): Promise<void>;
   resetKey(key: string): Promise<void>;
-  resetAll(): Promise<void>;
+  resetAll: Promise<void>;
 }
 
 /**
  * 
  */
 export class MemoryStore implements RateLimitStore {
-  private hits = new Map<string, { count: number; resetTime: number }>();
+  private hits = new Map<string, { count: number; resetTime: number }>;
   private windowMs: number;
 
   constructor(windowMs: number) {
     this.windowMs = windowMs;
-    this.startCleanupTimer();
+    this.startCleanupTimer;
   }
 
   async increment(key: string): Promise<number> {
-    const now = Date.now();
+    const now = Date.now;
     const record = this.hits.get(key);
 
     if (!record || now > record.resetTime) {
@@ -79,20 +79,20 @@ export class MemoryStore implements RateLimitStore {
     this.hits.delete(key);
   }
 
-  async resetAll(): Promise<void> {
-    this.hits.clear();
+  async resetAll: Promise<void> {
+    this.hits.clear;
   }
 
   /**
    * 
    */
-  getStats() {
+  getStats {
     return {
       totalKeys: this.hits.size,
-      keys: Array.from(this.hits.entries()).map(([key, value]) => ({
+      keys: Array.from(this.hits.entries).map(([key, value]) => ({
         key,
         count: value.count,
-        resetsIn: Math.max(0, value.resetTime - Date.now()),
+        resetsIn: Math.max(0, value.resetTime - Date.now),
       })),
     };
   }
@@ -100,10 +100,10 @@ export class MemoryStore implements RateLimitStore {
   /**
    * 
    */
-  private startCleanupTimer() {
-    setInterval(() => {
-      const now = Date.now();
-      for (const [key, record] of this.hits.entries()) {
+  private startCleanupTimer {
+    setInterval( => {
+      const now = Date.now;
+      for (const [key, record] of this.hits.entries) {
         if (now > record.resetTime) {
           this.hits.delete(key);
         }
@@ -117,21 +117,21 @@ export class MemoryStore implements RateLimitStore {
  */
 export function rateLimit(config: RateLimitConfig) {
   const {
-    windowMs = 60000, // 默认 1 分钟
-    max = 100, // 默认 100 次
+    windowMs = 60000, //  1 
+    max = 100, //  100 
     keyGenerator = (c) => c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown',
     message = 'Too many requests, please try again later.',
-    skip = () => false,
+    skip =  => false,
     standardHeaders = true,
   } = config;
 
-  // 若用户自定义了 windowMs，则创建新的 MemoryStore 实例以匹配窗口大小
+  //  windowMs MemoryStore 
   const store = config.store || new MemoryStore(windowMs);
 
   return async (c: Context, next: Next) => {
     // 
     if (skip(c)) {
-      return next();
+      return next;
     }
 
     // 
@@ -141,13 +141,13 @@ export function rateLimit(config: RateLimitConfig) {
     const hits = await store.increment(key);
 
     // 
-    const resetTime = Date.now() + windowMs;
+    const resetTime = Date.now + windowMs;
 
     // 
     if (standardHeaders) {
-      c.header('X-RateLimit-Limit', max.toString());
-      c.header('X-RateLimit-Remaining', Math.max(0, max - hits).toString());
-      c.header('X-RateLimit-Reset', new Date(resetTime).toISOString());
+      c.header('X-RateLimit-Limit', max.toString);
+      c.header('X-RateLimit-Remaining', Math.max(0, max - hits).toString);
+      c.header('X-RateLimit-Reset', new Date(resetTime).toISOString);
     }
 
     // 
@@ -174,7 +174,7 @@ export function rateLimit(config: RateLimitConfig) {
     }
 
     // 
-    return next();
+    return next;
   };
 }
 
@@ -226,7 +226,7 @@ export const RateLimitPresets = {
 /**
  * 
  */
-export function createRateLimiters() {
+export function createRateLimiters {
   return {
     //
     strict: rateLimit({
@@ -278,7 +278,7 @@ export function apiKeyRateLimit(config: {
     defaultWindowMs = 60000,
   } = config;
 
-  const stores = new Map<string, RateLimitStore>();
+  const stores = new Map<string, RateLimitStore>;
 
   return async (c: Context, next: Next) => {
     const apiKey = c.req.header('x-api-key') || c.req.header('authorization');
@@ -304,7 +304,7 @@ export function apiKeyRateLimit(config: {
     return rateLimit({
       windowMs: limit.windowMs,
       max: limit.max,
-      keyGenerator: () => apiKey,
+      keyGenerator:  => apiKey,
       store,
     })(c, next);
   };

@@ -1,9 +1,9 @@
 /**
  * Zhipu GLM API Transformer
- * 智谱 GLM API 转换器
+ *  GLM API 
  *
  * Converts between Zhipu GLM API and Anthropic Messages API
- * 智谱 GLM API 与 Anthropic Messages API 之间的转换
+ *  GLM API  Anthropic Messages API 
  */
 
 import { BaseTransformer } from './base';
@@ -13,7 +13,7 @@ export class ZhipuTransformer extends BaseTransformer {
 
   /**
    * Transform Anthropic format to Zhipu GLM format
-   * 将 Anthropic 格式转换为智谱 GLM 格式
+   *  Anthropic  GLM 
    */
   async transformRequest(request: any, options?: any): Promise<any> {
     const transformed: any = {
@@ -21,14 +21,14 @@ export class ZhipuTransformer extends BaseTransformer {
       messages: this.convertMessagesToGLM(request.messages, request.system),
     };
 
-    // Map parameters / 映射参数
+    // Map parameters
     if (request.max_tokens !== undefined) transformed.max_tokens = request.max_tokens;
     if (request.temperature !== undefined) transformed.temperature = request.temperature;
     if (request.top_p !== undefined) transformed.top_p = request.top_p;
     if (request.stream !== undefined) transformed.stream = request.stream;
     if (request.stop_sequences) transformed.stop = request.stop_sequences;
 
-    // Convert tools if present / 转换 tools
+    // Convert tools if present /  tools
     if (request.tools) {
       transformed.tools = request.tools.map((tool: any) => ({
         type: 'function',
@@ -40,7 +40,7 @@ export class ZhipuTransformer extends BaseTransformer {
       }));
     }
 
-    // GLM specific parameters / GLM 特定参数
+    // GLM specific parameters / GLM 
     if (options?.doSample !== undefined) transformed.do_sample = options.doSample;
     if (options?.requestId !== undefined) transformed.request_id = options.requestId;
 
@@ -49,7 +49,7 @@ export class ZhipuTransformer extends BaseTransformer {
 
   /**
    * Transform Zhipu GLM response to Anthropic format
-   * 将智谱 GLM 响应转换为 Anthropic 格式
+   *  GLM  Anthropic 
    */
   async transformResponse(response: any, options?: any): Promise<any> {
     if (!response.choices || response.choices.length === 0) {
@@ -60,10 +60,10 @@ export class ZhipuTransformer extends BaseTransformer {
     const message = choice.message;
 
     const transformed: any = {
-      id: response.id || `msg-${Date.now()}`,
+      id: response.id || `msg-${Date.now}`,
       type: 'message',
       role: 'assistant',
-      content: [],
+      content: ,
       model: response.model,
       stop_reason: this.mapFinishReason(choice.finish_reason),
       usage: {
@@ -72,7 +72,7 @@ export class ZhipuTransformer extends BaseTransformer {
       },
     };
 
-    // Convert content / 转换内容
+    // Convert content
     if (message.content) {
       transformed.content.push({
         type: 'text',
@@ -80,7 +80,7 @@ export class ZhipuTransformer extends BaseTransformer {
       });
     }
 
-    // Convert tool calls / 转换工具调用
+    // Convert tool calls
     if (message.tool_calls && message.tool_calls.length > 0) {
       for (const toolCall of message.tool_calls) {
         transformed.content.push({
@@ -97,12 +97,12 @@ export class ZhipuTransformer extends BaseTransformer {
 
   /**
    * Convert Anthropic messages to Zhipu GLM format
-   * 将 Anthropic 消息转换为智谱 GLM 格式
+   *  Anthropic  GLM 
    */
-  private convertMessagesToGLM(messages: any[], system?: string | any[]): any[] {
-    const result: any[] = [];
+  private convertMessagesToGLM(messages: any, system?: string | any): any {
+    const result: any = ;
 
-    // Add system message if present / 添加系统消息
+    // Add system message if present
     if (system) {
       const systemContent = Array.isArray(system)
         ? system.map(s => s.text || s).join('\n')
@@ -121,15 +121,15 @@ export class ZhipuTransformer extends BaseTransformer {
           content: msg.content,
         });
       } else if (Array.isArray(msg.content)) {
-        // Handle multi-part content / 处理多部分内容
-        const parts: string[] = [];
-        let toolCalls: any[] = [];
+        // Handle multi-part content
+        const parts: string = ;
+        let toolCalls: any = ;
 
         for (const block of msg.content) {
           if (block.type === 'text') {
             parts.push(block.text);
           } else if (block.type === 'image') {
-            // GLM-4V supports images / GLM-4V 支持图像
+            // GLM-4V supports images / GLM-4V 
             // For now, convert to base64 URL format
             const imageUrl = block.source.type === 'base64'
               ? `data:${block.source.media_type};base64,${block.source.data}`
@@ -146,7 +146,7 @@ export class ZhipuTransformer extends BaseTransformer {
             });
           } else if (block.type === 'tool_result') {
             // Tool results go as assistant messages in GLM
-            // GLM 中工具结果作为助手消息
+            // GLM 
             result.push({
               role: 'tool',
               content: JSON.stringify(block.content),
@@ -175,7 +175,7 @@ export class ZhipuTransformer extends BaseTransformer {
 
   /**
    * Map GLM finish_reason to Anthropic stop_reason
-   * 将 GLM finish_reason 映射为 Anthropic stop_reason
+   *  GLM finish_reason  Anthropic stop_reason
    */
   private mapFinishReason(finishReason: string): string {
     const mapping: Record<string, string> = {

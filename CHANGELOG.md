@@ -93,7 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Startup Logs** - Added routing rules and transformers count
 - **ProxyEngine Constructor** - Now accepts optional SmartRouter and TransformerManager
 - **Unified Logging** - Replaced scattered console.log/warn/error with structured pino logger across server modules (routing API, transformers, error handler), with contextual fields for transformer pipeline.
-- **Tracing Performance** - Optimized Span/Trace ID generation (sequence counters) and reduced logging in test mode; fixed minor stats bug (values()) to improve nested span performance.
+- **Tracing Performance** - Optimized Span/Trace ID generation (sequence counters) and reduced logging in test mode; fixed minor stats bug (values) to improve nested span performance.
 
 ### 📚 Documentation
 
@@ -162,4 +162,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **For detailed documentation, see [API Reference](./API_REFERENCE.md) and [docs/](./docs/)**
 
-**详细文档请参考 [API 参考](./API_REFERENCE.md) 和 [文档目录](./docs/)**
+** [API ](./API_REFERENCE.md)  (./docs/)**
