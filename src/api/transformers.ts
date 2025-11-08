@@ -7,14 +7,14 @@ import { Hono } from 'hono';
 import type { TransformerManager } from '../transformers';
 
 export function createTransformersAPI(transformerManager: TransformerManager) {
-  const app = new Hono;
+  const app = new Hono();
 
   /**
    * GET /api/transformers
  * List all available transformers / transformers
    */
   app.get('/', (c) => {
-    const transformers = transformerManager.list;
+    const transformers = transformerManager.list();
 
     return c.json({
       success: true,
@@ -30,18 +30,16 @@ export function createTransformersAPI(transformerManager: TransformerManager) {
  * Test a transformer / transformer
    */
   app.post('/test', async (c) => {
-    const body = await c.req.json;
+    const body = await c.req.json();
 
     const { transformer, request, direction = 'request' } = body;
 
     if (!transformer || !request) {
-      return c.json(
-        {
-          success: false,
-          error: 'Missing required fields: transformer, request',
-        },
-        400
-      );
+      c.status(400);
+      return c.json({
+        success: false,
+        error: 'Missing required fields: transformer, request',
+      });
     }
 
     try {
@@ -52,13 +50,11 @@ export function createTransformersAPI(transformerManager: TransformerManager) {
       } else if (direction === 'response') {
         result = await transformerManager.transformResponse(request, [transformer]);
       } else {
-        return c.json(
-          {
-            success: false,
-            error: 'Invalid direction. Must be request or response',
-          },
-          400
-        );
+        c.status(400);
+        return c.json({
+          success: false,
+          error: 'Invalid direction. Must be request or response',
+        });
       }
 
       return c.json({
@@ -71,13 +67,11 @@ export function createTransformersAPI(transformerManager: TransformerManager) {
         },
       });
     } catch (error: any) {
-      return c.json(
-        {
-          success: false,
-          error: error.message || 'Transformer test failed',
-        },
-        500
-      );
+      c.status(500);
+      return c.json({
+        success: false,
+        error: error.message || 'Transformer test failed',
+      });
     }
   });
 

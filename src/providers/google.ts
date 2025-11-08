@@ -16,7 +16,7 @@ export class GoogleProvider extends BaseProvider {
     maxTokens: 1000000, // Gemini 1.5 Pro  1M context
   };
 
-  getDefaultBaseUrl: string {
+  getDefaultBaseUrl(): string {
     return 'https://generativelanguage.googleapis.com';
   }
 
@@ -29,7 +29,7 @@ export class GoogleProvider extends BaseProvider {
    * Google Gemini  URL API Key 
    */
   buildRequestUrl(channel: Channel, path: string): string {
-    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl;
+    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl();
     const cleanBase = baseUrl.replace(/\/$/, '');
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     const url = `${cleanBase}${cleanPath}`;

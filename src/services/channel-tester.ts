@@ -24,7 +24,7 @@ export class ChannelTester {
    * 
    */
   async testChannel(channel: Channel): Promise<TestResult> {
-    const startTime = Date.now;
+    const startTime = Date.now();
 
     try {
       // 
@@ -38,11 +38,11 @@ export class ChannelTester {
         signal: AbortSignal.timeout(10000), // 10
       });
 
-      const latency = Date.now - startTime;
+      const latency = Date.now() - startTime;
 
-      // 
+      //
       if (!response.ok) {
-        const errorText = await response.text.catch( => 'Unable to read error');
+        await response.text().catch(() => 'Unable to read error');
         return {
           success: false,
           channelName: channel.name,
@@ -61,12 +61,12 @@ export class ChannelTester {
       let responseData: any;
 
       if (contentType.includes('application/json')) {
-        responseData = await response.json;
+        responseData = await response.json();
       } else if (contentType.includes('text/event-stream')) {
         // SSE 
         responseData = { stream: true };
       } else {
-        responseData = await response.text;
+        responseData = await response.text();
       }
 
       return {
@@ -81,7 +81,7 @@ export class ChannelTester {
         },
       };
     } catch (error) {
-      const latency = Date.now - startTime;
+      const latency = Date.now() - startTime;
       return {
         success: false,
         channelName: channel.name,
@@ -95,7 +95,7 @@ export class ChannelTester {
    * Test multiple channels in parallel
    * 
    */
-  async testChannels(channels: Channel): Promise<TestResult> {
+  async testChannels(channels: Channel[]): Promise<TestResult[]> {
     const promises = channels.map((channel) => this.testChannel(channel));
     return Promise.all(promises);
   }
@@ -109,7 +109,7 @@ export class ChannelTester {
     headers: Record<string, string>;
     body: any;
   } {
-    const baseURL = channel.baseURL || this.getDefaultBaseURL(channel.type);
+    const baseURL = channel.baseUrl || this.getDefaultBaseURL(channel.type);
 
     if (channel.type === 'anthropic') {
       return {
@@ -221,10 +221,10 @@ export class ChannelTester {
    * 
    */
   async testChannelsWithProgress(
-    channels: Channel,
+    channels: Channel[],
     onProgress?: (completed: number, total: number, result: TestResult) => void,
-  ): Promise<TestResult> {
-    const results: TestResult = ;
+  ): Promise<TestResult[]> {
+    const results: TestResult[] = [];
     const total = channels.length;
 
     for (let i = 0; i < channels.length; i++) {
@@ -243,7 +243,7 @@ export class ChannelTester {
    * Get test summary
    * 
    */
-  getTestSummary(results: TestResult): {
+  getTestSummary(results: TestResult[]): {
     total: number;
     passed: number;
     failed: number;

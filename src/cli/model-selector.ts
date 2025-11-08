@@ -35,7 +35,7 @@ function colorize(text: string, color: keyof typeof colors): string {
 // Input Helper
 // ============================================================================
 
-function createReadline {
+function createReadline() {
   return readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -45,7 +45,7 @@ function createReadline {
 function question(rl: readline.Interface, prompt: string): Promise<string> {
   return new Promise((resolve) => {
     rl.question(prompt, (answer) => {
-      resolve(answer.trim);
+      resolve(answer.trim());
     });
   });
 }
@@ -54,8 +54,8 @@ function question(rl: readline.Interface, prompt: string): Promise<string> {
 // CLI Display Helpers
 // ============================================================================
 
-function clearScreen {
-  console.clear;
+function clearScreen() {
+  console.clear();
 }
 
 function printHeader(title: string) {
@@ -97,7 +97,7 @@ function printWarning(message: string) {
 //  MODEL_DATABASE 
 // ============================================================================
 
-const MODEL_DATABASE: Record<string, { provider: ChannelType; description: string; capabilities: string }> = {
+const MODEL_DATABASE: Record<string, { provider: ChannelType; description: string; capabilities: string[] }> = {
   // ========== Anthropic Claude Models ==========
   // Claude Sonnet 4.5 (2025 )
   'claude-sonnet-4-5-20250929': {
@@ -404,24 +404,24 @@ export class ModelSelectorCLI {
   private rl: readline.Interface;
 
   constructor(dbPath?: string) {
-    this.db = new Database(dbPath);
-    this.rl = createReadline;
+    this.db = new Database(dbPath ?? './data/routex.db');
+    this.rl = createReadline();
   }
 
   /**
    * Run the interactive CLI
    *  CLI
    */
-  async run {
-    clearScreen;
+  async run() {
+    clearScreen();
     printHeader('🚀 Routex Model Selector');
 
     try {
-      await this.mainMenu;
+      await this.mainMenu();
     } catch (error) {
       printError(`: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      this.rl.close;
+      this.rl.close();
     }
   }
 
@@ -429,7 +429,7 @@ export class ModelSelectorCLI {
    * Main menu
    * 
    */
-  private async mainMenu {
+  private async mainMenu() {
     while (true) {
       console.log('\n' + colorize(':', 'bright'));
       console.log('  1. ');
@@ -439,34 +439,34 @@ export class ModelSelectorCLI {
       console.log('  5. ');
       console.log('  0. \n');
 
-      const choice = await question(this.rl, colorize(' (0-5): ', 'cyan'));
+      const choice = await question(this.rl, colorize('选择一个选项 (0-5): ', 'cyan'));
 
       switch (choice) {
         case '1':
-          await this.listChannels;
+          await this.listChannels();
           break;
         case '2':
-          await this.addChannel;
+          await this.addChannel();
           break;
         case '3':
-          await this.selectModel;
+          await this.selectModel();
           break;
         case '4':
-          await this.testChannel;
+          await this.testChannel();
           break;
         case '5':
-          await this.showStatistics;
+          await this.showStatistics();
           break;
         case '0':
           console.log(colorize('\n👋 \n', 'green'));
           return;
         default:
-          printWarning('');
+          printWarning('无效的选择，请重试');
       }
 
       // 
-      await question(this.rl, colorize('\n...', 'dim'));
-      clearScreen;
+      await question(this.rl, colorize('\n按回车继续...', 'dim'));
+      clearScreen();
       printHeader('🚀 Routex Model Selector');
     }
   }
@@ -475,13 +475,13 @@ export class ModelSelectorCLI {
    * List all channels
    * 
    */
-  private async listChannels {
+  private async listChannels() {
     console.log('\n' + colorize('═  ═', 'cyan') + '\n');
 
-    const channels = this.db.getAllChannels;
+    const channels = this.db.getChannels();
 
     if (channels.length === 0) {
-      printWarning('');
+      printWarning('暂无通道配置');
       return;
     }
 
@@ -503,7 +503,7 @@ export class ModelSelectorCLI {
         );
       }
 
-      console.log;
+      console.log();
     }
   }
 
@@ -511,7 +511,7 @@ export class ModelSelectorCLI {
    * Add new channel
    * 
    */
-  private async addChannel {
+  private async addChannel() {
     console.log('\n' + colorize('═  ═', 'cyan') + '\n');
 
     // 1. Select provider
@@ -559,7 +559,7 @@ export class ModelSelectorCLI {
     if (availableModels.length === 0) {
       printWarning('');
       const modelInput = await question(this.rl, ' : ');
-      availableModels.push(...modelInput.split(',').map((m) => m.trim));
+      availableModels.push(...modelInput.split(',').map((m) => m.trim()));
     } else {
       console.log(colorize('\n:', 'bright'));
       availableModels.forEach((model, index) => {
@@ -575,11 +575,11 @@ export class ModelSelectorCLI {
         '\n ( all): '
       );
 
-      let selectedModels: string;
-      if (modelChoice.toLowerCase === 'all') {
+      let selectedModels: string[];
+      if (modelChoice.toLowerCase() === 'all') {
         selectedModels = availableModels;
       } else {
-        const indices = modelChoice.split(',').map((s) => parseInt(s.trim) - 1);
+        const indices = modelChoice.split(',').map((s) => parseInt(s.trim()) - 1);
         selectedModels = indices
           .filter((i) => i >= 0 && i < availableModels.length)
           .map((i) => availableModels[i]);
@@ -633,10 +633,10 @@ export class ModelSelectorCLI {
    * Select model interactively
    * 
    */
-  private async selectModel {
+  private async selectModel() {
     console.log('\n' + colorize('═  ═', 'cyan') + '\n');
 
-    const channels = this.db.getEnabledChannels;
+    const channels = this.db.getEnabledChannels();
 
     if (channels.length === 0) {
       printWarning('');
@@ -644,17 +644,17 @@ export class ModelSelectorCLI {
     }
 
     // Build model list
-    const modelMap: Map<string, Channel> = new Map;
+    const modelMap: Map<string, Channel[]> = new Map();
     for (const channel of channels) {
       for (const model of channel.models) {
         if (!modelMap.has(model)) {
-          modelMap.set(model, );
+          modelMap.set(model, []);
         }
         modelMap.get(model)!.push(channel);
       }
     }
 
-    const models = Array.from(modelMap.keys).sort;
+    const models = Array.from(modelMap.keys()).sort((a, b) => a.localeCompare(b));
 
     console.log(colorize(':', 'bright'));
     models.forEach((model, index) => {
@@ -716,10 +716,10 @@ export class ModelSelectorCLI {
    * Test channel connection
    * 
    */
-  private async testChannel {
+  private async testChannel() {
     console.log('\n' + colorize('═  ═', 'cyan') + '\n');
 
-    const channels = this.db.getAllChannels;
+    const channels = this.db.getChannels();
 
     if (channels.length === 0) {
       printWarning('');
@@ -755,17 +755,17 @@ export class ModelSelectorCLI {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     printSuccess('✓ ');
-    printInfo(`  : ~${Math.floor(Math.random * 500 + 200)}ms`);
+    printInfo(`  : ~${Math.floor(Math.random() * 500 + 200)}ms`);
   }
 
   /**
    * Show channel statistics
    * 
    */
-  private async showStatistics {
+  private async showStatistics() {
     console.log('\n' + colorize('═  ═', 'cyan') + '\n');
 
-    const channels = this.db.getAllChannels;
+    const channels = this.db.getChannels();
 
     if (channels.length === 0) {
       printWarning('');
@@ -825,8 +825,8 @@ export class ModelSelectorCLI {
 if (import.meta.main) {
   const dbPath = process.env.ROUTEX_DB_PATH || './data/routex.db';
   const cli = new ModelSelectorCLI(dbPath);
-
-  cli.run.catch((error) => {
+ 
+  cli.run().catch((error) => {
     console.error(colorize('Fatal error:', 'red'), error);
     process.exit(1);
   });

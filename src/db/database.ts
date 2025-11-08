@@ -1,6 +1,5 @@
 /**
- * Database layer using Bun's native SQLite
- *  Bun  SQLite
+ * 数据库层（使用 Bun 原生 SQLite）
  */
 
 import { Database as BunSQLite } from 'bun:sqlite';
@@ -17,63 +16,149 @@ import type {
   CreateTeeDestinationInput,
   UpdateTeeDestinationInput,
 } from '../types';
+import type {
+  ChannelRow,
+  RequestRow,
+  AnalyticsRow,
+  RoutingRuleRow,
+  TeeDestinationRow,
+  OAuthSessionRow,
+  UserVersionRow,
+  CountRow,
+} from './types';
 import { logger } from '../utils/logger';
+import { DynamicTTLManager, type CacheType } from './dynamic-ttl';
+import { getEncryptionService, isEncrypted, getApiKey } from '../utils/encryption';
 
 export class Database {
   private db: BunSQLite;
-  private requestBuffer: RequestLog = ;
+  private requestBuffer: RequestLog[] = [];
   private flushInterval: Timer | null = null;
 
-  // Query cache
-  private channelCache = new Map<string, { data: Channel, timestamp: number }>;
-  private singleChannelCache = new Map<string, { data: Channel, timestamp: number }>;
+  // 可配置 TTL 的查询缓存
+  private channelCache = new Map<string, { data: Channel, timestamp: number }>();
+  private singleChannelCache = new Map<string, { data: Channel, timestamp: number }>();
   private routingRuleCache: { data: RoutingRule, timestamp: number } | null = null;
-  private readonly CACHE_TTL = 30000; // 30 seconds
+  private readonly CACHE_TTL: number;
   private cacheCleanupInterval: Timer | null = null;
 
-  constructor(path: string) {
+  // 缓存锁，防止缓存击穿/惊群效应
+  private cacheLocks = new Map<string, Promise<any>>();
+
+  // 性能指标
+  private cacheHits = 0;
+  private cacheMisses = 0;
+  private queryCount = 0;
+  private totalQueryTime = 0;
+
+  // 动态 TTL 管理器
+  private ttlManager: DynamicTTLManager;
+
+  constructor(path: string, options?: { cacheTTL?: number }) {
     this.db = new BunSQLite(path);
-    this.db.exec('PRAGMA journal_mode = WAL');
-    this.db.exec('PRAGMA synchronous = NORMAL');
-    this.migrate;
-    this.startBufferFlush;
-    this.startCacheCleanup;
+
+    // 优化 SQLite PRAGMA 参数以提升性能
+    this.optimizePragmaSettings();
+
+    // 从选项、环境变量设置缓存 TTL，默认为 30 秒
+    this.CACHE_TTL = options?.cacheTTL || Number(process.env.DB_CACHE_TTL) || 30000;
+
+    // 初始化动态 TTL 管理器
+    this.ttlManager = new DynamicTTLManager({
+      defaultTTL: this.CACHE_TTL,
+    });
+    this.ttlManager.start();
+
+    logger.debug({ cacheTTL: this.CACHE_TTL }, '🗄️  Database initialized with cache TTL');
+
+    this.migrate();
+    this.startBufferFlush();
+    this.startCacheCleanup();
   }
 
   /**
-   * Run database migrations
- *
+   * 优化 SQLite PRAGMA 设置以提升性能
    */
-  private migrate {
-    const version = this.getVersion;
+  private optimizePragmaSettings() {
+    // WAL 模式 - 提升并发性能
+    this.db.exec('PRAGMA journal_mode = WAL');
+    logger.debug('✅ Enabled WAL mode for better concurrency');
 
-    if (version < 1) {
-      this.migrateV1;
-    }
-    if (version < 2) {
-      this.migrateV2;
-    }
-    if (version < 3) {
-      this.migrateV3;
-    }
-    if (version < 4) {
-      this.migrateV4;
+    // NORMAL 同步模式 - 平衡性能和安全性
+    this.db.exec('PRAGMA synchronous = NORMAL');
+    logger.debug('✅ Set synchronous to NORMAL for balanced performance');
+
+    // 缓存大小 - 64MB（负数表示 KB）
+    const cacheSize = Number(process.env.SQLITE_CACHE_SIZE) || -64000; // -64000 KB = 64 MB
+    this.db.exec(`PRAGMA cache_size = ${cacheSize}`);
+    logger.debug({ cacheSize: Math.abs(cacheSize) + 'KB' }, '✅ Set cache size');
+
+    // 临时表存储在内存中
+    this.db.exec('PRAGMA temp_store = MEMORY');
+    logger.debug('✅ Using memory for temporary storage');
+
+    // 内存映射 I/O - 256MB
+    const mmapSize = Number(process.env.SQLITE_MMAP_SIZE) || 268435456; // 256 MB
+    this.db.exec(`PRAGMA mmap_size = ${mmapSize}`);
+    logger.debug({ mmapSize: (mmapSize / 1024 / 1024) + 'MB' }, '✅ Set memory-mapped I/O size');
+
+    // 页面大小 - 4KB（仅在首次创建数据库时生效）
+    this.db.exec('PRAGMA page_size = 4096');
+
+    // 忙碌超时 - 5 秒
+    const busyTimeout = Number(process.env.SQLITE_BUSY_TIMEOUT) || 5000;
+    this.db.exec(`PRAGMA busy_timeout = ${busyTimeout}`);
+    logger.debug({ timeout: busyTimeout + 'ms' }, '✅ Set busy timeout');
+
+    // 启用外键约束
+    this.db.exec('PRAGMA foreign_keys = ON');
+    logger.debug('✅ Enabled foreign key constraints');
+
+    // 自动 VACUUM - 增量式清理（可选）
+    if (process.env.SQLITE_AUTO_VACUUM === 'incremental') {
+      this.db.exec('PRAGMA auto_vacuum = INCREMENTAL');
+      logger.debug('✅ Enabled incremental auto-vacuum');
     }
 
-    this.setVersion(4);
+    logger.info('🗄️  SQLite optimized with performance PRAGMA settings');
   }
 
-  private getVersion: number {
-    const result = this.db.query('PRAGMA user_version').get as { user_version: number };
-    return result.user_version;
+  /**
+   * 运行数据库迁移
+   */
+  private migrate() {
+    const version = this.getVersion();
+
+    if (version < 1) {
+      this.migrateV1();
+    }
+    if (version < 2) {
+      this.migrateV2();
+    }
+    if (version < 3) {
+      this.migrateV3();
+    }
+    if (version < 4) {
+      this.migrateV4();
+    }
+    if (version < 5) {
+      this.migrateV5();
+    }
+
+    this.setVersion(5);
+  }
+
+  private getVersion(): number {
+    const result = this.db.query('PRAGMA user_version').get() as UserVersionRow | undefined;
+    return result?.user_version ?? 0;
   }
 
   private setVersion(version: number) {
     this.db.exec(`PRAGMA user_version = ${version}`);
   }
 
-  private migrateV1 {
-    //// Channels table
+  private migrateV1() {
+    // 频道表
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS channels (
         id TEXT PRIMARY KEY,
@@ -95,7 +180,7 @@ export class Database {
       )
     `);
 
-    //// Requests table
+    // 请求记录表
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS requests (
         id TEXT PRIMARY KEY,
@@ -115,14 +200,14 @@ export class Database {
       )
     `);
 
-    //// Indexes
+    // 索引
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_requests_channel_id ON requests(channel_id)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_requests_timestamp ON requests(timestamp)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_channels_status ON channels(status)');
   }
 
-  private migrateV2 {
-    //// Add circuit breaker fields to channels
+  private migrateV2() {
+    // 向频道表添加熔断器字段
     this.db.exec(`
       ALTER TABLE channels ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0;
     `);
@@ -140,8 +225,8 @@ export class Database {
     `);
   }
 
-  private migrateV3 {
-    //// Routing rules table
+  private migrateV3() {
+    // 路由规则表
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS routing_rules (
         id TEXT PRIMARY KEY,
@@ -157,14 +242,14 @@ export class Database {
       )
     `);
 
-    //// Indexes for routing rules
+    // 路由规则索引
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_priority ON routing_rules(priority DESC)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_enabled ON routing_rules(enabled)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_routing_rules_type ON routing_rules(type)');
   }
 
-  private migrateV4 {
-    //// Tee destinations table
+  private migrateV4() {
+    // Tee 目标表
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS tee_destinations (
         id TEXT PRIMARY KEY,
@@ -184,18 +269,61 @@ export class Database {
       )
     `);
 
-    //// Indexes for tee destinations
+    // Tee 目标索引
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_tee_destinations_enabled ON tee_destinations(enabled)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_tee_destinations_type ON tee_destinations(type)');
   }
 
+  private migrateV5() {
+    // OAuth 会话表
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS oauth_sessions (
+        id TEXT PRIMARY KEY,
+        channel_id TEXT,
+        provider TEXT NOT NULL,
+        access_token TEXT NOT NULL,
+        refresh_token TEXT,
+        expires_at INTEGER NOT NULL,
+        scopes TEXT NOT NULL,
+        user_info TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+      )
+    `);
+
+    // OAuth 会话索引
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_oauth_sessions_channel_id ON oauth_sessions(channel_id)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_oauth_sessions_provider ON oauth_sessions(provider)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_oauth_sessions_expires_at ON oauth_sessions(expires_at)');
+  }
+
   // ============================================================================
-  //// Channel Operations
+  // 频道操作
   // ============================================================================
 
   createChannel(input: CreateChannelInput): Channel {
-    const id = crypto.randomUUID;
-    const now = Date.now;
+    const id = crypto.randomUUID();
+    const now = Date.now();
+
+    // 加密 API 密钥（如果提供）
+    let encryptedApiKey: string | null = null;
+    if (input.apiKey) {
+      try {
+        const encryption = getEncryptionService();
+        encryptedApiKey = encryption.encrypt(input.apiKey);
+        logger.debug({
+          channelId: id,
+          channelName: input.name,
+        }, '🔐 API key encrypted for channel');
+      } catch (error) {
+        logger.error({
+          error: error instanceof Error ? error.message : 'Unknown error',
+          channelId: id,
+        }, '❌ Failed to encrypt API key');
+        throw new Error('Failed to encrypt API key');
+      }
+    }
 
     const query = this.db.prepare(`
       INSERT INTO channels (
@@ -209,7 +337,7 @@ export class Database {
       input.name,
       input.type,
       input.baseUrl || null,
-      input.apiKey || null,
+      encryptedApiKey,
       JSON.stringify(input.models),
       input.priority || 50,
       input.weight || 1,
@@ -221,72 +349,115 @@ export class Database {
   }
 
   getChannel(id: string): Channel | null {
-    // Check cache first
+    // 获取动态 TTL
+    const ttl = this.ttlManager.getTTL('singleChannel');
+
+    // 首先检查缓存
     const cached = this.singleChannelCache.get(id);
-    if (cached && Date.now - cached.timestamp < this.CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < ttl) {
+      this.cacheHits++;
+      this.ttlManager.recordHit('singleChannel');
       return cached.data;
     }
 
-    const query = this.db.prepare('SELECT * FROM channels WHERE id = ?');
-    const row = query.get(id) as any;
-    const channel = row ? this.mapChannelRow(row) : null;
+    this.cacheMisses++;
+    this.ttlManager.recordMiss('singleChannel');
 
-    // Cache the result
-    if (channel) {
-      this.singleChannelCache.set(id, {
-        data: channel,
-        timestamp: Date.now,
-      });
+    // 简单锁机制：检查查询是否正在进行中
+    const lockKey = `channel:${id}`;
+    if (this.cacheLocks.has(lockKey)) {
+      logger.debug({ channelId: id }, '🔒 Cache query already in progress');
+      // 在真实的异步场景中，我们会在这里等待
+      // 目前继续执行查询（简化实现）
     }
 
-    return channel;
+    // 标记为已锁定
+    this.cacheLocks.set(lockKey, Promise.resolve());
+
+    try {
+      const queryStart = Date.now();
+      const query = this.db.prepare('SELECT * FROM channels WHERE id = ?');
+      const row = query.get(id) as ChannelRow | undefined;
+      const queryDuration = Date.now() - queryStart;
+
+      // 记录查询指标
+      this.queryCount++;
+      this.totalQueryTime += queryDuration;
+
+      const channel = row ? this.mapChannelRow(row) : null;
+
+      // 缓存结果
+      if (channel) {
+        this.singleChannelCache.set(id, {
+          data: channel,
+          timestamp: Date.now(),
+        });
+      }
+
+      return channel;
+    } finally {
+      // 始终释放锁
+      this.cacheLocks.delete(lockKey);
+    }
   }
 
-  getChannels: Channel {
-    // Check cache first
+  getChannels(): Channel[] {
+    // 获取动态 TTL
+    const ttl = this.ttlManager.getTTL('channels');
+
+    // 首先检查缓存
     const cached = this.channelCache.get('all');
-    if (cached && Date.now - cached.timestamp < this.CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < ttl) {
+      this.ttlManager.recordHit('channels');
       return cached.data;
     }
 
+    this.ttlManager.recordMiss('channels');
+
     const query = this.db.query('SELECT * FROM channels ORDER BY priority DESC, name ASC');
-    const rows = query.all as any;
+    const rows = query.all() as ChannelRow[];
     const channels = rows.map((row) => this.mapChannelRow(row));
 
-    // Cache the result
+    // 缓存结果
     this.channelCache.set('all', {
       data: channels,
-      timestamp: Date.now,
+      timestamp: Date.now(),
     });
 
     return channels;
   }
 
-  getEnabledChannels: Channel {
-    // Check cache first
+  getEnabledChannels(): Channel[] {
+    // 获取动态 TTL
+    const ttl = this.ttlManager.getTTL('enabledChannels');
+
+    // 首先检查缓存
     const cached = this.channelCache.get('enabled');
-    if (cached && Date.now - cached.timestamp < this.CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < ttl) {
+      this.ttlManager.recordHit('enabledChannels');
       return cached.data;
     }
 
+    this.ttlManager.recordMiss('enabledChannels');
+
     const query = this.db.query(
-      SELECT * FROM channels WHERE status = 'enabled' ORDER BY priority DESC, name ASC,
+      "SELECT * FROM channels WHERE status = 'enabled' ORDER BY priority DESC, name ASC"
     );
-    const rows = query.all as any;
+    const rows = query.all() as ChannelRow[];
     const channels = rows.map((row) => this.mapChannelRow(row));
 
-    // Cache the result
+    // 缓存结果
     this.channelCache.set('enabled', {
       data: channels,
-      timestamp: Date.now,
+      timestamp: Date.now(),
     });
 
     return channels;
   }
 
   updateChannel(id: string, input: UpdateChannelInput): Channel {
-    const updates: string = ;
-    const values: any = ;
+    const updates: string[] = [];
+    const values: any[] = [];
 
     if (input.name !== undefined) {
       updates.push('name = ?');
@@ -294,7 +465,26 @@ export class Database {
     }
     if (input.apiKey !== undefined) {
       updates.push('api_key = ?');
-      values.push(input.apiKey);
+
+      // 加密 API 密钥（如果提供）
+      if (input.apiKey) {
+        try {
+          const encryption = getEncryptionService();
+          const encryptedApiKey = encryption.encrypt(input.apiKey);
+          values.push(encryptedApiKey);
+          logger.debug({
+            channelId: id,
+          }, '🔐 API key encrypted for channel update');
+        } catch (error) {
+          logger.error({
+            error: error instanceof Error ? error.message : 'Unknown error',
+            channelId: id,
+          }, '❌ Failed to encrypt API key');
+          throw new Error('Failed to encrypt API key');
+        }
+      } else {
+        values.push(null);
+      }
     }
     if (input.baseUrl !== undefined) {
       updates.push('base_url = ?');
@@ -318,15 +508,15 @@ export class Database {
     }
 
     updates.push('updated_at = ?');
-    values.push(Date.now);
+    values.push(Date.now());
 
     values.push(id);
 
     const query = this.db.prepare(`UPDATE channels SET ${updates.join(', ')} WHERE id = ?`);
     query.run(...values);
 
-    // Invalidate all channel caches
-    this.invalidateChannelCache;
+    // 使所有频道缓存失效
+    this.invalidateChannelCache();
 
     return this.getChannel(id)!;
   }
@@ -335,9 +525,9 @@ export class Database {
     const query = this.db.prepare('DELETE FROM channels WHERE id = ?');
     const result = query.run(id);
 
-    // Invalidate all channel caches
+    // 使所有频道缓存失效
     if (result.changes > 0) {
-      this.invalidateChannelCache;
+      this.invalidateChannelCache();
     }
 
     return result.changes > 0;
@@ -352,47 +542,45 @@ export class Database {
           last_used_at = ?
       WHERE id = ?
     `);
-    query.run(success ? 1 : 0, success ? 0 : 1, Date.now, id);
+    query.run(success ? 1 : 0, success ? 0 : 1, Date.now(), id);
   }
 
   // ============================================================================
-  //// Request Logging
+  // 请求日志
   // ============================================================================
 
-  private readonly BATCH_SIZE = 500; // Increased from 100
-  private readonly FLUSH_INTERVAL = 1000; // Increased from 100ms
+  private readonly BATCH_SIZE = 500; // 从 100 增加
+  private readonly FLUSH_INTERVAL = 1000; // 从 100ms 增加
 
   /**
-   * Buffer a request log entry for batch insertion
- *
+   * 缓冲请求日志条目以进行批量插入
    */
   logRequest(log: Omit<RequestLog, 'id'>) {
     this.requestBuffer.push({
-      id: crypto.randomUUID,
+      id: crypto.randomUUID(),
       ...log,
     });
 
-    //// Flush immediately if buffer is full
+    // 如果缓冲区已满则立即刷新
     if (this.requestBuffer.length >= this.BATCH_SIZE) {
-      this.flushRequests;
+      this.flushRequests();
     }
   }
 
   /**
-   * Flush buffered requests to database
- *
+   * 将缓冲的请求刷新到数据库
    */
-  private flushRequests {
+  private flushRequests() {
     if (this.requestBuffer.length === 0) return;
 
     const query = this.db.prepare(`
       INSERT INTO requests (
         id, channel_id, model, method, path, status_code, latency,
-        input_tokens, output_tokens, cached_tokens, success, error, timestamp
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        input_tokens, output_tokens, cached_tokens, success, error, timestamp, trace_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const transaction = this.db.transaction( => {
+    const transaction = this.db.transaction(() => {
       for (const log of this.requestBuffer) {
         query.run(
           log.id,
@@ -408,50 +596,107 @@ export class Database {
           log.success ? 1 : 0,
           log.error || null,
           log.timestamp,
+          log.traceId || null,
         );
       }
     });
 
-    transaction;
-    this.requestBuffer = ;
+    transaction();
+    this.requestBuffer = [];
   }
 
   /**
-   * Start periodic buffer flush
- *
+   * 启动定期缓冲区刷新
    */
-  private startBufferFlush {
-    this.flushInterval = setInterval( => {
-      this.flushRequests;
-    }, this.FLUSH_INTERVAL); //// Flush every 1000ms (1s) / 1000ms (1)
+  private startBufferFlush() {
+    this.flushInterval = setInterval(() => {
+      this.flushRequests();
+    }, this.FLUSH_INTERVAL); // 每 1000ms（1 秒）刷新一次
   }
 
-  getRequests(limit = 100, offset = 0): RequestLog {
+  getRequests(limit = 100, offset = 0): RequestLog[] {
     const query = this.db.query(`
       SELECT * FROM requests
       ORDER BY timestamp DESC
       LIMIT ? OFFSET ?
     `);
-    const rows = query.all(limit, offset) as any;
+    const rows = query.all(limit, offset) as RequestRow[];
     return rows.map((row) => this.mapRequestRow(row));
   }
 
-  getRequestsByChannel(channelId: string, limit = 100): RequestLog {
+  getRequestsByChannel(channelId: string, limit = 100): RequestLog[] {
     const query = this.db.query(`
       SELECT * FROM requests
       WHERE channel_id = ?
       ORDER BY timestamp DESC
       LIMIT ?
     `);
-    const rows = query.all(channelId, limit) as any;
+    const rows = query.all(channelId, limit) as RequestRow[];
     return rows.map((row) => this.mapRequestRow(row));
   }
 
+  /**
+   * 获取带过滤器和分页的请求记录
+   */
+  getRequestsFiltered(filters: {
+    status?: number;
+    channelId?: string;
+    model?: string;
+    q?: string; // search in path
+    since?: number; // timestamp >= since
+    until?: number; // timestamp <= until
+    limit?: number;
+    offset?: number;
+  }): { rows: RequestLog[]; total: number } {
+    let where = 'WHERE 1=1';
+    const params: any[] = [];
+
+    if (typeof filters.status === 'number') {
+      where += ' AND status_code = ?';
+      params.push(filters.status);
+    }
+    if (filters.channelId) {
+      where += ' AND channel_id = ?';
+      params.push(filters.channelId);
+    }
+    if (filters.model) {
+      where += ' AND model LIKE ?';
+      params.push(`%${filters.model}%`);
+    }
+    if (filters.q) {
+      where += ' AND path LIKE ?';
+      params.push(`%${filters.q}%`);
+    }
+    if (typeof filters.since === 'number') {
+      where += ' AND timestamp >= ?';
+      params.push(filters.since);
+    }
+    if (typeof filters.until === 'number') {
+      where += ' AND timestamp <= ?';
+      params.push(filters.until);
+    }
+
+    const limit = typeof filters.limit === 'number' ? filters.limit : 100;
+    const offset = typeof filters.offset === 'number' ? filters.offset : 0;
+
+    // 总数统计
+    const countStmt = this.db.query(`SELECT COUNT(*) as count FROM requests ${where}`);
+    const countRow = countStmt.get(...params) as CountRow | undefined;
+    const total = countRow?.count ?? 0;
+
+    // 数据查询
+    const dataStmt = this.db.query(
+      `SELECT * FROM requests ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`
+    );
+    const rows = dataStmt.all(...params, limit, offset) as RequestRow[];
+    return { rows: rows.map((r) => this.mapRequestRow(r)), total };
+  }
+
   // ============================================================================
-  //// Analytics
+  // 分析统计
   // ============================================================================
 
-  getAnalytics: Analytics {
+  getAnalytics(): Analytics {
     const query = this.db.query(`
       SELECT
         COUNT(*) as total_requests,
@@ -464,7 +709,20 @@ export class Database {
       FROM requests
     `);
 
-    const result = query.get as any;
+    const result = query.get() as AnalyticsRow | undefined;
+
+    if (!result) {
+      return {
+        totalRequests: 0,
+        successfulRequests: 0,
+        failedRequests: 0,
+        averageLatency: 0,
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalCachedTokens: 0,
+        estimatedCost: 0,
+      };
+    }
 
     return {
       totalRequests: result.total_requests || 0,
@@ -483,25 +741,39 @@ export class Database {
   }
 
   private calculateCost(inputTokens: number, outputTokens: number, cachedTokens: number): number {
-    // Simplified cost calculation (adjust based on actual pricing)
-    ////
-    const inputCost = (inputTokens / 1_000_000) * 3.0; //// $3 per 1M input tokens /  token 3
-    const outputCost = (outputTokens / 1_000_000) * 15.0; //// $15 per 1M output tokens /  token 15
-    const cacheCost = (cachedTokens / 1_000_000) * 0.3; //// $0.3 per 1M cached tokens /  token 0.3
+    // 简化的成本计算（根据实际定价调整）
+    const inputCost = (inputTokens / 1_000_000) * 3.0; // 每百万输入 token 3 美元
+    const outputCost = (outputTokens / 1_000_000) * 15.0; // 每百万输出 token 15 美元
+    const cacheCost = (cachedTokens / 1_000_000) * 0.3; // 每百万缓存 token 0.3 美元
     return inputCost + outputCost + cacheCost;
   }
 
   // ============================================================================
-  //// Helper Methods
+  // 辅助方法
   // ============================================================================
 
-  private mapChannelRow(row: any): Channel {
+  private mapChannelRow(row: ChannelRow): Channel {
+    // 解密 API 密钥（如果存在且已加密）
+    let decryptedApiKey: string | undefined;
+    if (row.api_key) {
+      try {
+        decryptedApiKey = getApiKey(row.api_key);
+      } catch (error) {
+        logger.error({
+          error: error instanceof Error ? error.message : 'Unknown error',
+          channelId: row.id,
+        }, '❌ Failed to decrypt API key, using encrypted value');
+        // 回退到原始值（可能是明文）
+        decryptedApiKey = row.api_key;
+      }
+    }
+
     return {
       id: row.id,
       name: row.name,
       type: row.type,
       baseUrl: row.base_url || undefined,
-      apiKey: row.api_key || undefined,
+      apiKey: decryptedApiKey,
       refreshToken: row.refresh_token || null,
       models: JSON.parse(row.models),
       priority: row.priority,
@@ -521,7 +793,7 @@ export class Database {
     };
   }
 
-  private mapRequestRow(row: any): RequestLog {
+  private mapRequestRow(row: RequestRow): RequestLog {
     return {
       id: row.id,
       channelId: row.channel_id,
@@ -536,14 +808,18 @@ export class Database {
       success: row.success === 1,
       error: row.error || undefined,
       timestamp: row.timestamp,
+      traceId: row.trace_id || undefined,
     };
   }
 
   /**
-   * Close database connection
- *
+   * 关闭数据库连接并清理资源
    */
-  close {
+  close() {
+    // 停止动态 TTL 管理器
+    this.ttlManager.stop();
+
+    // 清除定时器
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
       this.flushInterval = null;
@@ -552,55 +828,72 @@ export class Database {
       clearInterval(this.cacheCleanupInterval);
       this.cacheCleanupInterval = null;
     }
-    this.flushRequests; //// Final flush
-    this.db.close;
+
+    // 最后刷新缓冲的请求
+    this.flushRequests();
+
+    // 清除所有缓存以防止内存泄漏
+    this.channelCache.clear();
+    this.singleChannelCache.clear();
+    this.routingRuleCache = null;
+
+    // 清除缓存锁
+    this.cacheLocks.clear();
+
+    // 清除请求缓冲区
+    this.requestBuffer = [];
+
+    // 关闭数据库连接
+    this.db.close();
+
+    logger.info('✅ Database connection closed and resources cleaned up');
   }
 
   // ============================================================================
-  // Cache Management
+  // 缓存管理
   // ============================================================================
 
   /**
-   * Invalidate all channel caches
+   * 使所有频道缓存失效
    */
-  private invalidateChannelCache {
-    this.channelCache.clear;
-    this.singleChannelCache.clear;
+  private invalidateChannelCache() {
+    this.channelCache.clear();
+    this.singleChannelCache.clear();
   }
 
   /**
-   * Start periodic cache cleanup
+   * 启动定期缓存清理
    */
-  private startCacheCleanup {
-    // Run cleanup every minute
-    this.cacheCleanupInterval = setInterval( => {
-      this.cleanupExpiredCache;
+  private startCacheCleanup() {
+    // 每分钟运行一次清理
+    this.cacheCleanupInterval = setInterval(() => {
+      this.cleanupExpiredCache();
     }, 60 * 1000);
   }
 
   /**
-   * Clean up expired cache entries
+   * 清理过期的缓存条目
    */
-  private cleanupExpiredCache {
-    const now = Date.now;
+  private cleanupExpiredCache() {
+    const now = Date.now();
     let cleaned = 0;
 
-    // Clean channel caches
-    for (const [key, entry] of this.channelCache.entries) {
+    // 清理频道缓存
+    for (const [key, entry] of this.channelCache.entries()) {
       if (now - entry.timestamp > this.CACHE_TTL) {
         this.channelCache.delete(key);
         cleaned++;
       }
     }
 
-    for (const [key, entry] of this.singleChannelCache.entries) {
+    for (const [key, entry] of this.singleChannelCache.entries()) {
       if (now - entry.timestamp > this.CACHE_TTL) {
         this.singleChannelCache.delete(key);
         cleaned++;
       }
     }
 
-    // Clean routing rule cache
+    // 清理路由规则缓存
     if (this.routingRuleCache && now - this.routingRuleCache.timestamp > this.CACHE_TTL) {
       this.routingRuleCache = null;
       cleaned++;
@@ -616,13 +909,27 @@ export class Database {
   }
 
   /**
-   * Get cache statistics
+   * 获取缓存统计信息（包括性能指标）
    */
-  getCacheStats {
+  getCacheStats() {
+    const totalRequests = this.cacheHits + this.cacheMisses;
+    const hitRate = totalRequests > 0 ? (this.cacheHits / totalRequests) * 100 : 0;
+    const avgQueryTime = this.queryCount > 0 ? this.totalQueryTime / this.queryCount : 0;
+
     return {
+      cacheTTL: this.CACHE_TTL,
+      performance: {
+        cacheHits: this.cacheHits,
+        cacheMisses: this.cacheMisses,
+        totalRequests,
+        hitRate: hitRate.toFixed(2) + '%',
+        queryCount: this.queryCount,
+        avgQueryTime: avgQueryTime.toFixed(2) + 'ms',
+        totalQueryTime: this.totalQueryTime,
+      },
       channelCache: {
         size: this.channelCache.size,
-        entries: Array.from(this.channelCache.keys),
+        entries: Array.from(this.channelCache.keys()),
       },
       singleChannelCache: {
         size: this.singleChannelCache.size,
@@ -630,25 +937,37 @@ export class Database {
       routingRuleCache: {
         cached: this.routingRuleCache !== null,
       },
+      dynamicTTL: this.ttlManager.getStats(),
     };
   }
 
   /**
-   * Clear all caches manually
+   * 重置性能指标
    */
-  clearAllCaches {
-    this.invalidateChannelCache;
+  resetPerformanceMetrics() {
+    this.cacheHits = 0;
+    this.cacheMisses = 0;
+    this.queryCount = 0;
+    this.totalQueryTime = 0;
+    logger.info('📊 Database performance metrics reset');
+  }
+
+  /**
+   * 手动清除所有缓存
+   */
+  clearAllCaches() {
+    this.invalidateChannelCache();
     this.routingRuleCache = null;
     logger.info('✅ All caches cleared');
   }
 
   // ============================================================================
-  //// Routing Rules Operations
+  // 路由规则操作
   // ============================================================================
 
   createRoutingRule(input: CreateRoutingRuleInput): RoutingRule {
-    const id = crypto.randomUUID;
-    const now = Date.now;
+    const id = crypto.randomUUID();
+    const now = Date.now();
 
     const query = this.db.prepare(`
       INSERT INTO routing_rules (
@@ -673,40 +992,46 @@ export class Database {
 
   getRoutingRule(id: string): RoutingRule | null {
     const query = this.db.prepare('SELECT * FROM routing_rules WHERE id = ?');
-    const row = query.get(id) as any;
+    const row = query.get(id) as RoutingRuleRow | undefined;
     return row ? this.mapRoutingRuleRow(row) : null;
   }
 
-  getRoutingRules: RoutingRule {
+  getRoutingRules(): RoutingRule[] {
     const query = this.db.query('SELECT * FROM routing_rules ORDER BY priority DESC, name ASC');
-    const rows = query.all as any;
+    const rows = query.all() as RoutingRuleRow[];
     return rows.map(row => this.mapRoutingRuleRow(row));
   }
 
-  getEnabledRoutingRules: RoutingRule {
-    // Check cache first
-    if (this.routingRuleCache && Date.now - this.routingRuleCache.timestamp < this.CACHE_TTL) {
+  getEnabledRoutingRules(): RoutingRule[] {
+    // 获取动态 TTL
+    const ttl = this.ttlManager.getTTL('routingRules');
+
+    // 首先检查缓存
+    if (this.routingRuleCache && Date.now() - this.routingRuleCache.timestamp < ttl) {
+      this.ttlManager.recordHit('routingRules');
       return this.routingRuleCache.data;
     }
+
+    this.ttlManager.recordMiss('routingRules');
 
     const query = this.db.query(
       'SELECT * FROM routing_rules WHERE enabled = 1 ORDER BY priority DESC, name ASC'
     );
-    const rows = query.all as any;
+    const rows = query.all() as RoutingRuleRow[];
     const rules = rows.map(row => this.mapRoutingRuleRow(row));
 
-    // Cache the result
+    // 缓存结果
     this.routingRuleCache = {
       data: rules,
-      timestamp: Date.now,
+      timestamp: Date.now(),
     };
 
     return rules;
   }
 
   updateRoutingRule(id: string, input: UpdateRoutingRuleInput): RoutingRule {
-    const updates: string = ;
-    const values: any = ;
+    const updates: string[] = [];
+    const values: any[] = [];
 
     if (input.name !== undefined) {
       updates.push('name = ?');
@@ -734,13 +1059,13 @@ export class Database {
     }
 
     updates.push('updated_at = ?');
-    values.push(Date.now);
+    values.push(Date.now());
     values.push(id);
 
     const query = this.db.prepare(`UPDATE routing_rules SET ${updates.join(', ')} WHERE id = ?`);
     query.run(...values);
 
-    // Invalidate routing rule cache
+    // 使路由规则缓存失效
     this.routingRuleCache = null;
 
     return this.getRoutingRule(id)!;
@@ -750,7 +1075,7 @@ export class Database {
     const query = this.db.prepare('DELETE FROM routing_rules WHERE id = ?');
     const result = query.run(id);
 
-    // Invalidate routing rule cache
+    // 使路由规则缓存失效
     if (result.changes > 0) {
       this.routingRuleCache = null;
     }
@@ -758,7 +1083,7 @@ export class Database {
     return result.changes > 0;
   }
 
-  private mapRoutingRuleRow(row: any): RoutingRule {
+  private mapRoutingRuleRow(row: RoutingRuleRow): RoutingRule {
     return {
       id: row.id,
       name: row.name,
@@ -774,11 +1099,11 @@ export class Database {
   }
 
   /**
- * Check if database is connected
+   * 检查数据库是否已连接
    */
-  isConnected: boolean {
+  isConnected(): boolean {
     try {
-      this.db.query('SELECT 1').get;
+      this.db.query('SELECT 1').get();
       return true;
     } catch {
       return false;
@@ -786,12 +1111,12 @@ export class Database {
   }
 
   // ============================================================================
-  //// Tee Destination Operations
+  // Tee 目标操作
   // ============================================================================
 
   createTeeDestination(input: CreateTeeDestinationInput): TeeDestination {
-    const id = crypto.randomUUID;
-    const now = Date.now;
+    const id = crypto.randomUUID();
+    const now = Date.now();
 
     const query = this.db.prepare(`
       INSERT INTO tee_destinations (
@@ -821,25 +1146,25 @@ export class Database {
 
   getTeeDestination(id: string): TeeDestination | null {
     const query = this.db.prepare('SELECT * FROM tee_destinations WHERE id = ?');
-    const row = query.get(id) as any;
+    const row = query.get(id) as TeeDestinationRow | undefined;
     return row ? this.mapTeeDestinationRow(row) : null;
   }
 
-  getTeeDestinations: TeeDestination {
+  getTeeDestinations(): TeeDestination[] {
     const query = this.db.query('SELECT * FROM tee_destinations ORDER BY name ASC');
-    const rows = query.all as any;
+    const rows = query.all() as TeeDestinationRow[];
     return rows.map(row => this.mapTeeDestinationRow(row));
   }
 
-  getEnabledTeeDestinations: TeeDestination {
+  getEnabledTeeDestinations(): TeeDestination[] {
     const query = this.db.query('SELECT * FROM tee_destinations WHERE enabled = 1 ORDER BY name ASC');
-    const rows = query.all as any;
+    const rows = query.all() as TeeDestinationRow[];
     return rows.map(row => this.mapTeeDestinationRow(row));
   }
 
   updateTeeDestination(id: string, input: UpdateTeeDestinationInput): TeeDestination {
-    const updates: string = ;
-    const values: any = ;
+    const updates: string[] = [];
+    const values: any[] = [];
 
     if (input.name !== undefined) {
       updates.push('name = ?');
@@ -883,7 +1208,7 @@ export class Database {
     }
 
     updates.push('updated_at = ?');
-    values.push(Date.now);
+    values.push(Date.now());
     values.push(id);
 
     const query = this.db.prepare(`UPDATE tee_destinations SET ${updates.join(', ')} WHERE id = ?`);
@@ -898,7 +1223,7 @@ export class Database {
     return result.changes > 0;
   }
 
-  private mapTeeDestinationRow(row: any): TeeDestination {
+  private mapTeeDestinationRow(row: TeeDestinationRow): TeeDestination {
     return {
       id: row.id,
       name: row.name,
@@ -915,5 +1240,151 @@ export class Database {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  // ============================================================================
+  // OAuth 会话操作
+  // ============================================================================
+
+  createOAuthSession(session: any): void {
+    const query = this.db.prepare(`
+      INSERT INTO oauth_sessions (
+        id, channel_id, provider, access_token, refresh_token,
+        expires_at, scopes, user_info, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    query.run(
+      session.id,
+      session.channelId || null,
+      session.provider,
+      session.accessToken,
+      session.refreshToken || null,
+      session.expiresAt,
+      JSON.stringify(session.scopes),
+      session.userInfo ? JSON.stringify(session.userInfo) : null,
+      session.createdAt,
+      session.updatedAt
+    );
+  }
+
+  getOAuthSessions(): any[] {
+    const query = this.db.prepare('SELECT * FROM oauth_sessions ORDER BY created_at DESC');
+    const rows = query.all() as OAuthSessionRow[];
+    return rows.map(row => ({
+      id: row.id,
+      channelId: row.channel_id,
+      provider: row.provider,
+      accessToken: row.access_token,
+      refreshToken: row.refresh_token,
+      expiresAt: row.expires_at,
+      scopes: JSON.parse(row.scopes),
+      userInfo: row.user_info ? JSON.parse(row.user_info) : undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  getOAuthSession(id: string): any | undefined {
+    const query = this.db.prepare('SELECT * FROM oauth_sessions WHERE id = ?');
+    const row = query.get(id) as OAuthSessionRow | undefined;
+
+    if (!row) return undefined;
+
+    return {
+      id: row.id,
+      channelId: row.channel_id,
+      provider: row.provider,
+      accessToken: row.access_token,
+      refreshToken: row.refresh_token,
+      expiresAt: row.expires_at,
+      scopes: JSON.parse(row.scopes),
+      userInfo: row.user_info ? JSON.parse(row.user_info) : undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  updateOAuthSession(id: string, session: any): void {
+    const query = this.db.prepare(`
+      UPDATE oauth_sessions
+      SET
+        channel_id = ?,
+        access_token = ?,
+        refresh_token = ?,
+        expires_at = ?,
+        scopes = ?,
+        user_info = ?,
+        updated_at = ?
+      WHERE id = ?
+    `);
+
+    query.run(
+      session.channelId || null,
+      session.accessToken,
+      session.refreshToken || null,
+      session.expiresAt,
+      JSON.stringify(session.scopes),
+      session.userInfo ? JSON.stringify(session.userInfo) : null,
+      session.updatedAt,
+      id
+    );
+  }
+
+  deleteOAuthSession(id: string): boolean {
+    const query = this.db.prepare('DELETE FROM oauth_sessions WHERE id = ?');
+    const result = query.run(id);
+    return result.changes > 0;
+  }
+
+  // ============================================================================
+  // 动态 TTL 管理
+  // ============================================================================
+
+  /**
+   * 获取动态 TTL 管理器的统计信息
+   */
+  getDynamicTTLStats() {
+    return this.ttlManager.getStats();
+  }
+
+  /**
+   * 手动触发 TTL 调整
+   */
+  adjustTTL(cacheType: CacheType): number {
+    return this.ttlManager.adjustTTL(cacheType);
+  }
+
+  /**
+   * 手动设置特定缓存类型的 TTL
+   */
+  setTTL(cacheType: CacheType, ttl: number) {
+    this.ttlManager.setTTL(cacheType, ttl);
+  }
+
+  /**
+   * 重置 TTL 统计信息
+   */
+  resetTTLStats(cacheType?: CacheType) {
+    this.ttlManager.resetStats(cacheType);
+  }
+
+  /**
+   * 更新动态 TTL 配置
+   */
+  updateTTLConfig(config: {
+    minTTL?: number;
+    maxTTL?: number;
+    targetHitRate?: number;
+    adjustmentInterval?: number;
+  }) {
+    this.ttlManager.updateConfig(config);
+  }
+
+  /**
+   * 获取动态 TTL 配置
+   */
+  getTTLConfig() {
+    return this.ttlManager.getConfig();
   }
 }

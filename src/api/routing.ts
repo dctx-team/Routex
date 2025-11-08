@@ -7,6 +7,7 @@ import type { Database } from '../db/database';
 import type { SmartRouter } from '../core/routing/smart-router';
 import type { CreateRoutingRuleInput, UpdateRoutingRuleInput } from '../types';
 import { ValidationError, NotFoundError } from '../core/errors';
+import { logger } from '../utils/logger';
 
 export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
   const app = new Hono();
@@ -82,7 +83,7 @@ export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
     if (smartRouter) {
       const allRules = db.getEnabledRoutingRules();
       smartRouter.setRules(allRules);
-      console.log('🔄 Routing rules reloaded after create');
+      logger.info('🔄 Routing rules reloaded after create');
     }
 
     return c.json(
@@ -123,7 +124,7 @@ export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
     if (smartRouter) {
       const allRules = db.getEnabledRoutingRules();
       smartRouter.setRules(allRules);
-      console.log('🔄 Routing rules reloaded after update');
+      logger.info('🔄 Routing rules reloaded after update');
     }
 
     return c.json({
@@ -148,7 +149,7 @@ export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
     if (smartRouter) {
       const allRules = db.getEnabledRoutingRules();
       smartRouter.setRules(allRules);
-      console.log('🔄 Routing rules reloaded after delete');
+      logger.info('🔄 Routing rules reloaded after delete');
     }
 
     return c.json({
@@ -175,7 +176,7 @@ export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
     if (smartRouter) {
       const allRules = db.getEnabledRoutingRules();
       smartRouter.setRules(allRules);
-      console.log('🔄 Routing rules reloaded after enable');
+      logger.info('🔄 Routing rules reloaded after enable');
     }
 
     return c.json({
@@ -202,7 +203,7 @@ export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
     if (smartRouter) {
       const allRules = db.getEnabledRoutingRules();
       smartRouter.setRules(allRules);
-      console.log('🔄 Routing rules reloaded after disable');
+      logger.info('🔄 Routing rules reloaded after disable');
     }
 
     return c.json({
@@ -245,7 +246,7 @@ export function createRoutingAPI(db: Database, smartRouter?: SmartRouter) {
     const allRules = db.getEnabledRoutingRules();
     smartRouter.setRules(allRules);
 
-    console.log(`🔄 Manually reloaded ${allRules.length} routing rules`);
+    logger.info(`🔄 Manually reloaded ${allRules.length} routing rules`);
 
     return c.json({
       success: true,

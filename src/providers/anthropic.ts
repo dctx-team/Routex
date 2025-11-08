@@ -16,7 +16,7 @@ export class AnthropicProvider extends BaseProvider {
     maxTokens: 200000, // Claude 3.5 Sonnet  200K context
   };
 
-  getDefaultBaseUrl: string {
+  getDefaultBaseUrl(): string {
     return 'https://api.anthropic.com';
   }
 

@@ -16,6 +16,8 @@ import { logger, logStartup, logShutdown, log } from './utils/logger';
 import { metrics } from './core/metrics';
 import { i18n, t } from './i18n';
 import { en, zhCN } from './i18n/locales';
+import { OAuthService, type OAuthProviderConfig, OAUTH_PROVIDERS } from './auth/oauth';
+import type { ChannelType } from './types';
 
 async function main() {
   //// Initialize i18n
@@ -56,9 +58,49 @@ async function main() {
   log.info('🔥 Initializing cache warmer...');
   const cacheWarmer = new CacheWarmer(db, loadBalancer);
 
+  //// Initialize OAuth Service
+  log.info('🔐 Initializing OAuth service...');
+  const oauthConfigs = new Map<ChannelType, OAuthProviderConfig>();
+
+  // Load OAuth configurations from environment variables
+  if (process.env.ANTHROPIC_OAUTH_CLIENT_ID && process.env.ANTHROPIC_OAUTH_CLIENT_SECRET) {
+    oauthConfigs.set('anthropic', {
+      clientId: process.env.ANTHROPIC_OAUTH_CLIENT_ID,
+      clientSecret: process.env.ANTHROPIC_OAUTH_CLIENT_SECRET,
+      authorizationUrl: OAUTH_PROVIDERS.anthropic.authorizationUrl!,
+      tokenUrl: OAUTH_PROVIDERS.anthropic.tokenUrl!,
+      scopes: OAUTH_PROVIDERS.anthropic.scopes!,
+      redirectUri: process.env.ANTHROPIC_OAUTH_REDIRECT_URI || `http://${config.server.host}:${config.server.port}/api/oauth/callback`,
+    });
+  }
+
+  if (process.env.OPENAI_OAUTH_CLIENT_ID && process.env.OPENAI_OAUTH_CLIENT_SECRET) {
+    oauthConfigs.set('openai', {
+      clientId: process.env.OPENAI_OAUTH_CLIENT_ID,
+      clientSecret: process.env.OPENAI_OAUTH_CLIENT_SECRET,
+      authorizationUrl: OAUTH_PROVIDERS.openai.authorizationUrl!,
+      tokenUrl: OAUTH_PROVIDERS.openai.tokenUrl!,
+      scopes: OAUTH_PROVIDERS.openai.scopes!,
+      redirectUri: process.env.OPENAI_OAUTH_REDIRECT_URI || `http://${config.server.host}:${config.server.port}/api/oauth/callback`,
+    });
+  }
+
+  if (process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    oauthConfigs.set('google', {
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      authorizationUrl: OAUTH_PROVIDERS.google.authorizationUrl!,
+      tokenUrl: OAUTH_PROVIDERS.google.tokenUrl!,
+      scopes: OAUTH_PROVIDERS.google.scopes!,
+      redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI || `http://${config.server.host}:${config.server.port}/api/oauth/callback`,
+    });
+  }
+
+  const oauthService = new OAuthService(db, oauthConfigs);
+
   // Create API
   log.info(t('init.routes'));
-  const app = createAPI(db, proxy, loadBalancer, smartRouter, transformerManager, cacheWarmer);
+  const app = createAPI(db, proxy, loadBalancer, smartRouter, transformerManager, cacheWarmer, oauthService);
 
   //// Start server
   const server = serve({

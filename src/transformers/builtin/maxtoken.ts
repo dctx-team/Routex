@@ -4,6 +4,7 @@
  */
 
 import { BaseTransformer, TransformResult } from '../base';
+import { logger } from '../../utils/logger';
 
 export interface MaxTokenOptions {
   maxTokens?: number; //  tokens 
@@ -18,7 +19,7 @@ export class MaxTokenTransformer extends BaseTransformer {
   private enforceStrict: boolean;
 
   constructor(options: MaxTokenOptions = {}) {
-    super;
+    super();
     this.maxTokens = options.maxTokens || 4096;
     this.defaultMaxTokens = options.defaultMaxTokens || 1024;
     this.enforceStrict = options.enforceStrict ?? false;
@@ -36,7 +37,7 @@ export class MaxTokenTransformer extends BaseTransformer {
       }
 
       // 
-      console.log(
+      logger.debug(
         `⚠️  MaxToken: Limiting max_tokens from ${requestedTokens} to ${this.maxTokens}`,
       );
 

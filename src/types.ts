@@ -102,6 +102,7 @@ export interface RequestLog {
   success: boolean;
   error?: string;
   timestamp: number;
+  traceId?: string;
 }
 
 export interface Analytics {
@@ -249,11 +250,7 @@ export interface TransformerConfig {
   //// Global transformers for all models / transformer
   use?: (string | [string, Record<string, any>])[];
   //// Model-specific transformers / transformer
-  [modelName: string]:
-    | {
-        use?: (string | [string, Record<string, any>])[];
-      }
-    | undefined;
+  perModel?: Record<string, { use?: (string | [string, Record<string, any>])[] }>;
 }
 
 export interface Transformer {
@@ -294,6 +291,10 @@ export interface Tool {
   description?: string;
   input_schema: Record<string, any>;
 }
+
+// Convenience aliases for array forms used in routing/analysis
+export type Messages = Message[];
+export type Tools = Tool[];
 
 //// Tee Stream Types
 // ============================================================================

@@ -1,6 +1,7 @@
 /**
  * Custom error classes for Routex
  */
+import { logger } from '../utils/logger';
 
 export class RoutexError extends Error {
   constructor(
@@ -126,7 +127,16 @@ export class DatabaseError extends RoutexError {
  * Error handler middleware for Hono
  */
 export function errorHandler(err: Error) {
-  console.error('Error:', err);
+  logger.error(
+    {
+      error: {
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+      },
+    },
+    'Unhandled error'
+  );
 
   if (err instanceof RoutexError) {
     return {

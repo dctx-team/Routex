@@ -1,8 +1,10 @@
 /**
- * Proxy engine for forwarding requests to AI providers
+ * 用于转发请求到 AI 提供商的代理引擎
  */
 
 import type { Channel, ParsedRequest, ProxyResponse, RequestLog } from '../types';
+import type { AIRequestBody, AIResponseBody } from '../types/api-body';
+import { isAIRequestBody, isAIResponseBody } from '../types/api-body';
 import { Database } from '../db/database';
 import { LoadBalancer } from './loadbalancer';
 import type { SmartRouter } from './routing/smart-router';
@@ -12,20 +14,19 @@ import { metrics } from './metrics';
 import { tracer } from './tracing';
 import {
   NoAvailableChannelError,
-  CircuitBreakerError,
   ChannelError,
-  TransformerError,
   RoutexError
 } from './errors';
 import { logger, logError, logTransformer } from '../utils/logger';
 import { getProvider } from '../providers';
+import { RetryStrategy, HTTPError } from './retry-strategy';
 
 export class ProxyEngine {
-  private circuitBreaker = new Map<string, { failures: number; lastFailure: number }>;
-  private maxRetries = 3;
+  private circuitBreaker = new Map<string, { failures: number; lastFailure: number }>();
   private circuitBreakerThreshold = 5;
-  private circuitBreakerTimeout = 60000; //// 1 minute / 1
+  private circuitBreakerTimeout = 60000; // 1 分钟
   private teeStream?: TeeStream;
+  private retryStrategy: RetryStrategy;
 
   constructor(
     private db: Database,
@@ -33,21 +34,23 @@ export class ProxyEngine {
     private smartRouter?: SmartRouter,
     private transformerManager?: TransformerManager,
   ) {
-    // Initialize Tee Stream with enabled destinations
-    const destinations = this.db.getEnabledTeeDestinations;
+    // 初始化重试策略
+    this.retryStrategy = new RetryStrategy();
+
+    // 使用启用的目标初始化 Tee Stream
+    const destinations = this.db.getEnabledTeeDestinations();
     if (destinations.length > 0) {
       this.teeStream = new TeeStream(destinations);
     }
   }
 
   /**
-   * Handle incoming proxy request
-   * 
+   * 处理传入的代理请求
    */
   async handle(req: Request): Promise<Response> {
-    const start = Date.now;
+    const start = Date.now();
 
-    // Extract or create trace context
+    // 提取或创建追踪上下文
     const traceContext = tracer.extractTraceContext(req.headers);
     const rootSpan = tracer.startSpan(
       'proxy.handle',
@@ -60,23 +63,23 @@ export class ProxyEngine {
     );
 
     try {
-      //// Parse request
+      // 解析请求
       const parseSpan = tracer.startSpan('proxy.parseRequest', rootSpan.traceId, rootSpan.spanId);
       const parsed = await this.parseRequest(req);
       tracer.endSpan(parseSpan.spanId, 'success');
 
-      //// Get available channels
-      const channels = this.db.getEnabledChannels;
+      // 获取可用频道
+      const channels = this.db.getEnabledChannels();
 
-      //// Filter out channels in circuit breaker state
+      // 过滤掉处于熔断器状态的频道
       const available = channels.filter((ch) => !this.isCircuitOpen(ch.id));
 
       if (available.length === 0) {
         tracer.addLog(rootSpan.spanId, 'No available channels', 'error');
-        throw new NoAvailableChannelError;
+        throw new NoAvailableChannelError();
       }
 
-      //// Try SmartRouter first if available / SmartRouter
+      // 如果可用，首先尝试 SmartRouter
       let channel: Channel;
       let routedModel: string | undefined;
       let matchedRuleName: string | undefined;
@@ -85,11 +88,14 @@ export class ProxyEngine {
 
       if (this.smartRouter && parsed.body) {
         try {
+          // Type-safe access to request body properties
+          const body = parsed.body as AIRequestBody;
+
           const routerContext = {
             model: parsed.model || '',
-            messages: (parsed.body as any).messages || ,
-            system: (parsed.body as any).system,
-            tools: (parsed.body as any).tools,
+            messages: body.messages || [],
+            system: body.system,
+            tools: body.tools,
             metadata: {
               sessionId: req.headers.get('x-session-id') || undefined,
             },
@@ -113,7 +119,7 @@ export class ProxyEngine {
               model: routedModel,
             }, `🧠 SmartRouter matched rule: ${matchedRuleName} → ${channel.name}`);
           } else {
-            //// Fallback to LoadBalancer / LoadBalancer
+            // 回退到 LoadBalancer
             const sessionId = req.headers.get('x-session-id') || undefined;
             channel = await this.loadBalancer.select(available, {
               sessionId,
@@ -138,7 +144,7 @@ export class ProxyEngine {
           });
         }
       } else {
-        //// No SmartRouter, use LoadBalancer / SmartRouterLoadBalancer
+        // 没有 SmartRouter，使用 LoadBalancer
         const sessionId = req.headers.get('x-session-id') || undefined;
         channel = await this.loadBalancer.select(available, {
           sessionId,
@@ -152,27 +158,27 @@ export class ProxyEngine {
 
       tracer.endSpan(routingSpan.spanId, 'success');
 
-      //// Override model if routed model is specified
-      if (routedModel && parsed.body) {
-        (parsed.body as any).model = routedModel;
+      // 如果指定了路由模型，则覆盖模型
+      if (routedModel && parsed.body && isAIRequestBody(parsed.body)) {
+        parsed.body.model = routedModel;
       }
 
-      //// Forward request with retries
+      // 使用重试机制转发请求
       const forwardSpan = tracer.startSpan('proxy.forward', rootSpan.traceId, rootSpan.spanId, {
         channel: channel.name,
         model: parsed.model || 'unknown',
       });
       const response = await this.forwardWithRetries(channel, parsed, available);
       tracer.endSpan(forwardSpan.spanId, 'success', {
-        status: response.status.toString,
+        status: response.status.toString(),
         latency: response.latency,
       });
 
-      //// Log request
-      const latency = Date.now - start;
-      this.logRequest(channel, parsed, response, latency, true);
+      // 记录请求
+      const latency = Date.now() - start;
+      this.logRequest(channel, parsed, response, latency, true, rootSpan.traceId);
 
-      //// Record metrics
+      // 记录指标
       metrics.incrementCounter('routex_requests_total');
       metrics.incrementCounter('routex_requests_success_total');
       metrics.incrementCounter('routex_channel_requests_total', 1, {
@@ -184,25 +190,25 @@ export class ProxyEngine {
         status: 'success'
       });
 
-      //// Tee request/response if configured
+      // 如果配置了，则 Tee 请求/响应
       if (this.teeStream) {
         this.teeStream.tee(channel, parsed, response, true).catch(error => {
           logError(error as Error, { component: 'TeeStream', operation: 'tee' });
         });
       }
 
-      //// Increment usage
+      // 增加使用计数
       this.db.incrementChannelUsage(channel.id, true);
 
-      //// Reset circuit breaker on success
-      this.resetCircuitBreaker(channel);
+      // 成功时重置熔断器
+      this.resetCircuitBreaker(channel.id);
 
-      //// Add routing info to response headers
+      // 向响应头添加路由信息
       const responseHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
         'X-Channel-Id': channel.id,
         'X-Channel-Name': channel.name,
-        'X-Latency-Ms': latency.toString,
+        'X-Latency-Ms': latency.toString(),
         'X-Trace-Id': rootSpan.traceId,
         'X-Span-Id': rootSpan.spanId,
       };
@@ -222,7 +228,7 @@ export class ProxyEngine {
       }, `✅ Request succeeded: ${channel.name} (${latency}ms)`);
 
       tracer.endSpan(rootSpan.spanId, 'success', {
-        status: response.status.toString,
+        status: response.status.toString(),
         latency,
       });
 
@@ -231,25 +237,25 @@ export class ProxyEngine {
         headers: responseHeaders,
       });
     } catch (error) {
-      const latency = Date.now - start;
+      const latency = Date.now() - start;
       logError(error as Error, { component: 'ProxyEngine', latency, traceId: rootSpan.traceId });
 
       tracer.addLog(rootSpan.spanId, `Error: ${(error as Error).message}`, 'error');
       tracer.endSpan(rootSpan.spanId, 'error', { latency });
 
-      //// Record failure metrics
+      // 记录失败指标
       metrics.incrementCounter('routex_requests_total');
       metrics.incrementCounter('routex_requests_failed_total');
       metrics.observeHistogram('routex_request_duration_seconds', latency / 1000, {
         status: 'failed'
       });
 
-      // If it's already a RoutexError, rethrow it
+      // 如果已经是 RoutexError，则重新抛出
       if (error instanceof RoutexError) {
         throw error;
       }
 
-      // Wrap unknown errors
+      // 包装未知错误
       throw new ChannelError(
         error instanceof Error ? error.message : 'Unknown proxy error',
         { latency }
@@ -258,10 +264,10 @@ export class ProxyEngine {
   }
 
   /**
-   * Update Tee Stream destinations
+   * 更新 Tee Stream 目标
    */
-  updateTeeDestinations {
-    const destinations = this.db.getEnabledTeeDestinations;
+  updateTeeDestinations() {
+    const destinations = this.db.getEnabledTeeDestinations();
     if (destinations.length > 0) {
       if (this.teeStream) {
         this.teeStream.setDestinations(destinations);
@@ -269,8 +275,8 @@ export class ProxyEngine {
         this.teeStream = new TeeStream(destinations);
       }
     } else if (this.teeStream) {
-      // No destinations, shutdown tee stream
-      this.teeStream.shutdown.catch(error => {
+      // 没有目标，关闭 tee stream
+      this.teeStream.shutdown().catch(error => {
         logError(error as Error, { component: 'TeeStream', operation: 'shutdown' });
       });
       this.teeStream = undefined;
@@ -278,77 +284,106 @@ export class ProxyEngine {
   }
 
   /**
-   * Shutdown proxy engine and cleanup resources
+   * 关闭代理引擎并清理资源
    */
-  async shutdown {
+  async shutdown() {
     if (this.teeStream) {
-      await this.teeStream.shutdown;
+      await this.teeStream.shutdown();
     }
     logger.info('🛑 Proxy engine shutdown complete');
   }
 
   /**
-   * Forward request with automatic retries
- *
+   * 使用自动重试机制转发请求（优化版：指数退避 + 抖动）
    */
   private async forwardWithRetries(
     channel: Channel,
     request: ParsedRequest,
-    availableChannels: Channel,
+    availableChannels: Channel[],
   ): Promise<ProxyResponse> {
     let lastError: Error | null = null;
-    let attempts = 0;
+    let attempt = 0;
+    const maxRetries = this.retryStrategy.getMaxRetries();
 
-    while (attempts < this.maxRetries) {
+    while (attempt < maxRetries) {
+      attempt++;
+
       try {
         return await this.forward(channel, request);
       } catch (error) {
         lastError = error as Error;
-        attempts++;
 
-        //// Record failure
+        // 判断是否可重试
+        if (!this.retryStrategy.isRetriable(lastError)) {
+          logger.warn({
+            error: lastError.message,
+            attempt,
+            channel: channel.name,
+          }, '❌ Error is not retriable, aborting retry');
+          throw lastError;
+        }
+
+        // 记录失败
         this.recordFailure(channel.id);
 
-        //// If circuit breaker is open, try another channel
+        // 如果熔断器开启，尝试另一个频道
         if (this.isCircuitOpen(channel.id) && availableChannels.length > 1) {
           const otherChannels = availableChannels.filter((ch) => ch.id !== channel.id);
           if (otherChannels.length > 0) {
+            const previousChannelId = channel.id;
             channel = await this.loadBalancer.select(otherChannels, {});
             logger.warn({
-              attempt: attempts,
-              previousChannel: channel.id,
+              attempt,
+              previousChannel: previousChannelId,
               newChannel: channel.name,
+              circuitOpen: true,
             }, `⚠️  Retrying with different channel: ${channel.name}`);
           }
         }
 
-        //// Wait before retry
-        if (attempts < this.maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
+        // 如果还有重试次数，使用指数退避 + 抖动
+        if (attempt < maxRetries) {
+          const delay = this.retryStrategy.calculateDelay(attempt);
+          this.retryStrategy.logRetry(attempt, delay, lastError, {
+            channel: channel.name,
+            channelId: channel.id,
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
+
+    // 重试耗尽
+    this.retryStrategy.logRetryExhausted(attempt, lastError!, {
+      channel: channel.name,
+      channelId: channel.id,
+    });
+
+    // 记录重试耗尽指标
+    metrics.incrementCounter('routex_retry_exhausted_total', 1, {
+      channel: channel.name,
+    });
 
     throw lastError || new Error('Max retries exceeded');
   }
 
   /**
-   * Forward request to channel using Provider abstraction
- *
+   * 使用 Provider 抽象将请求转发到频道
    */
   private async forward(channel: Channel, request: ParsedRequest): Promise<ProxyResponse> {
-    const start = Date.now;
+    const start = Date.now();
 
-    // Get provider for this channel
+    // 获取此频道的提供商
     const provider = getProvider(channel);
 
-    // Apply transformers if configured / transformers
+    // 如果配置了，应用转换器
     let transformedRequest = request.body;
     let transformerHeaders: Record<string, string> = {};
 
     if (this.transformerManager && channel.transformers && transformedRequest) {
       try {
-        const transformerSpecs = channel.transformers.use || ;
+        const transformerSpecs = channel.transformers.use || [];
         if (transformerSpecs.length > 0) {
           logTransformer('pipeline', 'request', {
             count: transformerSpecs.length,
@@ -356,7 +391,7 @@ export class ProxyEngine {
           });
 
           const baseUrl = provider.buildRequestUrl(channel, '');
-          // Pass baseUrl to transformers as options
+          // 将 baseUrl 作为选项传递给转换器
           const transformResult = await this.transformerManager.transformRequest(
             transformedRequest,
             transformerSpecs.map(spec =>
@@ -376,17 +411,17 @@ export class ProxyEngine {
         }
       } catch (error) {
         logError(error as Error, { component: 'RequestTransformer', channel: channel.name });
-        //// Continue with original request if transformation fails
+        // 如果转换失败，继续使用原始请求
       }
     }
 
-    // Update request body with transformed data
+    // 使用转换后的数据更新请求体
     const modifiedRequest: ParsedRequest = {
       ...request,
       body: transformedRequest,
     };
 
-    // Prepare provider request (URL, headers, body)
+    // 准备提供商请求（URL、headers、body）
     const providerRequest = await provider.prepareRequest(
       channel,
       modifiedRequest,
@@ -399,30 +434,40 @@ export class ProxyEngine {
       method: providerRequest.method,
     }, `📡 Forwarding to ${provider.name}`);
 
-    //// Make request
+    // 发起请求
     const response = await fetch(providerRequest.url, {
       method: providerRequest.method,
       headers: providerRequest.headers,
       body: providerRequest.body ? JSON.stringify(providerRequest.body) : undefined,
     });
 
-    const latency = Date.now - start;
+    const latency = Date.now() - start;
 
-    //// Handle provider response
+    // 如果是 HTTP 错误状态码，抛出 HTTPError 以便重试策略判断
+    if (!response.ok) {
+      const responseBody = await response.text();
+      throw new HTTPError(
+        `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+        responseBody
+      );
+    }
+
+    // 处理提供商响应
     const providerResponse = await provider.handleResponse(response, channel);
     let responseBody = providerResponse.body;
 
-    //// Apply reverse transformers if configured / transformers
+    // 如果配置了，应用反向转换器
     if (this.transformerManager && channel.transformers && responseBody) {
       try {
-        const transformerSpecs = channel.transformers.use || ;
+        const transformerSpecs = channel.transformers.use || [];
         if (transformerSpecs.length > 0) {
           logTransformer('pipeline', 'response', {
             count: transformerSpecs.length,
             channel: channel.name,
           });
-          //// Reverse the transformer order for response / transformer
-          const reversedSpecs = [...transformerSpecs].reverse;
+          // 为响应反转转换器顺序
+          const reversedSpecs = [...transformerSpecs].reverse();
           responseBody = await this.transformerManager.transformResponse(
             responseBody,
             reversedSpecs
@@ -430,7 +475,7 @@ export class ProxyEngine {
         }
       } catch (error) {
         logError(error as Error, { component: 'ResponseTransformer', channel: channel.name });
-        //// Continue with original response if transformation fails
+        // 如果转换失败，继续使用原始响应
       }
     }
 
@@ -444,32 +489,39 @@ export class ProxyEngine {
   }
 
   /**
-   * Parse incoming request
- *
+   * 解析传入请求
    */
   private async parseRequest(req: Request): Promise<ParsedRequest> {
     const url = new URL(req.url);
     const headers: Record<string, string> = {};
 
-    //// Copy relevant headers
-    for (const [key, value] of req.headers.entries) {
+    // 复制相关的 headers（排除内部 headers）
+    for (const [key, value] of req.headers.entries()) {
       if (!key.startsWith('x-') && key !== 'host') {
         headers[key] = value;
       }
     }
 
-    //// Parse body
+    // 解析 POST/PUT 请求的 body
     let body: unknown = null;
     let model: string | undefined;
 
     if (req.method === 'POST' || req.method === 'PUT') {
       try {
-        body = await req.json;
+        body = await req.json();
         if (body && typeof body === 'object' && 'model' in body) {
-          model = (body as any).model;
+          // Type-safe access to model property
+          const requestBody = body as AIRequestBody;
+          model = requestBody.model;
         }
-      } catch {
-        //// Ignore parse errors
+      } catch (error) {
+        // 记录解析错误以进行调试，但继续使用 null body
+        logger.debug({
+          error: error instanceof Error ? error.message : 'Unknown error',
+          method: req.method,
+          url: req.url,
+          contentType: req.headers.get('content-type'),
+        }, '⚠️  Failed to parse request body');
       }
     }
 
@@ -483,8 +535,7 @@ export class ProxyEngine {
   }
 
   /**
-   * Log request to database
- *
+   * 记录请求到数据库
    */
   private logRequest(
     channel: Channel,
@@ -492,13 +543,16 @@ export class ProxyEngine {
     response: ProxyResponse,
     latency: number,
     success: boolean,
+    traceId?: string,
   ) {
-    //// Extract token usage from response using Provider /  token  Provider
+    // 使用 Provider 从响应中提取 token 使用情况
     const provider = getProvider(channel);
     const tokenUsage = provider.extractTokenUsage(response.body);
-    const body = response.body as any;
 
-    //// Record token metrics
+    // Type-safe access to response body
+    const body = response.body as AIResponseBody;
+
+    // 记录 token 指标
     if (tokenUsage.inputTokens > 0) {
       metrics.incrementCounter('routex_tokens_input_total', tokenUsage.inputTokens);
     }
@@ -521,32 +575,31 @@ export class ProxyEngine {
       cachedTokens: tokenUsage.cachedTokens,
       success,
       error: success ? undefined : body?.error?.message,
-      timestamp: Date.now,
+      timestamp: Date.now(),
+      traceId,
     };
 
     this.db.logRequest(log);
   }
 
   // ============================================================================
-  //// Circuit Breaker
+  // 熔断器
   // ============================================================================
 
   /**
-   * Record channel failure
- *
+   * 记录频道失败
    */
   private recordFailure(channelId: string) {
     const state = this.circuitBreaker.get(channelId) || { failures: 0, lastFailure: 0 };
     state.failures++;
-    state.lastFailure = Date.now;
+    state.lastFailure = Date.now();
     this.circuitBreaker.set(channelId, state);
 
-    // Mark channel as rate limited if threshold exceeded
-    ////
+    // 如果超过阈值，将频道标记为速率受限
     if (state.failures >= this.circuitBreakerThreshold) {
       this.db.updateChannel(channelId, { status: 'rate_limited' });
 
-      //// Record circuit breaker metrics
+      // 记录熔断器指标
       metrics.incrementCounter('routex_circuit_breaker_open_total', 1, { channel: channelId });
       metrics.setGauge('routex_circuit_breaker_open', 1, { channel: channelId });
 
@@ -559,8 +612,7 @@ export class ProxyEngine {
   }
 
   /**
-   * Check if circuit breaker is open
- *
+   * 检查熔断器是否开启
    */
   private isCircuitOpen(channelId: string): boolean {
     const state = this.circuitBreaker.get(channelId);
@@ -568,8 +620,8 @@ export class ProxyEngine {
       return false;
     }
 
-    //// Auto-reset after timeout
-    if (Date.now - state.lastFailure > this.circuitBreakerTimeout) {
+    // 超时后自动重置
+    if (Date.now() - state.lastFailure > this.circuitBreakerTimeout) {
       this.resetCircuitBreaker(channelId);
       return false;
     }
@@ -578,23 +630,12 @@ export class ProxyEngine {
   }
 
   /**
-   * Reset circuit breaker
- *
+   * 重置熔断器
    */
-  private resetCircuitBreaker(channel: Channel) {
-    this.circuitBreaker.delete(channel.id);
-
-    //// Re-enable channel if it was rate limited
-    if (channel.status === 'rate_limited') {
-      this.db.updateChannel(channel.id, { status: 'enabled' });
-
-      //// Reset circuit breaker metrics
-      metrics.setGauge('routex_circuit_breaker_open', 0, { channel: channel.id });
-
-      logger.info({
-        channelId: channel.id,
-        channelName: channel.name,
-      }, `🟢 Circuit breaker reset for channel ${channel.id}`);
-    }
+  private resetCircuitBreaker(channelId: string) {
+    this.circuitBreaker.delete(channelId);
+    this.db.updateChannel(channelId, { status: 'enabled' });
+    metrics.setGauge('routex_circuit_breaker_open', 0, { channel: channelId });
+    logger.info({ channelId }, `🟢 Circuit breaker reset for channel ${channelId}`);
   }
 }

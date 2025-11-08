@@ -46,7 +46,7 @@ export abstract class BaseProvider {
   /**
    *  API Base URL
    */
-  abstract getDefaultBaseUrl: string;
+  abstract getDefaultBaseUrl(): string;
 
   /**
    * 
@@ -57,7 +57,7 @@ export abstract class BaseProvider {
    *  URL
    */
   buildRequestUrl(channel: Channel, path: string): string {
-    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl;
+    const baseUrl = channel.baseUrl || this.getDefaultBaseUrl();
     // 
     const cleanBase = baseUrl.replace(/\/$/, '');
     // 
@@ -150,12 +150,12 @@ export abstract class BaseProvider {
     response: Response,
     channel: Channel
   ): Promise<ProviderResponse> {
-    const body = await response.json;
+    const body = await response.json();
     const transformedBody = await this.transformResponse(body, channel);
 
     return {
       status: response.status,
-      headers: Object.fromEntries(response.headers.entries),
+      headers: Object.fromEntries(response.headers.entries()),
       body: transformedBody,
     };
   }

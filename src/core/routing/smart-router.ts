@@ -25,6 +25,11 @@ import {
   type CustomRouterFunction,
   globalRouterRegistry,
 } from './custom-routers';
+import {
+  isContentCondition,
+  type ContentCondition,
+  type RoutingCondition,
+} from './types';
 
 export interface RouterContext {
   model: string;
@@ -44,26 +49,26 @@ export interface RouterResult {
 }
 
 export class SmartRouter {
-  private rules: RoutingRule = ;
-  private customRouters: Map<string, Function> = new Map; // Legacy support
+  private rules: RoutingRule[] = [];
+  private customRouters: Map<string, Function> = new Map(); // Legacy support
   private contentAnalyzer: ContentAnalyzer;
   private routerRegistry: CustomRouterRegistry;
 
-  constructor(rules: RoutingRule = , useGlobalRegistry: boolean = true) {
+  constructor(rules: RoutingRule[] = [], useGlobalRegistry: boolean = true) {
     this.rules = rules
       .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
-    this.contentAnalyzer = new ContentAnalyzer;
+    this.contentAnalyzer = new ContentAnalyzer();
     this.routerRegistry = useGlobalRegistry
       ? globalRouterRegistry
-      : new CustomRouterRegistry;
+      : new CustomRouterRegistry();
   }
 
   /**
    * Add or update routing rules
  *
    */
-  setRules(rules: RoutingRule) {
+  setRules(rules: RoutingRule[]) {
     this.rules = rules
       .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
@@ -91,18 +96,18 @@ export class SmartRouter {
 
   /**
    * Get router registry
-   * 
+   *
    */
-  getRegistry: CustomRouterRegistry {
+  getRegistry(): CustomRouterRegistry {
     return this.routerRegistry;
   }
 
   /**
    * List all registered custom routers
-   * 
+   *
    */
-  listCustomRouters {
-    return this.routerRegistry.list;
+  listCustomRouters() {
+    return this.routerRegistry.list();
   }
 
   /**
@@ -111,7 +116,7 @@ export class SmartRouter {
    */
   async findMatchingChannel(
     context: RouterContext,
-    availableChannels: Channel
+    availableChannels: Channel[]
   ): Promise<RouterResult | null> {
     //// Perform content analysis
     const analysis = this.contentAnalyzer.analyze(context.messages, context.tools);
@@ -155,7 +160,7 @@ export class SmartRouter {
    */
   findChannelByContent(
     analysis: ContentAnalysis,
-    availableChannels: Channel
+    availableChannels: Channel[]
   ): Channel | null {
     //// Strategy: Match channel capabilities with content requirements
 
@@ -211,7 +216,7 @@ export class SmartRouter {
     if (condition.keywords && condition.keywords.length > 0) {
       const userMessage = this.extractUserMessage(context.messages);
       const hasKeyword = condition.keywords.some((keyword) =>
-        userMessage.toLowerCase.includes(keyword.toLowerCase)
+        userMessage.toLowerCase().includes(keyword.toLowerCase())
       );
       if (!hasKeyword) {
         return false;
@@ -288,52 +293,52 @@ export class SmartRouter {
     }
 
     //// Content-based conditions (if analysis is available)
-    if (analysis) {
+    if (analysis && isContentCondition(condition)) {
       //// Check content category
-      if ((condition as any).contentCategory) {
-        if (analysis.category !== (condition as any).contentCategory) {
+      if (condition.contentCategory) {
+        if (analysis.category !== condition.contentCategory) {
           return false;
         }
       }
 
       //// Check complexity level
-      if ((condition as any).complexityLevel) {
-        if (analysis.complexity !== (condition as any).complexityLevel) {
+      if (condition.complexityLevel) {
+        if (analysis.complexity !== condition.complexityLevel) {
           return false;
         }
       }
 
       //// Check if has code
-      if ((condition as any).hasCode !== undefined) {
-        if (analysis.hasCode !== (condition as any).hasCode) {
+      if (condition.hasCode !== undefined) {
+        if (analysis.hasCode !== condition.hasCode) {
           return false;
         }
       }
 
       //// Check programming language
-      if ((condition as any).programmingLanguage) {
-        const requiredLang = (condition as any).programmingLanguage;
+      if (condition.programmingLanguage) {
+        const requiredLang = condition.programmingLanguage;
         if (!analysis.languages.includes(requiredLang)) {
           return false;
         }
       }
 
       //// Check intent
-      if ((condition as any).intent) {
-        if (analysis.intent !== (condition as any).intent) {
+      if (condition.intent) {
+        if (analysis.intent !== condition.intent) {
           return false;
         }
       }
 
       //// Check word count threshold
-      if ((condition as any).minWordCount !== undefined) {
-        if (analysis.wordCount < (condition as any).minWordCount) {
+      if (condition.minWordCount !== undefined) {
+        if (analysis.wordCount < condition.minWordCount) {
           return false;
         }
       }
 
-      if ((condition as any).maxWordCount !== undefined) {
-        if (analysis.wordCount > (condition as any).maxWordCount) {
+      if (condition.maxWordCount !== undefined) {
+        if (analysis.wordCount > condition.maxWordCount) {
           return false;
         }
       }
@@ -348,7 +353,7 @@ export class SmartRouter {
  *
    */
   private extractUserMessage(messages: Message): string {
-    const parts: string = ;
+    const parts: string[] = [];
 
     for (const msg of messages) {
       if (msg.role === 'user') {
@@ -395,8 +400,8 @@ export class SmartRouter {
    * Get default routing configuration
  *
    */
-  static getDefaultRules: RoutingRule {
-    const now = Date.now;
+  static getDefaultRules(): RoutingRule[] {
+    const now = Date.now();
 
     return [
       {

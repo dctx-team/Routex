@@ -4,6 +4,7 @@
  */
 
 import { BaseTransformer, TransformResult } from '../base';
+import { logger } from '../../utils/logger';
 
 export interface SamplingOptions {
   temperature?: {
@@ -29,7 +30,7 @@ export class SamplingTransformer extends BaseTransformer {
   private options: SamplingOptions;
 
   constructor(options: SamplingOptions = {}) {
-    super;
+    super();
     this.options = {
       temperature: {
         min: 0,
@@ -64,18 +65,18 @@ export class SamplingTransformer extends BaseTransformer {
       if (this.options.enforceDefaults && temp.default !== undefined) {
         // 
         if (transformed.temperature !== temp.default) {
-          console.log(`🌡️  Sampling: Enforcing temperature=${temp.default}`);
+          logger.debug(`🌡️  Sampling: Enforcing temperature=${temp.default}`);
           transformed.temperature = temp.default;
           modified = true;
         }
       } else if (transformed.temperature !== undefined) {
         // 
         if (transformed.temperature < temp.min!) {
-          console.log(`🌡️  Sampling: Limiting temperature from ${transformed.temperature} to ${temp.min}`);
+          logger.debug(`🌡️  Sampling: Limiting temperature from ${transformed.temperature} to ${temp.min}`);
           transformed.temperature = temp.min!;
           modified = true;
         } else if (transformed.temperature > temp.max!) {
-          console.log(`🌡️  Sampling: Limiting temperature from ${transformed.temperature} to ${temp.max}`);
+          logger.debug(`🌡️  Sampling: Limiting temperature from ${transformed.temperature} to ${temp.max}`);
           transformed.temperature = temp.max!;
           modified = true;
         }
@@ -92,17 +93,17 @@ export class SamplingTransformer extends BaseTransformer {
 
       if (this.options.enforceDefaults && topP.default !== undefined) {
         if (transformed.top_p !== topP.default) {
-          console.log(`🎯 Sampling: Enforcing top_p=${topP.default}`);
+          logger.debug(`🎯 Sampling: Enforcing top_p=${topP.default}`);
           transformed.top_p = topP.default;
           modified = true;
         }
       } else if (transformed.top_p !== undefined) {
         if (transformed.top_p < topP.min!) {
-          console.log(`🎯 Sampling: Limiting top_p from ${transformed.top_p} to ${topP.min}`);
+          logger.debug(`🎯 Sampling: Limiting top_p from ${transformed.top_p} to ${topP.min}`);
           transformed.top_p = topP.min!;
           modified = true;
         } else if (transformed.top_p > topP.max!) {
-          console.log(`🎯 Sampling: Limiting top_p from ${transformed.top_p} to ${topP.max}`);
+          logger.debug(`🎯 Sampling: Limiting top_p from ${transformed.top_p} to ${topP.max}`);
           transformed.top_p = topP.max!;
           modified = true;
         }
@@ -118,17 +119,17 @@ export class SamplingTransformer extends BaseTransformer {
 
       if (this.options.enforceDefaults && topK.default !== undefined) {
         if (transformed.top_k !== topK.default) {
-          console.log(`🔝 Sampling: Enforcing top_k=${topK.default}`);
+          logger.debug(`🔝 Sampling: Enforcing top_k=${topK.default}`);
           transformed.top_k = topK.default;
           modified = true;
         }
       } else if (transformed.top_k !== undefined) {
         if (transformed.top_k < topK.min!) {
-          console.log(`🔝 Sampling: Limiting top_k from ${transformed.top_k} to ${topK.min}`);
+          logger.debug(`🔝 Sampling: Limiting top_k from ${transformed.top_k} to ${topK.min}`);
           transformed.top_k = topK.min!;
           modified = true;
         } else if (transformed.top_k > topK.max!) {
-          console.log(`🔝 Sampling: Limiting top_k from ${transformed.top_k} to ${topK.max}`);
+          logger.debug(`🔝 Sampling: Limiting top_k from ${transformed.top_k} to ${topK.max}`);
           transformed.top_k = topK.max!;
           modified = true;
         }
@@ -139,7 +140,7 @@ export class SamplingTransformer extends BaseTransformer {
     }
 
     if (modified) {
-      console.log('📝 Sampling: Parameters adjusted');
+      logger.debug('📝 Sampling: Parameters adjusted');
     }
 
     return { body: transformed };

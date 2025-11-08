@@ -1,17 +1,19 @@
 /**
- * Unified API routes using Hono
- *  Hono  API
+ * 统一的 API 路由（使用 Hono 框架）
  */
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serveStatic } from 'hono/bun';
+import { z } from 'zod';
 import type { Database } from '../db/database';
 import type { ProxyEngine } from '../core/proxy';
 import type { LoadBalancer } from '../core/loadbalancer';
 import type { SmartRouter } from '../core/routing/smart-router';
 import type { TransformerManager } from '../transformers';
 import type { CacheWarmer } from '../core/cache-warmer';
+import type { OAuthService } from '../auth/oauth';
+import type { ChannelType } from '../types';
 import {
   ValidationError,
   NotFoundError,
@@ -23,12 +25,30 @@ import {
 import { createRoutingAPI } from './routing';
 import { createTransformersAPI } from './transformers';
 import { ChannelTester } from '../services/channel-tester';
-import { logRequest, logChannelOperation, logError } from '../utils/logger';
+import { logRequest, logChannelOperation, logError, logger } from '../utils/logger';
 import { providerRegistry } from '../providers';
 import { metrics } from '../core/metrics';
 import { getPrometheusMetricsResponse } from '../core/prometheus';
 import { tracer } from '../core/tracing';
 import { i18n } from '../i18n';
+import { ConfigManager } from '../config/config';
+import { HTTP_STATUS, STATIC_CACHE_MAX_AGE, DEFAULT_QUERY_LIMIT, CHANNEL_PRIORITY, APP_INFO, ENDPOINTS } from '../core/constants';
+import { validateBody, validateQuery, validateParams } from '../middleware/validation';
+import {
+  createChannelSchema,
+  updateChannelSchema,
+  idParamSchema,
+  requestLogQuerySchema,
+  updateStrategySchema,
+  createTeeDestinationSchema,
+  updateTeeDestinationSchema,
+  updateLocaleSchema,
+  updateLogLevelSchema,
+  cacheInvalidationSchema,
+  tracingCleanupSchema,
+  channelImportSchema,
+  configSaveSchema,
+} from '../schemas';
 
 export function createAPI(
   db: Database,
@@ -37,61 +57,133 @@ export function createAPI(
   smartRouter?: SmartRouter,
   transformerManager?: TransformerManager,
   cacheWarmer?: CacheWarmer,
+  oauthService?: OAuthService,
 ): Hono {
   const app = new Hono;
   const channelTester = new ChannelTester;
 
-  //// CORS middleware / CORS
-  app.use('/*', cors);
+  // CORS 中间件 - 使用配置的白名单
+  const config = ConfigManager.getInstance().getConfig();
+  if (config.server.cors.enabled) {
+    const corsOrigins = config.server.cors.origins;
+    app.use('/*', cors({
+      origin: corsOrigins.includes('*') ? '*' : corsOrigins,
+      credentials: true,
+    }));
+  }
 
-  //// Static file middleware with caching
-  // Cache static assets for 1 hour in production
+  // 请求 ID 中间件 - 为所有请求添加或生成 requestId
+  app.use('/*', async (c, next) => {
+    // 从 header 获取或生成新的 requestId
+    const requestId = c.req.header('x-request-id') || crypto.randomUUID();
+
+    // 设置到 context 中供后续使用
+    c.set('requestId', requestId);
+
+    // 添加到响应 header
+    c.header('x-request-id', requestId);
+
+    await next();
+  });
+
+  // ============================================================================
+  // 速率限制中间件（全局）
+  // Rate Limiting Middleware (Global)
+  // ============================================================================
+
+  // 从环境变量读取配置，默认启用
+  const rateLimitEnabled = process.env.RATE_LIMIT_ENABLED !== 'false';
+  const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
+  const rateLimitWindow = Number(process.env.RATE_LIMIT_WINDOW) || 60000; // 1 分钟
+
+  if (rateLimitEnabled) {
+    const { createRateLimiter } = await import('../middleware/rate-limit');
+
+    const rateLimiter = createRateLimiter({
+      windowMs: rateLimitWindow,
+      max: rateLimitMax,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: 'Too many requests from this IP, please try again later.',
+    });
+
+    // 对所有 API 路由应用速率限制（排除静态文件和健康检查）
+    app.use('/api/*', rateLimiter);
+    app.use('/v1/*', rateLimiter);
+
+    logger.info('🛡️  Rate limiting enabled', {
+      max: rateLimitMax,
+      window: `${rateLimitWindow}ms`,
+    });
+  }
+
+  // 静态文件中间件（带缓存）
+  // 生产环境中缓存静态资源 1 小时
   const isProduction = process.env.NODE_ENV === 'production';
-  const cacheMaxAge = isProduction ? 3600 : 0;
+  const cacheMaxAge = isProduction ? STATIC_CACHE_MAX_AGE : 0;
 
-  //// Serve dashboard static assets with caching
-  app.get('/dashboard/assets/*', async (c, next) => {
-    const response = await serveStatic({ root: './public' })(c, next);
+  // 提供仪表板静态文件
+  const dashboardPath = './public/dashboard';
 
-    if (response && isProduction) {
-      // Add cache headers for production
-      response.headers.set('Cache-Control', `public, max-age=${cacheMaxAge}`);
+  // 提供仪表板资源文件
+  app.get('/dashboard/assets/*', async (c) => {
+    const filePath = c.req.path.replace('/dashboard', dashboardPath);
+    const file = Bun.file(filePath);
 
-      // Add ETag support
-      const etag = c.req.header('if-none-match');
-      if (etag) {
-        return new Response(null, { status: 304 });
-      }
+    if (await file.exists()) {
+      return new Response(file, {
+        headers: {
+          'Content-Type': file.type,
+          'Cache-Control': isProduction ? `public, max-age=${cacheMaxAge}` : 'no-cache',
+        },
+      });
     }
 
-    return response;
+    return c.notFound();
   });
 
-  //// Serve dashboards
-  // Enhanced dashboard with CRUD operations
-  app.get('/dashboard/enhanced', serveStatic({ path: './public/dashboard-enhanced.html' }));
+  // 提供仪表板 HTML
+  app.get('/dashboard', async (c) => {
+    const file = Bun.file(`${dashboardPath}/index.html`);
+    if (await file.exists()) {
+      return new Response(file, {
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+    return c.notFound();
+  });
 
-  // Standard dashboard (read-only)
-  app.get('/dashboard', serveStatic({ path: './public/index.html' }));
-  app.get('/dashboard/*', serveStatic({ root: './public' }));
+  app.get('/dashboard/', async (c) => {
+    const file = Bun.file(`${dashboardPath}/index.html`);
+    if (await file.exists()) {
+      return new Response(file, {
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+    return c.notFound();
+  });
 
-  //// Root endpoint - Redirect to enhanced dashboard
+  // 根端点 - 重定向到仪表板
   app.get('/', (c) => {
-    return c.redirect('/dashboard/enhanced');
+    return c.redirect('/dashboard/');
   });
 
-  //// API info endpoint
+  // API 信息端点
   app.get('/api', (c) => {
-    const channels = db.getChannels;
+    const channels = db.getChannels();
     const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
-    const routingRules = db.getEnabledRoutingRules;
+    const routingRules = db.getEnabledRoutingRules();
 
     return c.json({
-      name: 'Routex',
-      version: '1.1.0-beta',
-      description: 'Next-generation AI API router and load balancer',
+      name: APP_INFO.NAME,
+      version: APP_INFO.VERSION,
+      description: APP_INFO.DESCRIPTION,
       status: 'running',
-      uptime: process.uptime,
+      uptime: process.uptime(),
       stats: {
         totalChannels: channels.length,
         enabledChannels: enabledChannels.length,
@@ -99,62 +191,70 @@ export function createAPI(
         transformers: transformerManager ? transformerManager.list.length : 0,
       },
       loadBalancer: {
-        strategy: loadBalancer.getStrategy,
-        cacheStats: loadBalancer.getCacheStats,
+        strategy: loadBalancer.getStrategy(),
+        cacheStats: loadBalancer.getCacheStats(),
       },
       endpoints: {
-        health: '/health',
-        api: '/api',
-        proxy: '/v1/messages',
-        channels: '/api/channels',
-        routing: '/api/routing/rules',
-        analytics: '/api/analytics',
+        health: ENDPOINTS.HEALTH,
+        api: ENDPOINTS.API,
+        proxy: ENDPOINTS.PROXY,
+        channels: ENDPOINTS.CHANNELS,
+        routing: ENDPOINTS.ROUTING,
+        analytics: ENDPOINTS.ANALYTICS,
       },
-      documentation: 'https://github.com/dctx-team/Routex',
-      timestamp: new Date.toISOString,
+      documentation: APP_INFO.DOCUMENTATION,
+      timestamp: new Date().toISOString(),
     });
   });
 
-  //// Health check - Basic
+  // 健康检查 - 基础版
   app.get('/health', (c) => {
     return c.json({
       status: 'healthy',
-      version: '1.1.0-beta',
-      uptime: process.uptime,
-      timestamp: new Date.toISOString,
+      version: APP_INFO.VERSION,
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
     });
   });
 
-  //// Health check - Detailed
+  // 健康检查 - 详细版
   app.get('/health/detailed', async (c) => {
-    const channels = db.getChannels;
+    const channels = db.getChannels();
     const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
-    const routingRules = db.getEnabledRoutingRules;
+    const routingRules = db.getEnabledRoutingRules();
 
-    // Memory usage
-    const memUsage = process.memoryUsage;
+    // 内存使用情况
+    const memUsage = process.memoryUsage();
 
-    // Check if any channels are configured and enabled
+    // 检查数据库连接
+    const dbConnected = db.isConnected();
+
+    // 检查是否有已配置且启用的频道
     const hasChannels = channels.length > 0;
     const hasEnabledChannels = enabledChannels.length > 0;
 
-    // Determine overall health status
+    // 确定总体健康状态
     let status = 'healthy';
-    const issues: string = ;
+    const issues: string[] = [];
+
+    if (!dbConnected) {
+      status = 'unhealthy';
+      issues.push('Database connection failed');
+    }
 
     if (!hasChannels) {
-      status = 'degraded';
+      status = status === 'unhealthy' ? 'unhealthy' : 'degraded';
       issues.push('No channels configured');
     } else if (!hasEnabledChannels) {
-      status = 'degraded';
+      status = status === 'unhealthy' ? 'unhealthy' : 'degraded';
       issues.push('No enabled channels');
     }
 
     return c.json({
       status,
-      version: '1.1.0-beta',
-      uptime: process.uptime,
-      timestamp: new Date.toISOString,
+      version: APP_INFO.VERSION,
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
       system: {
         platform: process.platform,
         nodeVersion: process.version,
@@ -166,6 +266,9 @@ export function createAPI(
           external: `${Math.round(memUsage.external / 1024 / 1024)}MB`,
         },
       },
+      database: {
+        connected: dbConnected,
+      },
       channels: {
         total: channels.length,
         enabled: enabledChannels.length,
@@ -176,28 +279,28 @@ export function createAPI(
         transformers: transformerManager ? transformerManager.list.length : 0,
       },
       loadBalancer: {
-        strategy: loadBalancer.getStrategy,
-        cacheSize: loadBalancer.getCacheStats.size,
+        strategy: loadBalancer.getStrategy(),
+        cacheSize: loadBalancer.getCacheStats().size,
       },
       issues: issues.length > 0 ? issues : undefined,
     });
   });
 
-  //// Health check - Live (for Kubernetes liveness probe)
+  // 健康检查 - 存活探测（用于 Kubernetes liveness probe）
   app.get('/health/live', (c) => {
-    // Check if the process is responsive
+    // 检查进程是否响应
     return c.json({
       status: 'alive',
-      timestamp: new Date.toISOString,
+      timestamp: new Date().toISOString(),
     });
   });
 
-  //// Health check - Ready (for Kubernetes readiness probe)
+  // 健康检查 - 就绪探测（用于 Kubernetes readiness probe）
   app.get('/health/ready', (c) => {
-    const channels = db.getChannels;
+    const channels = db.getChannels();
     const enabledChannels = channels.filter((ch) => ch.status === 'enabled');
 
-    // Check if the service is ready to handle traffic
+    // 检查服务是否准备好处理流量
     const isReady = enabledChannels.length > 0;
 
     if (!isReady) {
@@ -205,32 +308,32 @@ export function createAPI(
         {
           status: 'not_ready',
           reason: 'No enabled channels available',
-          timestamp: new Date.toISOString,
+          timestamp: new Date().toISOString(),
         },
-        503,
+        HTTP_STATUS.SERVICE_UNAVAILABLE,
       );
     }
 
     return c.json({
       status: 'ready',
       enabledChannels: enabledChannels.length,
-      timestamp: new Date.toISOString,
+      timestamp: new Date().toISOString(),
     });
   });
 
   // ============================================================================
-  //// Channel API /  API
+  // 频道 API
   // ============================================================================
 
-  //// List channels
+  // 列出所有频道
   app.get('/api/channels', (c) => {
-    const channels = db.getChannels;
+    const channels = db.getChannels();
     return c.json({ success: true, data: channels });
   });
 
-  //// Get channel
-  app.get('/api/channels/:id', (c) => {
-    const id = c.req.param('id');
+  // 获取单个频道
+  app.get('/api/channels/:id', validateParams(idParamSchema), (c) => {
+    const { id } = c.get('validatedParams');
     const channel = db.getChannel(id);
 
     if (!channel) {
@@ -240,14 +343,9 @@ export function createAPI(
     return c.json({ success: true, data: channel });
   });
 
-  //// Create channel
-  app.post('/api/channels', async (c) => {
-    const body = await c.req.json;
-
-    //// Validate required fields
-    if (!body.name || !body.type || !body.models || body.models.length === 0) {
-      throw new ValidationError('Missing required fields: name, type, models');
-    }
+  // 创建频道
+  app.post('/api/channels', validateBody(createChannelSchema), async (c) => {
+    const body = c.get('validatedBody');
 
     const channel = db.createChannel({
       name: body.name,
@@ -264,13 +362,14 @@ export function createAPI(
       models: channel.models.length,
     });
 
-    return c.json({ success: true, data: channel }, 201);
+    c.status(HTTP_STATUS.CREATED);
+    return c.json({ success: true, data: channel });
   });
 
-  //// Update channel
-  app.put('/api/channels/:id', async (c) => {
-    const id = c.req.param('id');
-    const body = await c.req.json;
+  // 更新频道
+  app.put('/api/channels/:id', validateParams(idParamSchema), validateBody(updateChannelSchema), async (c) => {
+    const { id } = c.get('validatedParams');
+    const body = c.get('validatedBody');
 
     const channel = db.updateChannel(id, body);
 
@@ -282,9 +381,9 @@ export function createAPI(
     return c.json({ success: true, data: channel });
   });
 
-  //// Delete channel
-  app.delete('/api/channels/:id', (c) => {
-    const id = c.req.param('id');
+  // 删除频道
+  app.delete('/api/channels/:id', validateParams(idParamSchema), (c) => {
+    const { id } = c.get('validatedParams');
     const channel = db.getChannel(id);
     const deleted = db.deleteChannel(id);
 
@@ -299,12 +398,12 @@ export function createAPI(
     return c.json({ success: true, message: 'Channel deleted' });
   });
 
-  //// Export channels
+  // 导出频道配置
   app.get('/api/channels/export', (c) => {
-    const channels = db.getChannels;
+    const channels = db.getChannels();
     return c.json({
       version: '1.0',
-      exportedAt: new Date.toISOString,
+      exportedAt: new Date().toISOString(),
       channels: channels.map((ch) => ({
         name: ch.name,
         type: ch.type,
@@ -316,24 +415,19 @@ export function createAPI(
     });
   });
 
-  //// Import channels
-  app.post('/api/channels/import', async (c) => {
-    const body = await c.req.json;
-    const { channels, replaceExisting } = body;
-
-    if (!Array.isArray(channels)) {
-      throw new ValidationError('Invalid import format');
-    }
+  // 导入频道配置
+  app.post('/api/channels/import', validateBody(channelImportSchema), async (c) => {
+    const { channels, replaceExisting } = c.get('validatedBody');
 
     const results = {
       imported: 0,
       skipped: 0,
-      errors:  as string,
+      errors: [] as string[],
     };
 
     for (const channelData of channels) {
       try {
-        const existing = db.getChannels.find((ch) => ch.name === channelData.name);
+        const existing = db.getChannels().find((ch) => ch.name === channelData.name);
 
         if (existing && !replaceExisting) {
           results.skipped++;
@@ -366,12 +460,12 @@ export function createAPI(
   });
 
   // ============================================================================
-  //// Channel Testing API /  API
+  // 频道测试 API
   // ============================================================================
 
-  //// Test a single channel
-  app.post('/api/channels/:id/test', async (c) => {
-    const id = c.req.param('id');
+  // 测试单个频道
+  app.post('/api/channels/:id/test', validateParams(idParamSchema), async (c) => {
+    const { id } = c.get('validatedParams');
     const channel = db.getChannel(id);
 
     if (!channel) {
@@ -382,9 +476,9 @@ export function createAPI(
     return c.json({ success: true, data: result });
   });
 
-  //// Test all channels
+  // 测试所有频道
   app.post('/api/channels/test/all', async (c) => {
-    const channels = db.getChannels;
+    const channels = db.getChannels();
     const results = await channelTester.testChannels(channels);
     const summary = channelTester.getTestSummary(results);
 
@@ -397,9 +491,9 @@ export function createAPI(
     });
   });
 
-  //// Test enabled channels only
+  // 仅测试已启用的频道
   app.post('/api/channels/test/enabled', async (c) => {
-    const channels = db.getChannels.filter((ch) => ch.status === 'enabled');
+    const channels = db.getChannels().filter((ch) => ch.status === 'enabled');
     const results = await channelTester.testChannels(channels);
     const summary = channelTester.getTestSummary(results);
 
@@ -413,46 +507,95 @@ export function createAPI(
   });
 
   // ============================================================================
-  //// Request Logs API /  API
+  // 请求日志 API
   // ============================================================================
 
-  //// List requests
-  app.get('/api/requests', (c) => {
-    const limit = Number(c.req.query('limit') || '100');
-    const offset = Number(c.req.query('offset') || '0');
+  // 列出请求记录（增强版 + 过滤器 + 分页）
+  app.get('/api/requests', validateQuery(requestLogQuerySchema), (c) => {
+    const query = c.get('validatedQuery');
 
-    const requests = db.getRequests(limit, offset);
-    return c.json({ success: true, data: requests });
+    const { rows, total } = db.getRequestsFiltered(query);
+
+    const channels = db.getChannels();
+    const channelMap = new Map(channels.map((ch) => [ch.id, ch.name]));
+
+    const data = rows.map((r) => {
+      const input = r.inputTokens || 0;
+      const output = r.outputTokens || 0;
+      const cached = r.cachedTokens || 0;
+      const cost = (input / 1_000_000) * 3.0 + (output / 1_000_000) * 15.0 + (cached / 1_000_000) * 0.3;
+      return {
+        id: r.id,
+        timestamp: r.timestamp,
+        method: r.method,
+        path: r.path,
+        channelId: r.channelId,
+        channelName: channelMap.get(r.channelId) || r.channelId,
+        model: r.model,
+        status: r.statusCode,
+        latency: r.latency,
+        inputTokens: r.inputTokens,
+        outputTokens: r.outputTokens,
+        cost,
+        error: r.error,
+        traceId: r.traceId,
+      };
+    });
+    return c.json({ success: true, data, meta: { total, limit, offset, timestamp: new Date().toISOString() } });
   });
 
-  //// Get requests by channel
-  app.get('/api/requests/channel/:channelId', (c) => {
-    const channelId = c.req.param('channelId');
-    const limit = Number(c.req.query('limit') || '100');
+  // 按频道获取请求记录（为仪表板增强）
+  app.get('/api/requests/channel/:channelId', validateParams(idParamSchema), (c) => {
+    const { id: channelId } = c.get('validatedParams');
+    const limit = Number(c.req.query('limit') || String(DEFAULT_QUERY_LIMIT));
 
     const requests = db.getRequestsByChannel(channelId, limit);
-    return c.json({ success: true, data: requests });
+    const channel = db.getChannel(channelId);
+
+    const data = requests.map((r) => {
+      const input = r.inputTokens || 0;
+      const output = r.outputTokens || 0;
+      const cached = r.cachedTokens || 0;
+      const cost = (input / 1_000_000) * 3.0 + (output / 1_000_000) * 15.0 + (cached / 1_000_000) * 0.3;
+      return {
+        id: r.id,
+        timestamp: r.timestamp,
+        method: r.method,
+        path: r.path,
+        channelId: r.channelId,
+        channelName: channel?.name || r.channelId,
+        model: r.model,
+        status: r.statusCode,
+        latency: r.latency,
+        inputTokens: r.inputTokens,
+        outputTokens: r.outputTokens,
+        cost,
+        error: r.error,
+      };
+    });
+
+    return c.json({ success: true, data });
   });
 
   // ============================================================================
-  //// Analytics API /  API
+  // 分析统计 API
   // ============================================================================
 
-  //// Get analytics
+  // 获取分析数据
   app.get('/api/analytics', (c) => {
-    const analytics = db.getAnalytics;
+    const analytics = db.getAnalytics();
     return c.json({ success: true, data: analytics });
   });
 
   // ============================================================================
-  // Routing API
+  // 路由规则 API
   // ============================================================================
 
   const routingAPI = createRoutingAPI(db, smartRouter);
   app.route('/api/routing', routingAPI);
 
   // ============================================================================
-  // Transformers API / Transformers API
+  // 转换器 API
   // ============================================================================
 
   if (transformerManager) {
@@ -461,18 +604,18 @@ export function createAPI(
   }
 
   // ============================================================================
-  //// Providers API /  API
+  // 提供商 API
   // ============================================================================
 
-  //// Get all providers info
+  // 获取所有提供商信息
   app.get('/api/providers', (c) => {
-    const providers = providerRegistry.getAllProvidersInfo;
+    const providers = providerRegistry.getAllProvidersInfo();
     return c.json({ success: true, data: providers });
   });
 
-  //// Get specific provider info
-  app.get('/api/providers/:type', (c) => {
-    const type = c.req.param('type') as any;
+  // 获取特定提供商信息
+  app.get('/api/providers/:type', validateParams(z.object({ type: z.string() })), (c) => {
+    const type = c.req.param('type') as ChannelType;
     const provider = providerRegistry.getProviderInfo(type);
 
     if (!provider) {
@@ -483,59 +626,49 @@ export function createAPI(
   });
 
   // ============================================================================
-  //// Load Balancer API /  API
+  // 负载均衡器 API
   // ============================================================================
 
-  //// Get current strategy
+  // 获取当前策略
   app.get('/api/load-balancer/strategy', (c) => {
-    const strategy = loadBalancer.getStrategy;
+    const strategy = loadBalancer.getStrategy();
     return c.json({ success: true, data: { strategy } });
   });
 
-  //// Update strategy
-  app.put('/api/load-balancer/strategy', async (c) => {
-    const body = await c.req.json;
-    const { strategy } = body;
-
-    if (!strategy || !['priority', 'round_robin', 'weighted', 'least_used'].includes(strategy)) {
-      throw new ValidationError('Invalid strategy');
-    }
+  // 更新策略
+  app.put('/api/load-balancer/strategy', validateBody(updateStrategySchema), async (c) => {
+    const { strategy } = c.get('validatedBody');
 
     loadBalancer.setStrategy(strategy);
     return c.json({ success: true, data: { strategy } });
   });
 
-  //// Shortcut endpoints for strategy (for dashboard compatibility)
+  // 策略快捷端点（用于仪表板兼容性）
   app.get('/api/strategy', (c) => {
-    const strategy = loadBalancer.getStrategy;
+    const strategy = loadBalancer.getStrategy();
     return c.json({ success: true, data: { strategy } });
   });
 
-  app.put('/api/strategy', async (c) => {
-    const body = await c.req.json;
-    const { strategy } = body;
-
-    if (!strategy || !['priority', 'round_robin', 'weighted', 'least_used'].includes(strategy)) {
-      throw new ValidationError('Invalid strategy');
-    }
+  app.put('/api/strategy', validateBody(updateStrategySchema), async (c) => {
+    const { strategy } = c.get('validatedBody');
 
     loadBalancer.setStrategy(strategy);
     return c.json({ success: true, data: { strategy } });
   });
 
   // ============================================================================
-  //// Tee Destinations API
+  // Tee 目标 API
   // ============================================================================
 
-  //// List tee destinations
+  // 列出所有 tee 目标
   app.get('/api/tee', (c) => {
-    const destinations = db.getTeeDestinations;
+    const destinations = db.getTeeDestinations();
     return c.json({ success: true, data: destinations });
   });
 
-  //// Get tee destination
-  app.get('/api/tee/:id', (c) => {
-    const id = c.req.param('id');
+  // 获取 tee 目标
+  app.get('/api/tee/:id', validateParams(idParamSchema), (c) => {
+    const { id } = c.get('validatedParams');
     const destination = db.getTeeDestination(id);
 
     if (!destination) {
@@ -545,112 +678,87 @@ export function createAPI(
     return c.json({ success: true, data: destination });
   });
 
-  //// Create tee destination
-  app.post('/api/tee', async (c) => {
-    const body = await c.req.json;
+  // 创建 tee 目标
+  app.post('/api/tee', validateBody(createTeeDestinationSchema), async (c) => {
+    const body = c.get('validatedBody');
 
-    //// Validate required fields
-    validateRequired(body, ['name', 'type']);
-    validateTypes(body, {
-      name: 'string',
-      type: 'string',
-      enabled: 'boolean',
-      url: 'string',
-      method: 'string',
-      filePath: 'string',
-      customHandler: 'string',
-      retries: 'number',
-      timeout: 'number',
-    });
+    const destination = db.createTeeDestination(body);
 
-    const destination = db.createTeeDestination({
-      name: body.name,
-      type: body.type,
-      enabled: body.enabled,
-      url: body.url,
-      headers: body.headers,
-      method: body.method,
-      filePath: body.filePath,
-      customHandler: body.customHandler,
-      filter: body.filter,
-      retries: body.retries,
-      timeout: body.timeout,
-    });
+    // 更新代理引擎的 tee 目标
+    proxy.updateTeeDestinations();
 
-    // Update proxy engine's tee destinations
-    proxy.updateTeeDestinations;
-
-    return c.json({ success: true, data: destination }, 201);
+    c.status(HTTP_STATUS.CREATED);
+    return c.json({ success: true, data: destination });
   });
 
-  //// Update tee destination
-  app.put('/api/tee/:id', async (c) => {
-    const id = c.req.param('id');
-    const body = await c.req.json;
+  // 更新 tee 目标
+  app.put('/api/tee/:id', validateParams(idParamSchema), validateBody(updateTeeDestinationSchema), async (c) => {
+    const { id } = c.get('validatedParams');
+    const body = c.get('validatedBody');
 
     const destination = db.updateTeeDestination(id, body);
 
-    // Update proxy engine's tee destinations
-    proxy.updateTeeDestinations;
+    // 更新代理引擎的 tee 目标
+    proxy.updateTeeDestinations();
 
     return c.json({ success: true, data: destination });
   });
 
-  //// Delete tee destination
-  app.delete('/api/tee/:id', (c) => {
-    const id = c.req.param('id');
+  // 删除 tee 目标
+  app.delete('/api/tee/:id', validateParams(idParamSchema), (c) => {
+    const { id } = c.get('validatedParams');
     const deleted = db.deleteTeeDestination(id);
 
     if (!deleted) {
       throw new NotFoundError(`Tee destination ${id} not found`);
     }
 
-    // Update proxy engine's tee destinations
-    proxy.updateTeeDestinations;
+    // 更新代理引擎的 tee 目标
+    proxy.updateTeeDestinations();
 
     return c.json({ success: true, message: 'Tee destination deleted' });
   });
 
   // ============================================================================
-  //// Metrics API
+  // 指标统计 API
   // ============================================================================
 
-  //// Get metrics summary
+  // 获取指标摘要
   app.get('/api/metrics', (c) => {
-    const summary = metrics.getSummary;
+    const summary = metrics.getSummary();
     return c.json({ success: true, data: summary });
   });
 
-  //// Get all metrics (detailed)
+  // 获取所有指标（详细版）
   app.get('/api/metrics/all', (c) => {
-    const allMetrics = metrics.getAllMetrics;
+    const allMetrics = metrics.getAllMetrics();
     return c.json({ success: true, data: allMetrics });
   });
 
-  //// Reset metrics
+  // 重置指标
   app.post('/api/metrics/reset', (c) => {
-    metrics.reset;
+    metrics.reset();
     return c.json({ success: true, message: 'Metrics reset' });
   });
 
-  //// Prometheus metrics endpoint
-  app.get('/metrics', (c) => {
-    return getPrometheusMetricsResponse;
+  // Prometheus 指标端点
+  app.get('/metrics', () => {
+    return getPrometheusMetricsResponse();
   });
 
   // ============================================================================
-  //// Tracing API
+  // 追踪 API
   // ============================================================================
 
-  //// Get tracing statistics
+  // 获取追踪统计信息
   app.get('/api/tracing/stats', (c) => {
-    const stats = tracer.getStats;
+    const stats = tracer.getStats();
     return c.json({ success: true, data: stats });
   });
 
-  //// Get trace details by ID
-  app.get('/api/tracing/traces/:traceId', (c) => {
-    const traceId = c.req.param('traceId');
+  // 根据 ID 获取追踪详情
+  app.get('/api/tracing/traces/:traceId', validateParams(idParamSchema), (c) => {
+    const { id: traceId } = c.get('validatedParams');
     const spans = tracer.getTraceSpans(traceId);
 
     if (spans.length === 0) {
@@ -660,9 +768,9 @@ export function createAPI(
     return c.json({ success: true, data: { traceId, spans } });
   });
 
-  //// Get specific span
-  app.get('/api/tracing/spans/:spanId', (c) => {
-    const spanId = c.req.param('spanId');
+  // 获取特定 span
+  app.get('/api/tracing/spans/:spanId', validateParams(idParamSchema), (c) => {
+    const { id: spanId } = c.get('validatedParams');
     const span = tracer.getSpan(spanId);
 
     if (!span) {
@@ -672,44 +780,38 @@ export function createAPI(
     return c.json({ success: true, data: span });
   });
 
-  //// Clear old spans
-  app.post('/api/tracing/clear', async (c) => {
-    const body = await c.req.json.catch( => ({}));
-    const olderThanMs = body.olderThanMs || 3600000; // Default 1 hour
+  // 清除旧的 span
+  app.post('/api/tracing/clear', validateBody(tracingCleanupSchema), async (c) => {
+    const { olderThanMs } = c.get('validatedBody');
 
     const removedCount = tracer.clearOldSpans(olderThanMs);
 
     return c.json({
       success: true,
-      data: { removedCount, remainingSpans: tracer.getStats.totalSpans },
+      data: { removedCount, remainingSpans: tracer.getStats().totalSpans },
     });
   });
 
   // ============================================================================
-  //// i18n API
+  // 国际化 API
   // ============================================================================
 
-  //// Get current locale
+  // 获取当前语言环境
   app.get('/api/i18n/locale', (c) => {
     return c.json({
       success: true,
       data: {
-        locale: i18n.getLocale,
+        locale: i18n.getLocale(),
         available: ['en', 'zh-CN'],
       },
     });
   });
 
-  //// Set locale
-  app.put('/api/i18n/locale', async (c) => {
-    const body = await c.req.json;
-    const { locale } = body;
+  // 设置语言环境
+  app.put('/api/i18n/locale', validateBody(updateLocaleSchema), async (c) => {
+    const { locale } = c.get('validatedBody');
 
-    if (!locale || !['en', 'zh-CN'].includes(locale)) {
-      throw new ValidationError('Invalid locale. Must be one of: en, zh-CN');
-    }
-
-    i18n.setLocale(locale as 'en' | 'zh-CN');
+    i18n.setLocale(locale);
 
     return c.json({
       success: true,
@@ -718,46 +820,171 @@ export function createAPI(
   });
 
   // ============================================================================
-  //// Cache Warmer API /  API
+  // 日志配置 API
+  // ============================================================================
+
+  // 获取当前日志配置
+  app.get('/api/logging/config', async (c) => {
+    const { getLogConfig } = await import('../utils/logger');
+    const config = getLogConfig();
+    return c.json({ success: true, data: config });
+  });
+
+  // 为特定模块设置日志级别
+  app.put('/api/logging/modules/:moduleName/level', validateBody(updateLogLevelSchema), async (c) => {
+    const moduleName = c.req.param('moduleName');
+    const { level } = c.get('validatedBody');
+
+    const { setModuleLogLevel } = await import('../utils/logger');
+    setModuleLogLevel(moduleName, level);
+
+    return c.json({
+      success: true,
+      data: { moduleName, level },
+      message: `Log level for module '${moduleName}' set to '${level}'`,
+    });
+  });
+
+  // ============================================================================
+  // 配置管理 API
+  // ============================================================================
+
+  // 获取当前配置
+  app.get('/api/config', async (c) => {
+    const { ConfigManager } = await import('../config/config');
+    const configManager = ConfigManager.getInstance();
+    const config = configManager.getConfig();
+
+    return c.json({ success: true, data: config });
+  });
+
+  // 获取配置文件路径
+  app.get('/api/config/path', async (c) => {
+    const { ConfigManager } = await import('../config/config');
+    const configManager = ConfigManager.getInstance();
+    const path = configManager.getConfigFilePath();
+
+    return c.json({
+      success: true,
+      data: { path: path || null }
+    });
+  });
+
+  // 运行时更新配置
+  app.put('/api/config', async (c) => {
+    const body = await c.req.json();
+    const { ConfigManager, ConfigValidationError } = await import('../config/config');
+    const configManager = ConfigManager.getInstance();
+
+    try {
+      configManager.updateConfig(body);
+      return c.json({
+        success: true,
+        data: configManager.getConfig(),
+        message: 'Configuration updated successfully'
+      });
+    } catch (error) {
+      if (error instanceof ConfigValidationError) {
+        throw new ValidationError(error.message);
+      }
+      throw error;
+    }
+  });
+
+  // 从文件重新加载配置
+  app.post('/api/config/reload', async (c) => {
+    const { ConfigManager } = await import('../config/config');
+    const configManager = ConfigManager.getInstance();
+
+    try {
+      configManager.reloadConfig();
+      return c.json({
+        success: true,
+        data: configManager.getConfig(),
+        message: 'Configuration reloaded successfully'
+      });
+    } catch (error) {
+      throw new ValidationError(
+        error instanceof Error ? error.message : 'Failed to reload configuration'
+      );
+    }
+  });
+
+  // 保存配置到文件
+  app.post('/api/config/save', validateBody(configSaveSchema), async (c) => {
+    const { path } = c.get('validatedBody');
+
+    const { ConfigManager } = await import('../config/config');
+    const configManager = ConfigManager.getInstance();
+
+    try {
+      configManager.saveConfig(path);
+      return c.json({
+        success: true,
+        data: { path: configManager.getConfigFilePath() },
+        message: 'Configuration saved successfully'
+      });
+    } catch (error) {
+      throw new ValidationError(
+        error instanceof Error ? error.message : 'Failed to save configuration'
+      );
+    }
+  });
+
+  // 导出配置为 JSON
+  app.get('/api/config/export', async (c) => {
+    const { ConfigManager } = await import('../config/config');
+    const configManager = ConfigManager.getInstance();
+    const configJson = configManager.exportConfig();
+
+    return new Response(configJson, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Disposition': `attachment; filename="routex-config-${Date.now()}.json"`,
+      },
+    });
+  });
+
+  // ============================================================================
+  // 缓存预热 API
   // ============================================================================
 
   if (cacheWarmer) {
-    //// Get cache warmer stats
+    // 获取缓存预热统计
     app.get('/api/cache/stats', (c) => {
-      const stats = cacheWarmer.getStats;
+      const stats = cacheWarmer.getStats();
       return c.json({ success: true, data: stats });
     });
 
-    //// Get cache warmer config
+    // 获取缓存预热配置
     app.get('/api/cache/config', (c) => {
-      const config = cacheWarmer.getConfig;
+      const config = cacheWarmer.getConfig();
       return c.json({ success: true, data: config });
     });
 
-    //// Update cache warmer config
+    // 更新缓存预热配置
     app.put('/api/cache/config', async (c) => {
-      const body = await c.req.json;
+      const body = await c.req.json();
       cacheWarmer.updateConfig(body);
-      return c.json({ success: true, data: cacheWarmer.getConfig });
+      return c.json({ success: true, data: cacheWarmer.getConfig() });
     });
 
-    //// Manually warm cache
+    // 手动预热缓存
     app.post('/api/cache/warm', async (c) => {
-      const body = await c.req.json.catch( => ({}));
+      const body = await c.req.json().catch(() => ({}));
       const items = body.items;
 
       await cacheWarmer.warmCache(items);
 
       return c.json({
         success: true,
-        data: cacheWarmer.getStats,
+        data: cacheWarmer.getStats(),
       });
     });
 
-    //// Invalidate cache
-    app.post('/api/cache/invalidate', async (c) => {
-      const body = await c.req.json.catch( => ({}));
-      const type = body.type;
+    // 使缓存失效
+    app.post('/api/cache/invalidate', validateBody(cacheInvalidationSchema), async (c) => {
+      const { type } = c.get('validatedBody');
 
       cacheWarmer.invalidateCache(type);
 
@@ -767,22 +994,21 @@ export function createAPI(
       });
     });
 
-    //// Invalidate and warm cache
-    app.post('/api/cache/invalidate-and-warm', async (c) => {
-      const body = await c.req.json.catch( => ({}));
-      const type = body.type;
+    // 使缓存失效并重新预热
+    app.post('/api/cache/invalidate-and-warm', validateBody(cacheInvalidationSchema), async (c) => {
+      const { type } = c.get('validatedBody');
 
       await cacheWarmer.invalidateAndWarm(type);
 
       return c.json({
         success: true,
-        data: cacheWarmer.getStats,
+        data: cacheWarmer.getStats(),
       });
     });
 
-    //// Reset cache warmer stats
+    // 重置缓存预热统计
     app.post('/api/cache/reset-stats', (c) => {
-      cacheWarmer.resetStats;
+      cacheWarmer.resetStats();
       return c.json({
         success: true,
         message: 'Cache warmer stats reset',
@@ -791,62 +1017,282 @@ export function createAPI(
   }
 
   // ============================================================================
-  //// Proxy Endpoint
+  // 数据库性能 API
   // ============================================================================
 
-  //// Forward all /v1/* requests to proxy /  /v1/*
+  // 获取数据库缓存统计和性能指标
+  app.get('/api/database/cache/stats', (c) => {
+    const stats = db.getCacheStats();
+    return c.json({ success: true, data: stats });
+  });
+
+  // 重置数据库性能指标
+  app.post('/api/database/performance/reset', (c) => {
+    db.resetPerformanceMetrics();
+    return c.json({
+      success: true,
+      message: 'Database performance metrics reset',
+    });
+  });
+
+  // ============================================================================
+  // OAuth 认证 API
+  // ============================================================================
+
+  if (oauthService) {
+    // 获取支持的 OAuth 提供商
+    app.get('/api/oauth/providers', (c) => {
+      const providers = Array.from(oauthService['configs'].keys());
+      return c.json({
+        success: true,
+        data: providers.map(provider => ({
+          name: provider,
+          enabled: true,
+        }))
+      });
+    });
+
+    // 生成授权 URL
+    app.get('/api/oauth/:provider/authorize', (c) => {
+      const provider = c.req.param('provider') as ChannelType;
+
+      // 生成随机 state 用于 CSRF 保护
+      const state = crypto.randomUUID();
+
+      try {
+        const url = oauthService.generateAuthUrl(provider, state);
+        return c.json({
+          success: true,
+          data: {
+            url,
+            state,
+            provider
+          }
+        });
+      } catch (error) {
+        throw new ValidationError(error instanceof Error ? error.message : 'Failed to generate authorization URL');
+      }
+    });
+
+    // 处理 OAuth 回调
+    app.get('/api/oauth/callback', async (c) => {
+      const code = c.req.query('code');
+      const state = c.req.query('state');
+      const provider = c.req.query('provider') as ChannelType;
+      const error = c.req.query('error');
+      const errorDescription = c.req.query('error_description');
+
+      if (error) {
+        return c.json({
+          success: false,
+          error: errorDescription || error
+        }, HTTP_STATUS.BAD_REQUEST);
+      }
+
+      if (!code || !state || !provider) {
+        throw new ValidationError('Missing required parameters: code, state, provider');
+      }
+
+      try {
+        const session = await oauthService.exchangeCode(provider, code, state);
+
+        // 重定向到仪表板并显示成功消息
+        return c.redirect(`/dashboard?oauth=success&sessionId=${session.id}&provider=${provider}`);
+      } catch (error) {
+        // 重定向到仪表板并显示错误消息
+        const message = error instanceof Error ? error.message : 'OAuth authentication failed';
+        return c.redirect(`/dashboard?oauth=error&message=${encodeURIComponent(message)}`);
+      }
+    });
+
+    // 列出所有 OAuth 会话
+    app.get('/api/oauth/sessions', (c) => {
+      const sessions = db.getOAuthSessions();
+
+      // 列表中不暴露敏感 token
+      const safeSessions = sessions.map(session => ({
+        id: session.id,
+        channelId: session.channelId,
+        provider: session.provider,
+        expiresAt: session.expiresAt,
+        scopes: session.scopes,
+        userInfo: session.userInfo,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        isExpired: Date.now() >= session.expiresAt - 60000,
+      }));
+
+      return c.json({ success: true, data: safeSessions });
+    });
+
+    // 获取特定 OAuth 会话
+    app.get('/api/oauth/sessions/:sessionId', (c) => {
+      const sessionId = c.req.param('sessionId');
+      const session = oauthService.getSession(sessionId);
+
+      if (!session) {
+        throw new NotFoundError(`OAuth session ${sessionId} not found`);
+      }
+
+      // 不暴露敏感 token
+      const safeSession = {
+        id: session.id,
+        channelId: session.channelId,
+        provider: session.provider,
+        expiresAt: session.expiresAt,
+        scopes: session.scopes,
+        userInfo: session.userInfo,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        isExpired: oauthService.isTokenExpired(session),
+      };
+
+      return c.json({ success: true, data: safeSession });
+    });
+
+    // 刷新 OAuth token
+    app.post('/api/oauth/sessions/:sessionId/refresh', async (c) => {
+      const sessionId = c.req.param('sessionId');
+
+      try {
+        const session = await oauthService.refreshToken(sessionId);
+
+        const safeSession = {
+          id: session.id,
+          channelId: session.channelId,
+          provider: session.provider,
+          expiresAt: session.expiresAt,
+          updatedAt: session.updatedAt,
+        };
+
+        return c.json({ success: true, data: safeSession });
+      } catch (error) {
+        throw new ValidationError(error instanceof Error ? error.message : 'Failed to refresh token');
+      }
+    });
+
+    // 将 OAuth 会话链接到频道
+    app.post('/api/oauth/sessions/:sessionId/link/:channelId', validateParams(z.object({
+      sessionId: z.string(),
+      channelId: z.string()
+    })), async (c) => {
+      const { sessionId, channelId } = c.get('validatedParams');
+
+      // 验证频道存在
+      const channel = db.getChannel(channelId);
+      if (!channel) {
+        throw new NotFoundError(`Channel ${channelId} not found`);
+      }
+
+      try {
+        await oauthService.linkSessionToChannel(sessionId, channelId);
+        return c.json({
+          success: true,
+          message: `Session ${sessionId} linked to channel ${channelId}`
+        });
+      } catch (error) {
+        throw new ValidationError(error instanceof Error ? error.message : 'Failed to link session to channel');
+      }
+    });
+
+    // 撤销 OAuth 会话
+    app.delete('/api/oauth/sessions/:sessionId', validateParams(idParamSchema), async (c) => {
+      const { id: sessionId } = c.get('validatedParams');
+
+      try {
+        await oauthService.revokeSession(sessionId);
+        return c.json({
+          success: true,
+          message: `OAuth session ${sessionId} revoked`
+        });
+      } catch (error) {
+        throw new ValidationError(error instanceof Error ? error.message : 'Failed to revoke session');
+      }
+    });
+
+    // 根据频道获取 OAuth 会话
+    app.get('/api/channels/:channelId/oauth', validateParams(idParamSchema), (c) => {
+      const { id: channelId } = c.get('validatedParams');
+      const session = oauthService.getSessionByChannel(channelId);
+
+      if (!session) {
+        return c.json({
+          success: true,
+          data: null
+        });
+      }
+
+      const safeSession = {
+        id: session.id,
+        provider: session.provider,
+        expiresAt: session.expiresAt,
+        scopes: session.scopes,
+        userInfo: session.userInfo,
+        isExpired: oauthService.isTokenExpired(session),
+      };
+
+      return c.json({ success: true, data: safeSession });
+    });
+  }
+
+  // ============================================================================
+  // 代理端点
+  // ============================================================================
+
+  // 将所有 /v1/* 请求转发到代理
   app.all('/v1/*', async (c) => {
-    const start = Date.now;
+    const start = Date.now();
+    const requestId = c.get('requestId') as string;
+
     try {
       const response = await proxy.handle(c.req.raw);
-      const duration = Date.now - start;
+      const duration = Date.now() - start;
 
       logRequest({
         method: c.req.method,
         url: c.req.url,
         status: response.status,
         duration,
+        requestId,
       });
 
       return response;
     } catch (error) {
-      const duration = Date.now - start;
+      const duration = Date.now() - start;
       logRequest({
         method: c.req.method,
         url: c.req.url,
-        status: 500,
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
         duration,
         error: error as Error,
+        requestId,
       });
       throw error;
     }
   });
 
   // ============================================================================
-  //// Error Handler
+  // 错误处理器
   // ============================================================================
 
   app.onError((err, c) => {
-    logError(err, { component: 'API', path: c.req.path });
+    const requestId = c.get('requestId') as string;
+    logError(err, { component: 'API', path: c.req.path, requestId });
 
     if (err instanceof RoutexError) {
-      return c.json(
-        {
-          success: false,
-          ...err.toJSON,
-        },
-        err.statusCode,
-      );
+      c.status(err.statusCode);
+      return c.json({
+        success: false,
+        ...err.toJSON(),
+      });
     }
 
     const handled = errorHandler(err);
-    return c.json(
-      {
-        success: false,
-        ...handled.body,
-      },
-      handled.status,
-    );
+    c.status(handled.status);
+    return c.json({
+      success: false,
+      ...handled.body,
+    });
   });
 
   return app;

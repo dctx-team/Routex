@@ -15,20 +15,20 @@ import { logger } from '../utils/logger';
  * Provider 
  */
 class ProviderRegistry {
-  private providers = new Map<ChannelType, BaseProvider>;
-  private providerInstances = new Map<string, BaseProvider>;
+  private providers = new Map<ChannelType, BaseProvider>();
+  private providerInstances = new Map<string, BaseProvider>();
 
-  constructor {
+  constructor() {
     //  Provider
-    this.registerProvider('anthropic', new AnthropicProvider);
-    this.registerProvider('openai', new OpenAIProvider);
-    this.registerProvider('azure', new AzureOpenAIProvider);
-    this.registerProvider('google', new GoogleProvider);
-    this.registerProvider('custom', new CustomProvider);
-    this.registerProvider('zhipu', new CustomProvider); //  AI  OpenAI 
+    this.registerProvider('anthropic', new AnthropicProvider());
+    this.registerProvider('openai', new OpenAIProvider());
+    this.registerProvider('azure', new AzureOpenAIProvider());
+    this.registerProvider('google', new GoogleProvider());
+    this.registerProvider('custom', new CustomProvider());
+    this.registerProvider('zhipu', new CustomProvider()); //  AI  OpenAI 
 
     logger.info({
-      registeredProviders: Array.from(this.providers.keys),
+      registeredProviders: Array.from(this.providers.keys()),
     }, '📋 Provider registry initialized');
   }
 
@@ -77,10 +77,10 @@ class ProviderRegistry {
   }
 
   /**
-   *  Provider 
+   *  Provider
    */
-  getRegisteredTypes: ChannelType {
-    return Array.from(this.providers.keys);
+  getRegisteredTypes(): ChannelType[] {
+    return Array.from(this.providers.keys());
   }
 
   /**
@@ -96,22 +96,22 @@ class ProviderRegistry {
       name: provider.name,
       type: provider.type,
       capabilities: provider.capabilities,
-      defaultBaseUrl: provider.getDefaultBaseUrl,
+      defaultBaseUrl: provider.getDefaultBaseUrl(),
     };
   }
 
   /**
    *  Provider 
    */
-  getAllProvidersInfo {
+  getAllProvidersInfo() {
     const infos: Record<string, any> = {};
 
-    for (const [type, provider] of this.providers.entries) {
+    for (const [type, provider] of this.providers.entries()) {
       infos[type] = {
         name: provider.name,
         type: provider.type,
         capabilities: provider.capabilities,
-        defaultBaseUrl: provider.getDefaultBaseUrl,
+        defaultBaseUrl: provider.getDefaultBaseUrl(),
       };
     }
 
@@ -128,13 +128,13 @@ class ProviderRegistry {
   /**
    * 
    */
-  clearAllInstances {
-    this.providerInstances.clear;
+  clearAllInstances() {
+    this.providerInstances.clear();
   }
 }
 
 // 
-export const providerRegistry = new ProviderRegistry;
+export const providerRegistry = new ProviderRegistry();
 
 /**
  *  Provider

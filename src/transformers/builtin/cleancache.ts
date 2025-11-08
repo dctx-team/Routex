@@ -4,12 +4,13 @@
  */
 
 import { BaseTransformer, TransformResult } from '../base';
+import { logger } from '../../utils/logger';
 
 export interface CleanCacheOptions {
   removeMetadata?: boolean; // 
   removeCache?: boolean; // 
   removeInternal?: boolean; // 
-  customFields?: string; // 
+  customFields?: string[]; // 
 }
 
 export class CleanCacheTransformer extends BaseTransformer {
@@ -37,18 +38,18 @@ export class CleanCacheTransformer extends BaseTransformer {
   ];
 
   constructor(options: CleanCacheOptions = {}) {
-    super;
+    super();
     this.options = {
       removeMetadata: options.removeMetadata ?? true,
       removeCache: options.removeCache ?? true,
       removeInternal: options.removeInternal ?? true,
-      customFields: options.customFields || ,
+      customFields: options.customFields || [],
     };
   }
 
   async transformRequest(request: any, options?: any): Promise<TransformResult> {
     const transformed = { ...request };
-    const fieldsToRemove: string = ;
+    const fieldsToRemove: string[] = [];
 
     // 
     if (this.options.removeMetadata) {
@@ -68,7 +69,7 @@ export class CleanCacheTransformer extends BaseTransformer {
     }
 
     // 
-    const removedFields: string = ;
+    const removedFields: string[] = [];
     for (const field of fieldsToRemove) {
       if (field in transformed) {
         delete transformed[field];
@@ -77,7 +78,7 @@ export class CleanCacheTransformer extends BaseTransformer {
     }
 
     if (removedFields.length > 0) {
-      console.log(`🧹 CleanCache: Removed fields: ${removedFields.join(', ')}`);
+      logger.debug(`🧹 CleanCache: Removed fields: ${removedFields.join(', ')}`);
     }
 
     return { body: transformed };

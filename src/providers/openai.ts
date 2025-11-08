@@ -6,8 +6,8 @@ import { BaseProvider, type ProviderCapabilities } from './base';
 import type { Channel } from '../types';
 
 export class OpenAIProvider extends BaseProvider {
-  readonly name = 'OpenAI';
-  readonly type = 'openai';
+  readonly name: string = 'OpenAI';
+  readonly type: string = 'openai';
   readonly capabilities: ProviderCapabilities = {
     supportsStreaming: true,
     supportsTools: true,
@@ -16,7 +16,7 @@ export class OpenAIProvider extends BaseProvider {
     maxTokens: 128000, // GPT-4 Turbo  128K context
   };
 
-  getDefaultBaseUrl: string {
+  getDefaultBaseUrl(): string {
     return 'https://api.openai.com';
   }
 
@@ -46,7 +46,7 @@ export class AzureOpenAIProvider extends OpenAIProvider {
   readonly name = 'Azure OpenAI';
   readonly type = 'azure';
 
-  getDefaultBaseUrl: string {
+  getDefaultBaseUrl(): string {
     // Azure  URL
     return '';
   }

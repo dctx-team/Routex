@@ -29,21 +29,27 @@ export interface Span {
 }
 
 export class RequestTracer {
-  private spans = new Map<string, Span>;
+  private spans = new Map<string, Span>();
   private maxSpans = 10000; // Keep last 10k spans in memory
+  private enableLogging = process.env.NODE_ENV !== 'test';
+  private spanSeq = 0;
+  private traceSeq = 0;
 
   /**
    * Generate a unique trace ID
    */
-  generateTraceId: string {
-    return `trace-${Date.now}-${Math.random.toString(36).substring(2, 15)}`;
+  generateTraceId(): string {
+    // Fast, monotonic-ish ID generation without Date/random hot paths
+    this.traceSeq = (this.traceSeq + 1) >>> 0;
+    return `t-${this.traceSeq.toString(36)}`;
   }
 
   /**
    * Generate a unique span ID
    */
-  generateSpanId: string {
-    return `span-${Math.random.toString(36).substring(2, 15)}`;
+  generateSpanId(): string {
+    this.spanSeq = (this.spanSeq + 1) >>> 0;
+    return `s-${this.spanSeq.toString(36)}`;
   }
 
   /**
@@ -55,31 +61,33 @@ export class RequestTracer {
     parentSpanId?: string,
     tags?: Record<string, string | number | boolean>
   ): Span {
-    const spanId = this.generateSpanId;
+    const spanId = this.generateSpanId();
     const span: Span = {
-      traceId: traceId || this.generateTraceId,
+      traceId: traceId || this.generateTraceId(),
       spanId,
       parentSpanId,
       name,
-      startTime: Date.now,
+      startTime: Date.now(),
       status: 'pending',
       tags: tags || {},
-      logs: ,
+      logs: [],
     };
 
     this.spans.set(spanId, span);
 
     // Prevent memory leak by limiting span count
     if (this.spans.size > this.maxSpans) {
-      const oldestSpanId = Array.from(this.spans.keys)[0];
+      const oldestSpanId = Array.from(this.spans.keys())[0];
       this.spans.delete(oldestSpanId);
     }
 
-    logger.debug({
-      traceId: span.traceId,
-      spanId: span.spanId,
-      name: span.name,
-    }, '🔍 Span started');
+    if (this.enableLogging) {
+      logger.debug({
+        traceId: span.traceId,
+        spanId: span.spanId,
+        name: span.name,
+      }, '🔍 Span started');
+    }
 
     return span;
   }
@@ -94,11 +102,13 @@ export class RequestTracer {
   ): Span | null {
     const span = this.spans.get(spanId);
     if (!span) {
-      logger.warn({ spanId }, '⚠️  Span not found');
+      if (this.enableLogging) {
+        logger.warn({ spanId }, '⚠️  Span not found');
+      }
       return null;
     }
 
-    span.endTime = Date.now;
+    span.endTime = Date.now();
     span.duration = span.endTime - span.startTime;
     span.status = status;
 
@@ -106,13 +116,15 @@ export class RequestTracer {
       Object.assign(span.tags, tags);
     }
 
-    logger.debug({
-      traceId: span.traceId,
-      spanId: span.spanId,
-      name: span.name,
-      duration: span.duration,
-      status: span.status,
-    }, `✅ Span ended (${span.duration}ms)`);
+    if (this.enableLogging) {
+      logger.debug({
+        traceId: span.traceId,
+        spanId: span.spanId,
+        name: span.name,
+        duration: span.duration,
+        status: span.status,
+      }, `✅ Span ended (${span.duration}ms)`);
+    }
 
     return span;
   }
@@ -125,7 +137,7 @@ export class RequestTracer {
     if (!span) return;
 
     span.logs.push({
-      timestamp: Date.now,
+      timestamp: Date.now(),
       message,
       level,
     });
@@ -151,8 +163,8 @@ export class RequestTracer {
   /**
    * Get all spans for a trace
    */
-  getTraceSpans(traceId: string): Span {
-    return Array.from(this.spans.values).filter(
+  getTraceSpans(traceId: string): Span[] {
+    return Array.from(this.spans.values()).filter(
       (span) => span.traceId === traceId
     );
   }
@@ -167,7 +179,7 @@ export class RequestTracer {
       headers.get('x-request-id') ||
       headers.get('traceparent')?.split('-')[1]; // W3C Trace Context
 
-    const spanId = headers.get('x-span-id') || this.generateSpanId;
+    const spanId = headers.get('x-span-id') || this.generateSpanId();
     const parentSpanId = headers.get('x-parent-span-id');
 
     if (!traceId) return null;
@@ -176,7 +188,7 @@ export class RequestTracer {
       traceId,
       spanId,
       parentSpanId,
-      timestamp: Date.now,
+      timestamp: Date.now(),
       status: 'pending',
     };
   }
@@ -200,15 +212,15 @@ export class RequestTracer {
   /**
    * Get statistics
    */
-  getStats {
-    const spans = Array.from(this.spans.values);
+  getStats() {
+    const spans = Array.from(this.spans.values());
     const completedSpans = spans.filter((s) => s.status !== 'pending');
     const successSpans = spans.filter((s) => s.status === 'success');
     const errorSpans = spans.filter((s) => s.status === 'error');
 
     const avgDuration =
       completedSpans.length > 0
-        ? completedSpans.reduce((sum, s) => sum + (s.duration || 0), 0)
+        ? completedSpans.reduce((sum, s) => sum + (s.duration || 0), 0) /
           completedSpans.length
         : 0;
 
@@ -226,17 +238,17 @@ export class RequestTracer {
    * Clear old spans (older than specified time)
    */
   clearOldSpans(olderThanMs: number = 3600000): number {
-    const cutoffTime = Date.now - olderThanMs;
+    const cutoffTime = Date.now() - olderThanMs;
     let removedCount = 0;
 
-    for (const [spanId, span] of this.spans.entries) {
+    for (const [spanId, span] of this.spans.entries()) {
       if (span.startTime < cutoffTime) {
         this.spans.delete(spanId);
         removedCount++;
       }
     }
 
-    if (removedCount > 0) {
+    if (removedCount > 0 && this.enableLogging) {
       logger.info({
         removedCount,
         remainingSpans: this.spans.size,
@@ -249,11 +261,13 @@ export class RequestTracer {
   /**
    * Clear all spans
    */
-  clear: void {
-    this.spans.clear;
-    logger.info('🧹 Cleared all spans');
+  clear(): void {
+    this.spans.clear();
+    if (this.enableLogging) {
+      logger.info('🧹 Cleared all spans');
+    }
   }
 }
 
 // Global tracer instance
-export const tracer = new RequestTracer;
+export const tracer = new RequestTracer();

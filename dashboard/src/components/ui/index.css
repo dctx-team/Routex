@@ -1,0 +1,174 @@
+/* UI组件样式 */
+
+/* MetricCard 组件样式 */
+.metric-card {
+  border: 1px solid;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.metric-content {
+  text-align: center;
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.metric-icon {
+  opacity: 0.7;
+  font-size: 1.5rem;
+}
+
+.metric-trend {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1;
+  margin-bottom: 0.75rem;
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* StatusIndicator 组件样式 */
+.status-dot {
+  display: inline-block;
+}
+
+.loading-spinner {
+  display: inline-block;
+}
+
+/* ActionCard 组件样式 */
+.action-card-content {
+  padding: 1.5rem;
+}
+
+.action-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.action-card-icon {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 0.5rem;
+  color: #6b7280;
+  font-size: 1.25rem;
+}
+
+.action-card-title-section {
+  flex: 1;
+}
+
+.action-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.action-card-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.action-card-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* QuickActions 组件样式 */
+.quick-actions {
+  width: 100%;
+}
+
+.action-icon {
+  flex-shrink: 0;
+}
+
+.action-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .action-card-content {
+    padding: 1rem;
+  }
+
+  .action-card-header {
+    margin-bottom: 1rem;
+    gap: 0.75rem;
+  }
+
+  .action-card-icon {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+  }
+
+  .action-card-title {
+    font-size: 1rem;
+  }
+
+  .action-card-description {
+    font-size: 0.8125rem;
+  }
+
+  .action-card-actions {
+    gap: 0.5rem;
+  }
+}
+
+/* 高对比度和可访问性 */
+@media (prefers-contrast: high) {
+  .metric-card {
+    border-width: 2px;
+  }
+
+  .action-card {
+    border-width: 2px;
+  }
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .metric-card,
+  .action-card,
+  .loading-spinner {
+    transition: none;
+    animation: none;
+  }
+}

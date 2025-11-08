@@ -28,7 +28,7 @@ export interface ContentAnalysis {
   hasUrls: boolean;
   hasImages: boolean;
   hasTools: boolean;
-  languages: string; // Programming languages detected
+  languages: string[]; // Programming languages detected
 
   // Content type classification
   // 
@@ -39,7 +39,7 @@ export interface ContentAnalysis {
   // Intent detection
   // 
   intent?: RequestIntent;
-  keywords: string;
+  keywords: string[];
 }
 
 export type ContentCategory =
@@ -72,7 +72,7 @@ export class ContentAnalyzer {
    * Analyze message content
    * 
    */
-  analyze(messages: Message, tools?: Tool): ContentAnalysis {
+  analyze(messages: Message[], tools?: Tool[]): ContentAnalysis {
     const fullText = this.extractAllText(messages);
 
     return {
@@ -85,7 +85,7 @@ export class ContentAnalyzer {
       hasCode: this.detectCode(fullText),
       hasUrls: this.detectUrls(fullText),
       hasImages: this.detectImages(messages),
-      hasTools: tools ? tools.length > 0 : false,
+      hasTools: Array.isArray(tools) ? tools.length > 0 : false,
       languages: this.detectLanguages(fullText),
 
       // Classification
@@ -103,8 +103,8 @@ export class ContentAnalyzer {
    * Extract all text from messages
    * 
    */
-  private extractAllText(messages: Message): string {
-    const parts: string = ;
+  private extractAllText(messages: Message[]): string {
+    const parts: string[] = [];
 
     for (const msg of messages) {
       if (typeof msg.content === 'string') {
@@ -171,7 +171,7 @@ export class ContentAnalyzer {
    * Detect images in messages
    * 
    */
-  private detectImages(messages: Message): boolean {
+  private detectImages(messages: Message[]): boolean {
     for (const msg of messages) {
       if (Array.isArray(msg.content)) {
         for (const block of msg.content) {
@@ -188,9 +188,9 @@ export class ContentAnalyzer {
    * Detect programming languages
    * 
    */
-  private detectLanguages(text: string): string {
-    const languages: string = ;
-    const langPatterns: Record<string, RegExp> = {
+  private detectLanguages(text: string): string[] {
+    const languages: string[] = [];
+    const langPatterns: Record<string, RegExp[]> = {
       javascript: [/javascript/i, /\.js\b/, /node\.js/i, /npm/i, /const\s+\w+\s*=/],
       typescript: [/typescript/i, /\.ts\b/, /interface\s+\w+/, /type\s+\w+\s*=/],
       python: [/python/i, /\.py\b/, /def\s+\w+\s*\(/, /import\s+\w+/, /pip install/i],
@@ -219,7 +219,7 @@ export class ContentAnalyzer {
    * 
    */
   private detectTopic(text: string): string | undefined {
-    const topics: Record<string, string> = {
+    const topics: Record<string, string[]> = {
       'API Development': ['api', 'endpoint', 'rest', 'graphql', 'http', 'request'],
       'Database': ['database', 'sql', 'query', 'table', 'schema', 'migration'],
       'Frontend': ['react', 'vue', 'angular', 'component', 'ui', 'css', 'html'],
@@ -232,7 +232,7 @@ export class ContentAnalyzer {
       'Documentation': ['document', 'readme', 'guide', 'tutorial', 'explanation'],
     };
 
-    const lowerText = text.toLowerCase;
+    const lowerText = text.toLowerCase();
     let maxScore = 0;
     let detectedTopic: string | undefined;
 
@@ -261,10 +261,10 @@ export class ContentAnalyzer {
    */
   private classifyContent(
     text: string,
-    messages: Message,
-    tools?: Tool
+    messages: Message[],
+    tools?: Tool[]
   ): ContentCategory {
-    const lowerText = text.toLowerCase;
+    const lowerText = text.toLowerCase();
 
     // Coding
     if (this.detectCode(text) || this.detectLanguages(text).length > 0) {
@@ -314,7 +314,7 @@ export class ContentAnalyzer {
    * Assess content complexity
    * 
    */
-  private assessComplexity(text: string, messages: Message): ComplexityLevel {
+  private assessComplexity(text: string, messages: Message[]): ComplexityLevel {
     const wordCount = this.countWords(text);
     const hasCode = this.detectCode(text);
     const messageCount = messages.length;
@@ -343,8 +343,8 @@ export class ContentAnalyzer {
    * Detect user intent
    * 
    */
-  private detectIntent(text: string, messages: Message): RequestIntent {
-    const lowerText = text.toLowerCase;
+  private detectIntent(text: string, messages: Message[]): RequestIntent {
+    const lowerText = text.toLowerCase();
     const lastUserMessage = this.getLastUserMessage(messages);
 
     // Question (ends with ?)
@@ -393,7 +393,7 @@ export class ContentAnalyzer {
    * Get last user message
    * 
    */
-  private getLastUserMessage(messages: Message): string {
+  private getLastUserMessage(messages: Message[]): string {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'user') {
         const content = messages[i].content;
@@ -402,7 +402,7 @@ export class ContentAnalyzer {
         } else if (Array.isArray(content)) {
           const textBlocks = content.filter((b) => b.type === 'text');
           if (textBlocks.length > 0) {
-            return textBlocks.map((b) => (b as any).text).join(' ');
+            return textBlocks.map((b) => b.text || '').join(' ');
           }
         }
       }
@@ -414,8 +414,8 @@ export class ContentAnalyzer {
    * Extract important keywords
    * 
    */
-  private extractKeywords(text: string): string {
-    const lowerText = text.toLowerCase;
+  private extractKeywords(text: string): string[] {
+    const lowerText = text.toLowerCase();
 
     // Common stop words to filter out
     const stopWords = new Set([
@@ -491,7 +491,7 @@ export class ContentAnalyzer {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([word]) => word);
-
+    
     return keywords;
   }
 }

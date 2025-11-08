@@ -24,9 +24,9 @@ export interface SignatureConfig {
   // 
   tolerance?: number;
   // 
-  headersToSign?: string;
+  headersToSign?: string[];
   // 
-  skipPaths?: string;
+  skipPaths?: string[];
 }
 
 /**
@@ -54,7 +54,7 @@ export function computeSignature(
 ): string {
   // 
   const parts = [
-    method.toUpperCase,
+    method.toUpperCase(),
     path,
     timestamp,
     body || '',
@@ -107,7 +107,7 @@ export function signatureVerification(config: SignatureConfig) {
     timestampHeader = DEFAULT_CONFIG.timestampHeader,
     tolerance = DEFAULT_CONFIG.tolerance,
     headersToSign = DEFAULT_CONFIG.headersToSign,
-    skipPaths = ,
+    skipPaths = [],
   } = config;
 
   if (!secret) {
@@ -118,14 +118,14 @@ export function signatureVerification(config: SignatureConfig) {
     const path = c.req.path;
 
     // 
-    if (skipPaths.some(skipPath => path.startsWith(skipPath))) {
-      return next;
+    if (skipPaths.some((skipPath) => path.startsWith(skipPath))) {
+      return next();
     }
 
     try {
       // 
-      const providedSignature = c.req.header(signatureHeader);
-      const timestamp = c.req.header(timestampHeader);
+      const providedSignature = c.req.header(signatureHeader) || '';
+      const timestamp = c.req.header(timestampHeader) || '';
 
       if (!providedSignature || !timestamp) {
         logger.warn({
@@ -228,18 +228,11 @@ export function signatureVerification(config: SignatureConfig) {
 
       // 
       // 
-      const newRequest = new Request(c.req.url, {
-        method: c.req.method,
-        headers: c.req.headers,
-        body: body || undefined,
-      });
-
-      // 
-      (c as any).req = newRequest;
+      // Hono 的请求对象不可直接替换，这里仅完成校验，不改写请求
 
       logger.debug({ path }, '✅ Signature verified');
 
-      return next;
+      return next();
     } catch (error) {
       logger.error({
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -274,7 +267,7 @@ export function generateRequestSignature(
     algorithm?: string;
   } = {}
 ): { signature: string; timestamp: string } {
-  const timestamp = Date.now.toString;
+  const timestamp = Date.now().toString();
   const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
 
   const signature = computeSignature(

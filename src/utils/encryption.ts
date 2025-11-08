@@ -40,7 +40,7 @@ export class EncryptionService {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     // 
-    const salt = this.getMasterKeySalt;
+    const salt = this.getMasterKeySalt();
     // Bun  scryptSync 
     this.masterKey = scryptSync(
       masterPassword,
@@ -64,8 +64,9 @@ export class EncryptionService {
       let encrypted = cipher.update(plaintext, 'utf8', 'hex');
       encrypted += cipher.final('hex');
 
-      // GCM 
-      const authTag = (cipher as any).getAuthTag.toString('hex');
+      // GCM 模式需要认证标签
+      // Note: Bun's crypto types don't include getAuthTag, but it exists at runtime
+      const authTag = (cipher as unknown as { getAuthTag: () => Buffer }).getAuthTag().toString('hex');
 
       // : iv:authTag:encrypted
       return `${iv.toString('hex')}:${authTag}:${encrypted}`;
@@ -90,9 +91,10 @@ export class EncryptionService {
       const iv = Buffer.from(ivHex, 'hex');
       const authTag = Buffer.from(authTagHex, 'hex');
 
-      // 
+      // 创建解密器
       const decipher = createDecipheriv(this.config.algorithm, this.masterKey, iv);
-      (decipher as any).setAuthTag(authTag);
+      // Note: Bun's crypto types don't include setAuthTag, but it exists at runtime
+      (decipher as unknown as { setAuthTag: (tag: Buffer) => void }).setAuthTag(authTag);
 
       // 
       let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
@@ -135,7 +137,7 @@ export class EncryptionService {
    * 
    * 
    */
-  private getMasterKeySalt: Buffer {
+  private getMasterKeySalt(): Buffer {
     const salt = process.env.ENCRYPTION_SALT;
 
     if (salt) {
@@ -150,7 +152,7 @@ export class EncryptionService {
   /**
    * 
    */
-  static generateSalt: string {
+  static generateSalt(): string {
     return randomBytes(32).toString('hex');
   }
 
@@ -176,7 +178,7 @@ export class EncryptionService {
  */
 let encryptionService: EncryptionService | null = null;
 
-export function getEncryptionService: EncryptionService {
+export function getEncryptionService(): EncryptionService {
   if (!encryptionService) {
     const masterPassword = process.env.MASTER_PASSWORD || process.env.ENCRYPTION_KEY;
 
@@ -195,7 +197,7 @@ export function getEncryptionService: EncryptionService {
  *  API 
  */
 export function encryptApiKey(apiKey: string): string {
-  const service = getEncryptionService;
+  const service = getEncryptionService();
   return service.encrypt(apiKey);
 }
 
@@ -203,7 +205,7 @@ export function encryptApiKey(apiKey: string): string {
  *  API 
  */
 export function decryptApiKey(encryptedKey: string): string {
-  const service = getEncryptionService;
+  const service = getEncryptionService();
   return service.decrypt(encryptedKey);
 }
 

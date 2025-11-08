@@ -17,7 +17,7 @@ export class CustomProvider extends BaseProvider {
     maxTokens: undefined, // 
   };
 
-  getDefaultBaseUrl: string {
+  getDefaultBaseUrl(): string {
     //  URL
     return '';
   }
