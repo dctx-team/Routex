@@ -61,7 +61,7 @@ export class AnthropicTransformer extends BaseTransformer {
         // Check if the first system prompt already contains the required text
         if (transformed.system[0].text !== requiredPrompt) {
           // If it contains Claude Agent SDK, replace it
-          if (transformed.system[0].text.includes("Claude Agent SDK")) {
+          if (transformed.system[0].text?.includes("Claude Agent SDK")) {
             transformed.system[0].text = requiredPrompt;
           } else {
             // Otherwise, prepend the required prompt

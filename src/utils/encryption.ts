@@ -141,10 +141,13 @@ export class EncryptionService {
     const salt = process.env.ENCRYPTION_SALT;
 
     if (salt) {
+      if (!/^[0-9a-fA-F]+$/.test(salt)) {
+        throw new Error('ENCRYPTION_SALT must be a valid hexadecimal string (e.g., use `openssl rand -hex 32` to generate one)');
+      }
       return Buffer.from(salt, 'hex');
     }
 
-    // 
+    //
     console.warn('⚠️  Using default encryption salt. Set ENCRYPTION_SALT in production!');
     return Buffer.from('routex-default-salt-change-in-production', 'utf8');
   }

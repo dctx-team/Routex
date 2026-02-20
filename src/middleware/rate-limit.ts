@@ -119,7 +119,10 @@ export function rateLimit(config: RateLimitConfig) {
   const {
     windowMs = 60000, // 默认 1 分钟
     max = 100, // 默认 100 次
-    keyGenerator = (c) => c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown',
+    keyGenerator = (c) => {
+      const xff = c.req.header('x-forwarded-for');
+      return (xff ? xff.split(',')[0].trim() : null) || c.req.header('x-real-ip') || 'unknown';
+    },
     message = 'Too many requests, please try again later.',
     skip = () => false,
     standardHeaders = true,

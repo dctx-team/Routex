@@ -14,5 +14,6 @@ data/
 *.swp
 *.swo
 *~
+.fuse_hidden*
 coverage/
 .nyc_output/

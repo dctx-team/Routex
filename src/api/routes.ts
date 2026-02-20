@@ -185,7 +185,7 @@ export async function createAPI(
         totalChannels: channels.length,
         enabledChannels: enabledChannels.length,
         routingRules: routingRules.length,
-        transformers: transformerManager ? transformerManager.list.length : 0,
+        transformers: transformerManager ? transformerManager.list().length : 0,
       },
       loadBalancer: {
         strategy: loadBalancer.getStrategy(),
@@ -273,7 +273,7 @@ export async function createAPI(
       },
       routing: {
         rules: routingRules.length,
-        transformers: transformerManager ? transformerManager.list.length : 0,
+        transformers: transformerManager ? transformerManager.list().length : 0,
       },
       loadBalancer: {
         strategy: loadBalancer.getStrategy(),

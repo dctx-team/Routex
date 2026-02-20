@@ -95,7 +95,13 @@ export class OpenAITransformer extends BaseTransformer {
           type: 'tool_use',
           id: toolCall.id,
           name: toolCall.function.name,
-          input: JSON.parse(toolCall.function.arguments),
+          input: (() => {
+          try {
+            return JSON.parse(toolCall.function.arguments);
+          } catch {
+            return {};
+          }
+        })(),
         });
       }
     }

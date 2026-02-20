@@ -147,8 +147,11 @@ export class Database {
     if (version < 5) {
       this.migrateV5();
     }
+    if (version < 6) {
+      this.migrateV6();
+    }
 
-    this.setVersion(5);
+    this.setVersion(6);
   }
 
   private getVersion(): number {
@@ -299,6 +302,13 @@ export class Database {
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_oauth_sessions_channel_id ON oauth_sessions(channel_id)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_oauth_sessions_provider ON oauth_sessions(provider)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_oauth_sessions_expires_at ON oauth_sessions(expires_at)');
+  }
+
+  private migrateV6() {
+    // 向请求记录表添加 trace_id 字段
+    this.db.exec(`
+      ALTER TABLE requests ADD COLUMN trace_id TEXT;
+    `);
   }
 
   // ============================================================================
