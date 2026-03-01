@@ -32,7 +32,10 @@ export interface RouterContext {
   messages: Message[];  // ✅ Fixed: should be an array
   tools?: Tool[];       // ✅ Fixed: should be an array
   sessionId?: string;
-  system?: string;
+  system?: string | Array<{ type: string; text?: string; [key: string]: unknown }>;
+  //// Extended thinking parameter (from Anthropic API: {type: 'enabled', budget_tokens: N})
+  //// 扩展思考参数，来自 claude-code-router 模式
+  thinking?: { type: 'enabled'; budget_tokens?: number } | null;
   metadata?: Record<string, any>;
   [key: string]: any;
 }
@@ -46,7 +49,7 @@ export interface RouterResult {
 
 export class SmartRouter {
   private rules: RoutingRule[] = [];
-  private customRouters: Map<string, Function> = new Map(); // Legacy support
+  private customRouters: Map<string, CustomRouterFunction> = new Map(); // Legacy support
   private contentAnalyzer: ContentAnalyzer;
   private routerRegistry: CustomRouterRegistry;
 
@@ -72,9 +75,9 @@ export class SmartRouter {
 
   /**
    * Register a custom routing function (legacy method)
-   * 
+   * @deprecated Use registerRouter() instead, which provides proper type safety.
    */
-  registerCustomRouter(name: string, fn: Function) {
+  registerCustomRouter(name: string, fn: CustomRouterFunction) {
     this.customRouters.set(name, fn);
   }
 
@@ -119,13 +122,18 @@ export class SmartRouter {
 
     //// 1. Try to match routing rules
     for (const rule of this.rules) {
-      if (await this.matchesRule(rule, context, analysis)) {
-        //// Find the target channel
-        const channel = availableChannels.find(
-          (c) =>
-            c.id === rule.targetChannel ||
-            c.name === rule.targetChannel
-        );
+      const matchResult = await this.matchesRule(rule, context, analysis, availableChannels);
+
+      if (matchResult) {
+        //// If the custom router returned a Channel directly, use it; otherwise look up by name/id
+        const channel: Channel | undefined =
+          typeof matchResult === 'object' && 'id' in matchResult
+            ? (matchResult as Channel)
+            : availableChannels.find(
+                (c) =>
+                  c.id === rule.targetChannel ||
+                  c.name === rule.targetChannel
+              );
 
         if (channel) {
           return {
@@ -134,6 +142,10 @@ export class SmartRouter {
             rule,
             analysis,
           };
+        } else {
+          console.warn(
+            `[SmartRouter] Rule "${rule.name}" matched but targetChannel "${rule.targetChannel}" not found in available channels. Continuing to next rule.`
+          );
         }
       }
     }
@@ -196,8 +208,9 @@ export class SmartRouter {
   private async matchesRule(
     rule: RoutingRule,
     context: RouterContext,
-    analysis?: ContentAnalysis
-  ): Promise<boolean> {
+    analysis?: ContentAnalysis,
+    availableChannels?: Channel[]
+  ): Promise<boolean | Channel> {
     const { condition } = rule;
 
     //// Check token threshold / token
@@ -236,6 +249,14 @@ export class SmartRouter {
       }
     }
 
+    //// Check model prefix (from claude-code-router: route haiku → background)
+    //// 检查模型前缀，例如将 claude-3-5-haiku 路由到后台便宜模型
+    if (condition.modelPrefix) {
+      if (!context.model.toLowerCase().startsWith(condition.modelPrefix.toLowerCase())) {
+        return false;
+      }
+    }
+
     //// Check if has tools
     if (condition.hasTools !== undefined) {
       const hasTools = context.tools && context.tools.length > 0;
@@ -252,6 +273,25 @@ export class SmartRouter {
       }
     }
 
+    //// Check if has extended thinking enabled (from claude-code-router pattern)
+    //// 检测 thinking: {type: 'enabled'} 参数，路由到支持扩展思考的模型
+    if (condition.hasThinking !== undefined) {
+      const hasThinking = context.thinking?.type === 'enabled';
+      if (condition.hasThinking !== hasThinking) {
+        return false;
+      }
+    }
+
+    //// Check if request uses web_search built-in tool type
+    //// 检测 tools 数组中是否包含 web_search 类型工具
+    if (condition.hasWebSearch !== undefined) {
+      const hasWebSearch = Array.isArray(context.tools) &&
+        context.tools.some((tool: any) => tool.type?.startsWith('web_search'));
+      if (condition.hasWebSearch !== hasWebSearch) {
+        return false;
+      }
+    }
+
     //// Check custom function
     if (condition.customFunction) {
       // Try new registry first
@@ -264,7 +304,7 @@ export class SmartRouter {
 
       if (customFn) {
         try {
-          const result = await customFn(context, analysis);
+          const result = await customFn(context, analysis, availableChannels);
 
           // Handle boolean result
           if (typeof result === 'boolean') {
@@ -272,11 +312,9 @@ export class SmartRouter {
               return false;
             }
           }
-          // Handle channel result (router selected a specific channel)
+          // Handle channel result: the custom router selected a specific channel
           else if (typeof result === 'object' && result !== null) {
-            // Custom router can return a channel directly
-            // This will be handled in findMatchingChannel
-            return true;
+            return result as Channel;
           }
         } catch (error) {
           console.error(
@@ -461,6 +499,51 @@ export class SmartRouter {
         },
         targetChannel: 'default',
         priority: 75,
+        enabled: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        //// Extended thinking routing (from claude-code-router pattern)
+        //// Route requests with thinking enabled to thinking-capable models
+        id: 'rule-thinking',
+        name: 'Extended Thinking Detection',
+        type: 'think',
+        condition: {
+          hasThinking: true,
+        },
+        targetChannel: 'default',
+        priority: 95,
+        enabled: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        //// Built-in web search tool routing (from claude-code-router pattern)
+        //// Route requests using web_search tool to appropriate channels
+        id: 'rule-builtin-websearch',
+        name: 'Built-in Web Search Tool',
+        type: 'webSearch',
+        condition: {
+          hasWebSearch: true,
+        },
+        targetChannel: 'default',
+        priority: 82,
+        enabled: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        //// Background model routing (from claude-code-router: claude-3-5-haiku → background)
+        //// Route cheap background requests to cost-effective models
+        id: 'rule-haiku-background',
+        name: 'Haiku Background Model Routing',
+        type: 'background',
+        condition: {
+          modelPrefix: 'claude-3-5-haiku',
+        },
+        targetChannel: 'default',
+        priority: 88,
         enabled: false,
         createdAt: now,
         updatedAt: now,

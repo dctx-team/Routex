@@ -341,8 +341,8 @@ export class Database {
     const query = this.db.prepare(`
       INSERT INTO channels (
         id, name, type, base_url, api_key, models, priority, weight,
-        status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?)
+        status, transformers, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?, ?)
     `);
 
     query.run(
@@ -354,6 +354,7 @@ export class Database {
       JSON.stringify(input.models),
       input.priority || 50,
       input.weight || 1,
+      input.transformers ? JSON.stringify(input.transformers) : null,
       now,
       now,
     );
@@ -586,6 +587,11 @@ export class Database {
   private flushRequests() {
     if (this.requestBuffer.length === 0) return;
 
+    // Snapshot and immediately swap buffer so new items go into a fresh array,
+    // preventing them from being lost if they are appended during the transaction.
+    const snapshot = this.requestBuffer;
+    this.requestBuffer = [];
+
     const query = this.db.prepare(`
       INSERT INTO requests (
         id, channel_id, model, method, path, status_code, latency,
@@ -594,7 +600,7 @@ export class Database {
     `);
 
     const transaction = this.db.transaction(() => {
-      for (const log of this.requestBuffer) {
+      for (const log of snapshot) {
         query.run(
           log.id,
           log.channelId,
@@ -615,7 +621,6 @@ export class Database {
     });
 
     transaction();
-    this.requestBuffer = [];
   }
 
   /**
@@ -989,7 +994,7 @@ export class Database {
     const query = this.db.prepare(`
       INSERT INTO routing_rules (
         id, name, type, condition, target_channel, target_model, priority, enabled, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     query.run(
@@ -1000,6 +1005,7 @@ export class Database {
       input.targetChannel,
       input.targetModel || null,
       input.priority || 50,
+      input.enabled !== false ? 1 : 0,
       now,
       now
     );

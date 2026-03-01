@@ -12,11 +12,12 @@ export interface AIRequestBody {
     role: string;
     content: string | unknown[];
   }>;
-  system?: string;
+  system?: string | Array<{ type: string; text?: string; [key: string]: unknown }>;
   tools?: Array<{
     name: string;
     description?: string;
     input_schema?: Record<string, unknown>;
+    [key: string]: unknown;
   }>;
   max_tokens?: number;
   temperature?: number;

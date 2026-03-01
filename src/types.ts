@@ -43,6 +43,7 @@ export interface CreateChannelInput {
   models: string[];
   priority?: number;
   weight?: number;
+  transformers?: TransformerConfig;
 }
 
 export interface UpdateChannelInput {
@@ -83,6 +84,7 @@ export interface ProxyResponse {
   body: unknown;
   channelId: string;
   latency: number;
+  isStream?: boolean;
 }
 
 //// Analytics
@@ -204,12 +206,21 @@ export interface RoutingCondition {
   userPattern?: string;
   //// Custom JavaScript function path / JS
   customFunction?: string;
-  //// Model name pattern
+  //// Model name pattern (regex)
   modelPattern?: string;
+  //// Model name prefix match (e.g. "claude-3-5-haiku" → background model)
+  //// 模型前缀匹配，用于将特定前缀模型路由到后台/廉价模型
+  modelPrefix?: string;
   //// Check if has tools
   hasTools?: boolean;
   //// Check if has images
   hasImages?: boolean;
+  //// Check if request has extended thinking enabled (from claude-code-router pattern)
+  //// 检测请求是否启用了扩展思考功能，路由到支持思考的模型
+  hasThinking?: boolean;
+  //// Check if request uses web_search tools (built-in tool type)
+  //// 检测是否使用了 web_search 内置工具类型
+  hasWebSearch?: boolean;
 }
 
 export interface RoutingRule {
@@ -232,6 +243,7 @@ export interface CreateRoutingRuleInput {
   targetChannel: string;
   targetModel?: string;
   priority?: number;
+  enabled?: boolean;
 }
 
 export interface UpdateRoutingRuleInput {

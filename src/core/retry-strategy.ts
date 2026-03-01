@@ -200,14 +200,6 @@ export class RetryStrategy {
       return true;
     }
 
-    // 502, 503, 504 网关错误 - 可重试（已包含在 5xx 中，但明确列出）
-    if ([502, 503, 504].includes(status)) {
-      logger.debug({
-        status,
-      }, '🔄 HTTP gateway error is retriable');
-      return true;
-    }
-
     // 4xx 客户端错误（除 408, 429）- 不可重试
     if (status >= 400 && status < 500) {
       logger.debug({

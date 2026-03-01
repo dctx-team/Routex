@@ -328,6 +328,172 @@ export async function createAPI(
     return c.json({ success: true, data: channels });
   });
 
+  // 导出频道配置（必须在 /:id 之前注册，避免被参数路由遮蔽）
+  app.get('/api/channels/export', (c) => {
+    const channels = db.getChannels();
+    return c.json({
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      channels: channels.map((ch) => ({
+        name: ch.name,
+        type: ch.type,
+        baseUrl: ch.baseUrl,
+        models: ch.models,
+        priority: ch.priority,
+        weight: ch.weight,
+      })),
+    });
+  });
+
+  // 导入频道配置
+  app.post('/api/channels/import', validateBody(channelImportSchema), async (c) => {
+    const { channels, replaceExisting } = c.get('validatedBody');
+
+    const results = {
+      imported: 0,
+      skipped: 0,
+      errors: [] as string[],
+    };
+
+    for (const channelData of channels) {
+      try {
+        const existing = db.getChannels().find((ch) => ch.name === channelData.name);
+
+        if (existing && !replaceExisting) {
+          results.skipped++;
+          continue;
+        }
+
+        if (existing && replaceExisting) {
+          db.deleteChannel(existing.id);
+        }
+
+        db.createChannel({
+          name: channelData.name,
+          type: channelData.type,
+          apiKey: channelData.apiKey,
+          baseUrl: channelData.baseUrl,
+          models: channelData.models,
+          priority: channelData.priority,
+          weight: channelData.weight,
+        });
+
+        results.imported++;
+      } catch (error) {
+        results.errors.push(
+          `Failed to import ${channelData.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
+    }
+
+    return c.json({ success: true, data: results });
+  });
+
+  // 获取预设频道模板（参考 cc-switch 的提供商预设功能）
+  // GET /api/channels/presets - Returns pre-configured channel templates for common providers
+  // Inspired by cc-switch preset system (Longcat, kat-coder, iFlow, OpenRouter, etc.)
+  // NOTE: Must be registered before /:id to avoid being shadowed by the parameterized route.
+  app.get('/api/channels/presets', (c) => {
+    const presets = [
+      {
+        id: 'openrouter',
+        name: 'OpenRouter',
+        description: 'Access 300+ AI models through a unified API',
+        type: 'openai' as ChannelType,
+        baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+        models: ['anthropic/claude-opus-4', 'anthropic/claude-sonnet-4-5', 'openai/gpt-4o', 'google/gemini-2.5-pro'],
+        priority: 80,
+        weight: 1,
+        transformers: { use: ['openai'] },
+        docs: 'https://openrouter.ai/docs',
+      },
+      {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        description: 'DeepSeek AI - cost-effective models for coding and reasoning',
+        type: 'openai' as ChannelType,
+        baseUrl: 'https://api.deepseek.com/chat/completions',
+        models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
+        priority: 70,
+        weight: 1,
+        transformers: { use: ['openai'] },
+        docs: 'https://platform.deepseek.com/docs',
+      },
+      {
+        id: 'siliconflow',
+        name: 'SiliconFlow',
+        description: 'SiliconFlow - affordable Chinese AI model hosting',
+        type: 'openai' as ChannelType,
+        baseUrl: 'https://api.siliconflow.cn/v1/chat/completions',
+        models: ['Qwen/Qwen3-235B-A22B', 'deepseek-ai/DeepSeek-V3', 'meta-llama/Meta-Llama-3.1-70B-Instruct'],
+        priority: 60,
+        weight: 1,
+        transformers: { use: ['openai'] },
+        docs: 'https://docs.siliconflow.cn',
+      },
+      {
+        id: 'gemini',
+        name: 'Google Gemini',
+        description: 'Google Gemini API - including Gemini 2.5 Pro with large context window',
+        type: 'google' as ChannelType,
+        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+        models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'],
+        priority: 75,
+        weight: 1,
+        docs: 'https://ai.google.dev/docs',
+      },
+      {
+        id: 'ollama',
+        name: 'Ollama (Local)',
+        description: 'Run open-source models locally with Ollama',
+        type: 'openai' as ChannelType,
+        // Ollama runs locally - HTTP is intentional and safe for loopback interface
+        // Using OpenAI-compatible endpoint (/v1/chat/completions) to match 'openai' transformer
+        baseUrl: 'http://localhost:11434/v1/chat/completions',
+        models: ['llama3.3', 'qwen3:32b', 'deepseek-r1:14b'],
+        priority: 50,
+        weight: 1,
+        transformers: { use: ['openai'] },
+        docs: 'https://ollama.ai/docs',
+      },
+      {
+        id: 'anthropic-official',
+        name: 'Anthropic Official',
+        description: 'Official Anthropic API - Claude Opus, Sonnet, Haiku',
+        type: 'anthropic' as ChannelType,
+        baseUrl: 'https://api.anthropic.com',
+        models: ['claude-opus-4-5', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'],
+        priority: 100,
+        weight: 1,
+        docs: 'https://docs.anthropic.com',
+      },
+      {
+        id: 'iflow',
+        name: 'iFlow Platform',
+        description: 'iFlow - free access to GLM, Kimi-K2, Qwen3-Coder, DeepSeek (from claude-code-router)',
+        type: 'openai' as ChannelType,
+        baseUrl: 'https://api.iflow.cn/v1/chat/completions',
+        models: ['GLM-4.5', 'Kimi-K2', 'Qwen3-Coder-480B-A35B', 'DeepSeek-V3'],
+        priority: 65,
+        weight: 1,
+        transformers: { use: ['openai'] },
+        docs: 'https://platform.iflow.cn/docs/api-mode',
+      },
+      {
+        id: 'azure-openai',
+        name: 'Azure OpenAI',
+        description: 'Microsoft Azure OpenAI Service - enterprise-grade GPT deployment',
+        type: 'azure' as ChannelType,
+        baseUrl: 'https://YOUR_RESOURCE.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT',
+        models: ['gpt-4o', 'gpt-4o-mini', 'o1-preview'],
+        priority: 85,
+        weight: 1,
+        docs: 'https://learn.microsoft.com/azure/ai-services/openai',
+      },
+    ];
+    return c.json({ success: true, data: presets });
+  });
+
   // 获取单个频道
   app.get('/api/channels/:id', validateParams(idParamSchema), (c) => {
     const { id } = c.get('validatedParams');
@@ -393,67 +559,6 @@ export async function createAPI(
     }
 
     return c.json({ success: true, message: 'Channel deleted' });
-  });
-
-  // 导出频道配置
-  app.get('/api/channels/export', (c) => {
-    const channels = db.getChannels();
-    return c.json({
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      channels: channels.map((ch) => ({
-        name: ch.name,
-        type: ch.type,
-        baseUrl: ch.baseUrl,
-        models: ch.models,
-        priority: ch.priority,
-        weight: ch.weight,
-      })),
-    });
-  });
-
-  // 导入频道配置
-  app.post('/api/channels/import', validateBody(channelImportSchema), async (c) => {
-    const { channels, replaceExisting } = c.get('validatedBody');
-
-    const results = {
-      imported: 0,
-      skipped: 0,
-      errors: [] as string[],
-    };
-
-    for (const channelData of channels) {
-      try {
-        const existing = db.getChannels().find((ch) => ch.name === channelData.name);
-
-        if (existing && !replaceExisting) {
-          results.skipped++;
-          continue;
-        }
-
-        if (existing && replaceExisting) {
-          db.deleteChannel(existing.id);
-        }
-
-        db.createChannel({
-          name: channelData.name,
-          type: channelData.type,
-          apiKey: channelData.apiKey,
-          baseUrl: channelData.baseUrl,
-          models: channelData.models,
-          priority: channelData.priority,
-          weight: channelData.weight,
-        });
-
-        results.imported++;
-      } catch (error) {
-        results.errors.push(
-          `Failed to import ${channelData.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-      }
-    }
-
-    return c.json({ success: true, data: results });
   });
 
   // ============================================================================
@@ -951,6 +1056,138 @@ export async function createAPI(
         'Content-Disposition': `attachment; filename="routex-config-${Date.now()}.json"`,
       },
     });
+  });
+
+  // 全量导出（频道 + 路由规则），参考 cc-switch 的完整配置导入导出
+  // GET /api/config/full-export - Export channels + routing rules for full backup
+  app.get('/api/config/full-export', (_c) => {
+    const channels = db.getChannels().map((ch) => ({
+      name: ch.name,
+      type: ch.type,
+      baseUrl: ch.baseUrl,
+      models: ch.models,
+      priority: ch.priority,
+      weight: ch.weight,
+      transformers: ch.transformers,
+    }));
+    const routingRules = db.getRoutingRules().map((rule) => ({
+      name: rule.name,
+      type: rule.type,
+      condition: rule.condition,
+      targetChannel: rule.targetChannel,
+      targetModel: rule.targetModel,
+      priority: rule.priority,
+      enabled: rule.enabled,
+    }));
+
+    const exportData = {
+      version: '2.0',
+      exportedAt: new Date().toISOString(),
+      channels,
+      routingRules,
+    };
+
+    return new Response(JSON.stringify(exportData, null, 2), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Disposition': `attachment; filename="routex-full-export-${Date.now()}.json"`,
+      },
+    });
+  });
+
+  // 全量导入（频道 + 路由规则），参考 cc-switch 的带验证自动备份导入
+  // POST /api/config/full-import - Import channels + routing rules from full backup
+  app.post('/api/config/full-import', async (c) => {
+    const body = await c.req.json().catch(() => null);
+    if (!body || body.version !== '2.0') {
+      throw new ValidationError('Invalid full-export format. Expected version "2.0".');
+    }
+
+    const results = {
+      channelsImported: 0,
+      channelsSkipped: 0,
+      routingRulesImported: 0,
+      routingRulesSkipped: 0,
+      errors: [] as string[],
+    };
+
+    // 预加载已有名称集合，避免 N+1 查询
+    const existingChannelNames = new Set(db.getChannels().map((ch) => ch.name));
+    const existingRuleNames = new Set(db.getRoutingRules().map((r) => r.name));
+
+    // Import channels
+    if (Array.isArray(body.channels)) {
+      for (const channelData of body.channels) {
+        try {
+          if (existingChannelNames.has(channelData.name)) {
+            results.channelsSkipped++;
+            continue;
+          }
+          db.createChannel({
+            name: channelData.name,
+            type: channelData.type,
+            apiKey: channelData.apiKey,
+            baseUrl: channelData.baseUrl,
+            models: channelData.models || [],
+            priority: channelData.priority,
+            weight: channelData.weight,
+            transformers: channelData.transformers,
+          });
+          existingChannelNames.add(channelData.name);
+          results.channelsImported++;
+        } catch (err) {
+          results.errors.push(
+            `Channel ${channelData.name}: ${err instanceof Error ? err.message : 'Unknown error'}`
+          );
+        }
+      }
+    }
+
+    // Import routing rules
+    if (Array.isArray(body.routingRules)) {
+      for (const ruleData of body.routingRules) {
+        try {
+          if (existingRuleNames.has(ruleData.name)) {
+            results.routingRulesSkipped++;
+            continue;
+          }
+          db.createRoutingRule({
+            name: ruleData.name,
+            type: ruleData.type,
+            condition: ruleData.condition,
+            targetChannel: ruleData.targetChannel,
+            targetModel: ruleData.targetModel,
+            priority: ruleData.priority ?? 50,
+            enabled: ruleData.enabled,
+          });
+          existingRuleNames.add(ruleData.name);
+          results.routingRulesImported++;
+        } catch (err) {
+          results.errors.push(
+            `Rule ${ruleData.name}: ${err instanceof Error ? err.message : 'Unknown error'}`
+          );
+        }
+      }
+    }
+
+    const hasErrors = results.errors.length > 0;
+    const allFailed =
+      results.channelsImported === 0 &&
+      results.routingRulesImported === 0 &&
+      hasErrors;
+
+    return c.json(
+      {
+        success: !allFailed,
+        data: {
+          ...results,
+          notice: results.channelsImported > 0
+            ? 'API keys are not included in exports for security. Please configure API keys for imported channels manually.'
+            : undefined,
+        },
+      },
+      allFailed ? 422 : 200
+    );
   });
 
   // ============================================================================

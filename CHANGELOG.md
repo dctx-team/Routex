@@ -8,6 +8,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] - 2026-03-01
+
+### 🐛 Fixed (Comprehensive Code Review)
+
+#### Critical Fixes
+
+- **Streaming response now works correctly** (`src/providers/base.ts`, `src/core/proxy.ts`)
+  - `BaseProvider.handleResponse()` now detects `Content-Type: text/event-stream` and returns the `ReadableStream` body directly instead of calling `response.json()` which destroyed SSE streams
+  - `ProxyEngine.handle()` now pipes `ReadableStream` directly to the client with the original headers for streaming responses, while non-streaming responses continue through JSON serialization
+  - Response transformers are skipped for streaming responses to avoid consuming the stream
+
+- **Circuit breaker sets correct status** (`src/core/proxy.ts` line 653)
+  - Fixed: when the circuit breaker threshold is exceeded, the channel status is now correctly set to `'circuit_breaker'` instead of `'rate_limited'`
+  - The two failure modes (upstream rate limiting vs internal circuit breaker) are now properly distinguished
+
+- **`flushRequests()` race condition eliminated** (`src/db/database.ts`)
+  - Fixed: the request log buffer is now snapshotted and swapped atomically at the start of the flush, so new items pushed during the SQLite transaction are never lost
+
+- **Route ordering: `/export` and `/presets` no longer shadowed** (`src/api/routes.ts`)
+  - Fixed: `GET /api/channels/export`, `POST /api/channels/import`, and `GET /api/channels/presets` are now registered **before** `GET /api/channels/:id` to prevent the parameterized route from capturing them
+
+#### Warning Fixes
+
+- **`validateRequired()` now catches `null` as well as `undefined`** (`src/core/errors.ts`)
+  - Fixed: changed `data[field] === undefined` to `data[field] == null` to reject both missing and explicitly-null required fields
+
+- **Malformed JSON body returns 400 instead of forwarding null** (`src/core/proxy.ts`)
+  - Fixed: when a request has `Content-Type: application/json` but the body is not valid JSON, a `ValidationError` (HTTP 400) is thrown immediately instead of silently forwarding a `null` body to the provider
+
+- **Custom router's returned Channel is no longer dropped** (`src/core/routing/smart-router.ts`)
+  - Fixed: `matchesRule()` now returns `boolean | Channel` and passes `availableChannels` to custom router functions
+  - `findMatchingChannel()` uses the directly-returned `Channel` when a custom router function returns one, instead of always falling back to `targetChannel` lookup
+
+- **Dead code removed** (`src/core/retry-strategy.ts`)
+  - Removed the unreachable `[502, 503, 504]` check block that was already covered by the `status >= 500` branch above it
+
+### ✨ Added (Reference Project Improvements)
+
+#### SmartRouter - Extended Routing Conditions
+
+Inspired by **claude-code-router**, **llmio**, and **cc-switch** reference projects:
+
+- **`hasThinking` Routing Condition** - Detect extended thinking requests and route to thinking-capable models
+  - Checks `thinking: {type: 'enabled'}` in request body
+  - Example: Route thinking-heavy requests to Claude claude-opus-4 / Gemini 2.5 Pro
+- **`modelPrefix` Routing Condition** - Route based on model name prefix
+  - Inspired by claude-code-router's background model routing for `claude-3-5-haiku` prefix
+  - Example: `modelPrefix: "claude-3-5-haiku"` → route to cheaper background model
+- **`hasWebSearch` Routing Condition** - Detect built-in web_search tool usage
+  - Checks if `tools` array contains items with `type.startsWith('web_search')`
+  - Example: Route web search requests to models with web grounding support
+- **`thinking` Parameter in RouterContext** - The request's thinking config is now passed to SmartRouter
+
+#### Proxy Engine - Subagent Model Tag Routing
+
+Inspired by **claude-code-router**'s `<CCR-SUBAGENT-MODEL>` pattern:
+
+- **`<ROUTEX-SUBAGENT-MODEL>` Tag Parsing** - Route sub-agent requests to specific models
+  - Embed `<ROUTEX-SUBAGENT-MODEL>claude-3-5-haiku-20241022</ROUTEX-SUBAGENT-MODEL>` in system prompt
+  - The tag is automatically stripped from the system prompt before forwarding
+  - Allows Claude Code to explicitly route sub-agent requests to cheaper models
+
+#### Configuration - Environment Variable Interpolation
+
+Inspired by **claude-code-router**'s config design:
+
+- **`$VAR_NAME` Syntax** - Reference environment variables in `routex.config.json`
+- **`${VAR_NAME}` Syntax** - Alternative curly brace syntax
+- Keeps API keys out of config files, safe for version control
+- Example: `"apiKey": "$ANTHROPIC_API_KEY"` or `"apiKey": "${ANTHROPIC_API_KEY}"`
+
+#### API - Provider Preset Templates
+
+Inspired by **cc-switch**'s provider preset system (Longcat, kat-coder, iFlow, etc.):
+
+- **`GET /api/channels/presets`** - Returns pre-configured channel templates
+  - OpenRouter (300+ models)
+  - DeepSeek (deepseek-chat, deepseek-reasoner)
+  - SiliconFlow (Qwen3, DeepSeek-V3)
+  - Google Gemini (2.5 Pro, 2.5 Flash)
+  - Ollama (local models)
+  - Anthropic Official
+  - iFlow Platform (free GLM, Kimi-K2, Qwen3-Coder)
+  - Azure OpenAI
+
+#### API - Full Config Export/Import
+
+Inspired by **cc-switch**'s complete configuration backup with routing rules:
+
+- **`GET /api/config/full-export`** - Export channels + routing rules as `v2.0` format
+- **`POST /api/config/full-import`** - Import channels + routing rules from `v2.0` format
+  - Skips existing channels/rules by name (non-destructive)
+  - Returns detailed import results
+
+---
+
 ## [1.1.0-beta] - 2025-10-15
 
 ### 🎯 Added

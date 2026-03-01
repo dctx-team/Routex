@@ -15,7 +15,8 @@ import { tracer } from './tracing';
 import {
   NoAvailableChannelError,
   ChannelError,
-  RoutexError
+  RoutexError,
+  ValidationError
 } from './errors';
 import { logger, logError, logTransformer } from '../utils/logger';
 import { getProvider } from '../providers';
@@ -96,6 +97,8 @@ export class ProxyEngine {
             messages: (body.messages || []) as Message[],
             system: body.system,
             tools: body.tools as any,
+            //// Pass thinking parameter for extended thinking routing (from claude-code-router pattern)
+            thinking: (body as any).thinking || null,
             metadata: {
               sessionId: req.headers.get('x-session-id') || undefined,
             },
@@ -158,6 +161,57 @@ export class ProxyEngine {
 
       tracer.endSpan(routingSpan.spanId, 'success');
 
+      //// Parse ROUTEX-SUBAGENT-MODEL tag from system prompt (inspired by claude-code-router)
+      //// This allows routing sub-agent requests to specific models by embedding a tag in the system prompt:
+      //// <ROUTEX-SUBAGENT-MODEL>claude-3-5-haiku-20241022</ROUTEX-SUBAGENT-MODEL>
+      if (parsed.body && isAIRequestBody(parsed.body)) {
+        const body = parsed.body as AIRequestBody;
+        const TAG_REGEX = /<ROUTEX-SUBAGENT-MODEL>(.*?)<\/ROUTEX-SUBAGENT-MODEL>/s;
+
+        if (typeof body.system === 'string') {
+          // Handle string system prompt
+          const subagentMatch = body.system.match(TAG_REGEX);
+          if (subagentMatch) {
+            const subagentModel = subagentMatch[1].trim();
+            body.system = body.system.replace(
+              `<ROUTEX-SUBAGENT-MODEL>${subagentMatch[1]}</ROUTEX-SUBAGENT-MODEL>`,
+              ''
+            ).trim();
+            routedModel = subagentModel;
+            logger.debug(
+              { subagentModel },
+              '🤖 Subagent model tag detected (string system), routing to: ' + subagentModel
+            );
+          }
+        } else if (Array.isArray(body.system)) {
+          // Handle array system blocks
+          const systemBlocks = body.system;
+          for (let i = 0; i < systemBlocks.length; i++) {
+            const block = systemBlocks[i] as any;
+            if (block?.type === 'text' && typeof block.text === 'string') {
+              const subagentMatch = block.text.match(TAG_REGEX);
+              if (subagentMatch) {
+                const subagentModel = subagentMatch[1].trim();
+                // Remove the tag from system prompt to keep it clean
+                systemBlocks[i] = {
+                  ...block,
+                  text: block.text.replace(
+                    `<ROUTEX-SUBAGENT-MODEL>${subagentMatch[1]}</ROUTEX-SUBAGENT-MODEL>`,
+                    ''
+                  ).trim(),
+                };
+                routedModel = subagentModel;
+                logger.debug(
+                  { subagentModel },
+                  '🤖 Subagent model tag detected, routing to: ' + subagentModel
+                );
+                break;
+              }
+            }
+          }
+        }
+      }
+
       // 如果指定了路由模型，则覆盖模型
       if (routedModel && parsed.body && isAIRequestBody(parsed.body)) {
         parsed.body.model = routedModel;
@@ -204,8 +258,7 @@ export class ProxyEngine {
       this.resetCircuitBreaker(channel.id);
 
       // 向响应头添加路由信息
-      const responseHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
+      const routingHeaders: Record<string, string> = {
         'X-Channel-Id': channel.id,
         'X-Channel-Name': channel.name,
         'X-Latency-Ms': latency.toString(),
@@ -214,7 +267,7 @@ export class ProxyEngine {
       };
 
       if (matchedRuleName) {
-        responseHeaders['X-Routing-Rule'] = matchedRuleName;
+        routingHeaders['X-Routing-Rule'] = matchedRuleName;
       }
 
       logger.info({
@@ -225,12 +278,31 @@ export class ProxyEngine {
         status: response.status,
         routingRule: matchedRuleName,
         traceId: rootSpan.traceId,
+        isStream: response.isStream,
       }, `✅ Request succeeded: ${channel.name} (${latency}ms)`);
 
       tracer.endSpan(rootSpan.spanId, 'success', {
         status: response.status.toString(),
         latency,
       });
+
+      // For streaming responses: pipe the ReadableStream directly with original content-type
+      if (response.isStream) {
+        const streamHeaders: Record<string, string> = {
+          ...response.headers,
+          ...routingHeaders,
+        };
+        return new Response(response.body as ReadableStream, {
+          status: response.status,
+          headers: streamHeaders,
+        });
+      }
+
+      // For non-streaming responses: serialize as JSON
+      const responseHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...routingHeaders,
+      };
 
       return new Response(JSON.stringify(response.body), {
         status: response.status,
@@ -457,8 +529,8 @@ export class ProxyEngine {
     const providerResponse = await provider.handleResponse(response, channel);
     let responseBody = providerResponse.body;
 
-    // 如果配置了，应用反向转换器
-    if (this.transformerManager && channel.transformers && responseBody) {
+    // 如果配置了，应用反向转换器（流式响应跳过，因为 body 是 ReadableStream）
+    if (!providerResponse.isStream && this.transformerManager && channel.transformers && responseBody) {
       try {
         const transformerSpecs = channel.transformers.use || [];
         if (transformerSpecs.length > 0) {
@@ -485,6 +557,7 @@ export class ProxyEngine {
       body: responseBody,
       channelId: channel.id,
       latency,
+      isStream: providerResponse.isStream,
     };
   }
 
@@ -515,12 +588,19 @@ export class ProxyEngine {
           model = requestBody.model;
         }
       } catch (error) {
-        // 记录解析错误以进行调试，但继续使用 null body
+        const contentType = req.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          // Malformed JSON in an explicitly JSON request should be rejected
+          throw new ValidationError(
+            `Invalid JSON request body: ${error instanceof Error ? error.message : 'Parse error'}`
+          );
+        }
+        // Non-JSON content types: log and continue with null body
         logger.debug({
           error: error instanceof Error ? error.message : 'Unknown error',
           method: req.method,
           url: req.url,
-          contentType: req.headers.get('content-type'),
+          contentType,
         }, '⚠️  Failed to parse request body');
       }
     }
@@ -597,7 +677,7 @@ export class ProxyEngine {
 
     // 如果超过阈值，将频道标记为速率受限
     if (state.failures >= this.circuitBreakerThreshold) {
-      this.db.updateChannel(channelId, { status: 'rate_limited' });
+      this.db.updateChannel(channelId, { status: 'circuit_breaker' });
 
       // 记录熔断器指标
       metrics.incrementCounter('routex_circuit_breaker_open_total', 1, { channel: channelId });
@@ -634,7 +714,11 @@ export class ProxyEngine {
    */
   private resetCircuitBreaker(channelId: string) {
     this.circuitBreaker.delete(channelId);
-    this.db.updateChannel(channelId, { status: 'enabled' });
+    // 仅恢复因熔断器或限流触发的频道，不覆盖管理员手动禁用的频道
+    const channel = this.db.getChannel(channelId);
+    if (channel && (channel.status === 'rate_limited' || channel.status === 'circuit_breaker')) {
+      this.db.updateChannel(channelId, { status: 'enabled' });
+    }
     metrics.setGauge('routex_circuit_breaker_open', 0, { channel: channelId });
     logger.info({ channelId }, `🟢 Circuit breaker reset for channel ${channelId}`);
   }

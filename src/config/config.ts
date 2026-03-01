@@ -117,7 +117,10 @@ export class ConfigManager {
   private loadConfigFile(path: string): Partial<Config> {
     try {
       const content = readFileSync(path, 'utf-8');
-      const config = JSON.parse(content);
+      // Interpolate environment variables ($VAR_NAME or ${VAR_NAME}) before parsing
+      // 在解析前插值环境变量，参考 claude-code-router 的配置文件设计
+      const interpolated = this.interpolateEnvVars(content);
+      const config = JSON.parse(interpolated);
       return config;
     } catch (error) {
       if (error instanceof SyntaxError) {
@@ -125,6 +128,33 @@ export class ConfigManager {
       }
       throw error;
     }
+  }
+
+  /**
+   * 插值配置文件中的环境变量
+   * 支持 $VAR_NAME 和 ${VAR_NAME} 两种格式
+   * Interpolate environment variables in config content.
+   * Supports $VAR_NAME and ${VAR_NAME} syntax (from claude-code-router pattern).
+   */
+  private interpolateEnvVars(content: string): string {
+    // Replace ${VAR_NAME} first (more specific pattern)
+    let result = content.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_match, varName) => {
+      const value = process.env[varName];
+      if (value === undefined) {
+        logger.warn({ varName }, `⚠️  Environment variable $\{${varName}} not found in config, keeping as-is`);
+        return _match;
+      }
+      return value;
+    });
+    // Replace $VAR_NAME (less specific, only uppercase env var names)
+    result = result.replace(/\$([A-Z_][A-Z0-9_]*)/g, (_match, varName) => {
+      const value = process.env[varName];
+      if (value === undefined) {
+        return _match; // Keep original if not found
+      }
+      return value;
+    });
+    return result;
   }
 
   /**

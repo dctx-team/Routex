@@ -185,7 +185,7 @@ export function validateRequired(
   fields: string[],
   resourceName: string = 'Request'
 ) {
-  const missing = fields.filter((field) => data[field] === undefined);
+  const missing = fields.filter((field) => data[field] == null);
   if (missing.length > 0) {
     throw new ValidationError(
       `${resourceName} is missing required fields: ${missing.join(', ')}`,

@@ -16,12 +16,13 @@ export interface ProviderRequest {
 }
 
 /**
- * Provider 
+ * Provider
  */
 export interface ProviderResponse {
   status: number;
   headers: Record<string, string>;
   body: unknown;
+  isStream?: boolean;
 }
 
 /**
@@ -144,19 +145,33 @@ export abstract class BaseProvider {
   }
 
   /**
-   *  Provider 
+   *  Provider
    */
   async handleResponse(
     response: Response,
     channel: Channel
   ): Promise<ProviderResponse> {
+    const contentType = response.headers.get('content-type') || '';
+    const headers = Object.fromEntries(response.headers.entries());
+
+    // Detect SSE streaming response — must pipe directly without consuming the body
+    if (contentType.includes('text/event-stream')) {
+      return {
+        status: response.status,
+        headers,
+        body: response.body,
+        isStream: true,
+      };
+    }
+
     const body = await response.json();
     const transformedBody = await this.transformResponse(body, channel);
 
     return {
       status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
+      headers,
       body: transformedBody,
+      isStream: false,
     };
   }
 }
