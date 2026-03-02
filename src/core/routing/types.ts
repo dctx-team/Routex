@@ -8,11 +8,11 @@
  * Content analysis condition
  */
 export interface ContentCondition {
-  contentCategory?: 'general' | 'code' | 'creative' | 'analytical';
-  complexityLevel?: 'simple' | 'medium' | 'complex';
+  contentCategory?: 'coding' | 'writing' | 'analysis' | 'conversation' | 'research' | 'creative' | 'technical' | 'general';
+  complexityLevel?: 'simple' | 'moderate' | 'complex' | 'very_complex';
   hasCode?: boolean;
   programmingLanguage?: string;
-  intent?: 'question' | 'instruction' | 'conversation';
+  intent?: 'question' | 'task' | 'generation' | 'analysis' | 'conversation' | 'review' | 'debug';
   minWordCount?: number;
   maxWordCount?: number;
 }

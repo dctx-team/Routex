@@ -311,8 +311,9 @@ async function executeWithRetry<T>(
   }
 
   // 重试耗尽
-  strategy.logRetryExhausted(attempt, lastError!, context);
-  throw lastError;
+  const exhaustedError = lastError || new Error('Retry strategy exhausted without error (maxRetries may be 0)');
+  strategy.logRetryExhausted(attempt, exhaustedError, context);
+  throw exhaustedError;
 }
 
 /**

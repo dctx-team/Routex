@@ -400,7 +400,10 @@ export class ProxyEngine {
 
         // 如果熔断器开启，尝试另一个频道
         if (this.isCircuitOpen(channel.id) && availableChannels.length > 1) {
-          const otherChannels = availableChannels.filter((ch) => ch.id !== channel.id);
+          // 同时排除当前频道和已开启熔断器的频道（防止重试到已失败的频道）
+          const otherChannels = availableChannels.filter(
+            (ch) => ch.id !== channel.id && !this.isCircuitOpen(ch.id)
+          );
           if (otherChannels.length > 0) {
             const previousChannelId = channel.id;
             channel = await this.loadBalancer.select(otherChannels, {});
@@ -427,7 +430,8 @@ export class ProxyEngine {
     }
 
     // 重试耗尽
-    this.retryStrategy.logRetryExhausted(attempt, lastError!, {
+    const exhaustedError = lastError || new Error('Max retries exceeded');
+    this.retryStrategy.logRetryExhausted(attempt, exhaustedError, {
       channel: channel.name,
       channelId: channel.id,
     });
@@ -437,7 +441,7 @@ export class ProxyEngine {
       channel: channel.name,
     });
 
-    throw lastError || new Error('Max retries exceeded');
+    throw exhaustedError;
   }
 
   /**

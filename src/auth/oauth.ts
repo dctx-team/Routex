@@ -89,7 +89,10 @@ export class OAuthService {
     private db: Database,
     private configs: Map<ChannelType, OAuthProviderConfig>
   ) {
-    this.loadSessions();
+    // loadSessions is async; fire-and-forget with explicit error handling
+    this.loadSessions().catch((error) => {
+      logger.error({ error }, '❌ Failed to initialize OAuth sessions');
+    });
   }
 
   /**
@@ -109,14 +112,53 @@ export class OAuthService {
   }
 
   /**
+   * Get configured provider names
+   * 获取已配置的提供商名称列表
+   */
+  getConfiguredProviders(): ChannelType[] {
+    return Array.from(this.configs.keys());
+  }
+
+  /**
+   * Encode provider + opaque nonce into state string for CSRF protection
+   * 将提供商名称和随机 nonce 编码到 state 字符串中用于 CSRF 保护
+   * Format: base64url(JSON({ provider, nonce }))
+   */
+  static encodeState(provider: ChannelType, nonce: string): string {
+    const payload = JSON.stringify({ provider, nonce });
+    return Buffer.from(payload).toString('base64url');
+  }
+
+  /**
+   * Decode provider + nonce from state string
+   * 从 state 字符串中解码提供商和 nonce
+   */
+  static decodeState(state: string): { provider: ChannelType; nonce: string } | null {
+    try {
+      const payload = Buffer.from(state, 'base64url').toString('utf-8');
+      const parsed = JSON.parse(payload);
+      if (parsed && typeof parsed.provider === 'string' && typeof parsed.nonce === 'string') {
+        return { provider: parsed.provider as ChannelType, nonce: parsed.nonce };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Generate authorization URL for OAuth flow
    * 生成 OAuth 流程的授权 URL
+   * The state parameter encodes the provider to correctly identify it in the callback.
    */
-  generateAuthUrl(provider: ChannelType, state: string): string {
+  generateAuthUrl(provider: ChannelType, nonce: string): string {
     const config = this.configs.get(provider);
     if (!config) {
       throw new Error(`OAuth not configured for provider: ${provider}`);
     }
+
+    // Encode provider into state so callback can identify it without a query param
+    const state = OAuthService.encodeState(provider, nonce);
 
     const params = new URLSearchParams({
       client_id: config.clientId,

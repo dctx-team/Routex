@@ -259,7 +259,7 @@ export class SmartRouter {
 
     //// Check if has tools
     if (condition.hasTools !== undefined) {
-      const hasTools = context.tools && context.tools.length > 0;
+      const hasTools = Boolean(context.tools && context.tools.length > 0);
       if (condition.hasTools !== hasTools) {
         return false;
       }

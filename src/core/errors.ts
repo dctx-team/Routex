@@ -41,12 +41,8 @@ export class AuthenticationError extends RoutexError {
 }
 
 export class NotFoundError extends RoutexError {
-  constructor(resource: string, id?: string) {
-    super(
-      id ? `${resource} with id "${id}" not found` : `${resource} not found`,
-      'NOT_FOUND',
-      404
-    );
+  constructor(message: string) {
+    super(message, 'NOT_FOUND', 404);
     this.name = 'NotFoundError';
   }
 }

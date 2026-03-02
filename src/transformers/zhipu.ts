@@ -87,7 +87,13 @@ export class ZhipuTransformer extends BaseTransformer {
           type: 'tool_use',
           id: toolCall.id,
           name: toolCall.function.name,
-          input: JSON.parse(toolCall.function.arguments),
+          input: (() => {
+            try {
+              return JSON.parse(toolCall.function.arguments);
+            } catch {
+              return {};
+            }
+          })(),
         });
       }
     }
@@ -147,18 +153,23 @@ export class ZhipuTransformer extends BaseTransformer {
           } else if (block.type === 'tool_result') {
             // Tool results go as assistant messages in GLM
             // GLM 中工具结果作为助手消息
+            const toolResultContent = typeof block.content === 'string'
+              ? block.content
+              : Array.isArray(block.content)
+                ? block.content.map((b: any) => (typeof b === 'string' ? b : b.text ?? JSON.stringify(b))).join('')
+                : String(block.content ?? '');
             result.push({
               role: 'tool',
-              content: JSON.stringify(block.content),
+              content: toolResultContent,
               tool_call_id: block.tool_use_id,
             });
           }
         }
 
-        if (parts.length > 0) {
+        if (parts.length > 0 || toolCalls.length > 0) {
           const msgObj: any = {
             role: msg.role,
-            content: parts.join('\n'),
+            content: parts.length > 0 ? parts.join('\n') : '',
           };
 
           if (toolCalls.length > 0) {

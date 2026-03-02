@@ -113,14 +113,17 @@ export class OpenAITransformer extends BaseTransformer {
    * Convert Anthropic messages to OpenAI format
  * AnthropicOpenAI
    */
-  private convertMessagesToOpenAI(messages: any[], system?: string): any[] {
+  private convertMessagesToOpenAI(messages: any[], system?: string | any[]): any[] {
     const result: any[] = [];
 
     //// Add system message if present
     if (system) {
+      const systemContent = Array.isArray(system)
+        ? system.map((s: any) => s.text || s).join('\n')
+        : system;
       result.push({
         role: 'system',
-        content: system,
+        content: systemContent,
       });
     }
 
@@ -160,20 +163,27 @@ export class OpenAITransformer extends BaseTransformer {
           } else if (block.type === 'tool_result') {
             // Tool results go as user messages in OpenAI
             //// OpenAI
+            const toolResultContent = typeof block.content === 'string'
+              ? block.content
+              : Array.isArray(block.content)
+                ? block.content.map((b: any) => (typeof b === 'string' ? b : b.text ?? JSON.stringify(b))).join('')
+                : String(block.content ?? '');
             result.push({
               role: 'tool',
               tool_call_id: block.tool_use_id,
-              content: JSON.stringify(block.content),
+              content: toolResultContent,
             });
           }
         }
 
-        if (parts.length > 0) {
+        if (parts.length > 0 || toolCalls.length > 0) {
           result.push({
             role: msg.role,
-            content: parts.length === 1 && parts[0].type === 'text'
-              ? parts[0].text
-              : parts,
+            content: parts.length === 0
+              ? null
+              : parts.length === 1 && parts[0].type === 'text'
+                ? parts[0].text
+                : parts,
           });
         }
 

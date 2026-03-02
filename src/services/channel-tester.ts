@@ -42,12 +42,12 @@ export class ChannelTester {
 
       //
       if (!response.ok) {
-        await response.text().catch(() => 'Unable to read error');
+        const errorBody = await response.text().catch(() => 'Unable to read error');
         return {
           success: false,
           channelName: channel.name,
           latency,
-          error: `HTTP ${response.status}: ${response.statusText}`,
+          error: `HTTP ${response.status}: ${response.statusText}${errorBody ? ` - ${errorBody.slice(0, 200)}` : ''}`,
           details: {
             status: response.status,
             statusText: response.statusText,
@@ -102,7 +102,7 @@ export class ChannelTester {
 
   /**
    * Build test request based on channel type
-   * 
+   *
    */
   private buildTestRequest(channel: Channel): {
     url: string;
@@ -130,12 +130,45 @@ export class ChannelTester {
           ],
         },
       };
-    } else if (channel.type === 'openai') {
+    } else if (channel.type === 'google') {
+      const model = channel.models?.[0] || 'gemini-1.5-flash';
+      return {
+        url: `${baseURL}/v1beta/models/${model}:generateContent?key=${channel.apiKey || ''}`,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: {
+          contents: [{ role: 'user', parts: [{ text: 'Hello' }] }],
+          generationConfig: { maxOutputTokens: 10 },
+        },
+      };
+    } else if (channel.type === 'zhipu') {
+      // Zhipu GLM uses /v4/chat/completions, not /v1/chat/completions
+      // 智谱 GLM 使用 /v4/chat/completions 路径
+      return {
+        url: `${baseURL}/v4/chat/completions`,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${channel.apiKey || ''}`,
+        },
+        body: {
+          model: channel.models?.[0] || 'glm-4',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'Hello' }],
+        },
+      };
+    } else {
+      // openai / azure / custom — all use OpenAI-compatible API
+      // Azure OpenAI requires 'api-key' header; others use 'Authorization: Bearer'
+      const authHeaders: Record<string, string> =
+        channel.type === 'azure'
+          ? { 'api-key': channel.apiKey || '' }
+          : { Authorization: `Bearer ${channel.apiKey || ''}` };
       return {
         url: `${baseURL}/v1/chat/completions`,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${channel.apiKey}`,
+          ...authHeaders,
         },
         body: {
           model: channel.models?.[0] || 'gpt-3.5-turbo',
@@ -148,8 +181,6 @@ export class ChannelTester {
           ],
         },
       };
-    } else {
-      throw new Error(`Unsupported channel type: ${channel.type}`);
     }
   }
 
@@ -163,8 +194,15 @@ export class ChannelTester {
         return 'https://api.anthropic.com';
       case 'openai':
         return 'https://api.openai.com';
+      case 'google':
+        return 'https://generativelanguage.googleapis.com';
+      case 'azure':
+        return 'https://api.openai.azure.com';
+      case 'zhipu':
+        return 'https://open.bigmodel.cn/api/paas';
       default:
-        throw new Error(`Unknown channel type: ${type}`);
+        // custom channels should always provide a baseUrl, fall back to openai-compat
+        return 'https://api.openai.com';
     }
   }
 

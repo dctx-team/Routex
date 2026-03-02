@@ -150,8 +150,11 @@ export class Database {
     if (version < 6) {
       this.migrateV6();
     }
+    if (version < 7) {
+      this.migrateV7();
+    }
 
-    this.setVersion(6);
+    this.setVersion(7);
   }
 
   private getVersion(): number {
@@ -311,6 +314,18 @@ export class Database {
     `);
   }
 
+  private migrateV7() {
+    // 将旧的 'circuit_open' 状态迁移到新的 'circuit_breaker'（重命名）
+    // 同时将旧的 'cohere' 频道类型迁移到 'custom'（cohere 已从支持列表移除）
+    this.db.exec(`
+      UPDATE channels SET status = 'enabled' WHERE status = 'circuit_open';
+    `);
+    this.db.exec(`
+      UPDATE channels SET type = 'custom' WHERE type = 'cohere';
+    `);
+    logger.info('🔄 Migration V7: circuit_open → enabled, cohere → custom');
+  }
+
   // ============================================================================
   // 频道操作
   // ============================================================================
@@ -352,8 +367,8 @@ export class Database {
       input.baseUrl || null,
       encryptedApiKey,
       JSON.stringify(input.models),
-      input.priority || 50,
-      input.weight || 1,
+      input.priority ?? 50,
+      input.weight ?? 1,
       input.transformers ? JSON.stringify(input.transformers) : null,
       now,
       now,
@@ -519,6 +534,10 @@ export class Database {
     if (input.status !== undefined) {
       updates.push('status = ?');
       values.push(input.status);
+    }
+    if (input.transformers !== undefined) {
+      updates.push('transformers = ?');
+      values.push(input.transformers ? JSON.stringify(input.transformers) : null);
     }
 
     updates.push('updated_at = ?');
@@ -1004,7 +1023,7 @@ export class Database {
       JSON.stringify(input.condition),
       input.targetChannel,
       input.targetModel || null,
-      input.priority || 50,
+      input.priority ?? 50,
       input.enabled !== false ? 1 : 0,
       now,
       now

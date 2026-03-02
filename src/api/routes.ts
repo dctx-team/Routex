@@ -11,7 +11,7 @@ import type { LoadBalancer } from '../core/loadbalancer';
 import type { SmartRouter } from '../core/routing/smart-router';
 import type { TransformerManager } from '../transformers';
 import type { CacheWarmer } from '../core/cache-warmer';
-import type { OAuthService } from '../auth/oauth';
+import { OAuthService } from '../auth/oauth';
 import type { ChannelType } from '../types';
 import type { HonoEnv } from '../types/hono';
 import {
@@ -400,7 +400,7 @@ export async function createAPI(
         name: 'OpenRouter',
         description: 'Access 300+ AI models through a unified API',
         type: 'openai' as ChannelType,
-        baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+        baseUrl: 'https://openrouter.ai/api',
         models: ['anthropic/claude-opus-4', 'anthropic/claude-sonnet-4-5', 'openai/gpt-4o', 'google/gemini-2.5-pro'],
         priority: 80,
         weight: 1,
@@ -412,7 +412,7 @@ export async function createAPI(
         name: 'DeepSeek',
         description: 'DeepSeek AI - cost-effective models for coding and reasoning',
         type: 'openai' as ChannelType,
-        baseUrl: 'https://api.deepseek.com/chat/completions',
+        baseUrl: 'https://api.deepseek.com',
         models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
         priority: 70,
         weight: 1,
@@ -424,7 +424,7 @@ export async function createAPI(
         name: 'SiliconFlow',
         description: 'SiliconFlow - affordable Chinese AI model hosting',
         type: 'openai' as ChannelType,
-        baseUrl: 'https://api.siliconflow.cn/v1/chat/completions',
+        baseUrl: 'https://api.siliconflow.cn',
         models: ['Qwen/Qwen3-235B-A22B', 'deepseek-ai/DeepSeek-V3', 'meta-llama/Meta-Llama-3.1-70B-Instruct'],
         priority: 60,
         weight: 1,
@@ -436,7 +436,7 @@ export async function createAPI(
         name: 'Google Gemini',
         description: 'Google Gemini API - including Gemini 2.5 Pro with large context window',
         type: 'google' as ChannelType,
-        baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+        baseUrl: 'https://generativelanguage.googleapis.com',
         models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'],
         priority: 75,
         weight: 1,
@@ -448,8 +448,7 @@ export async function createAPI(
         description: 'Run open-source models locally with Ollama',
         type: 'openai' as ChannelType,
         // Ollama runs locally - HTTP is intentional and safe for loopback interface
-        // Using OpenAI-compatible endpoint (/v1/chat/completions) to match 'openai' transformer
-        baseUrl: 'http://localhost:11434/v1/chat/completions',
+        baseUrl: 'http://localhost:11434',
         models: ['llama3.3', 'qwen3:32b', 'deepseek-r1:14b'],
         priority: 50,
         weight: 1,
@@ -472,7 +471,7 @@ export async function createAPI(
         name: 'iFlow Platform',
         description: 'iFlow - free access to GLM, Kimi-K2, Qwen3-Coder, DeepSeek (from claude-code-router)',
         type: 'openai' as ChannelType,
-        baseUrl: 'https://api.iflow.cn/v1/chat/completions',
+        baseUrl: 'https://api.iflow.cn',
         models: ['GLM-4.5', 'Kimi-K2', 'Qwen3-Coder-480B-A35B', 'DeepSeek-V3'],
         priority: 65,
         weight: 1,
@@ -518,6 +517,7 @@ export async function createAPI(
       models: body.models,
       priority: body.priority,
       weight: body.weight,
+      transformers: body.transformers,
     });
 
     logChannelOperation('create', channel.name, {
@@ -658,8 +658,8 @@ export async function createAPI(
   });
 
   // 按频道获取请求记录（为仪表板增强）
-  app.get('/api/requests/channel/:channelId', validateParams(idParamSchema), (c) => {
-    const { id: channelId } = c.get('validatedParams');
+  app.get('/api/requests/channel/:channelId', validateParams(z.object({ channelId: z.string().min(1) })), (c) => {
+    const { channelId } = c.get('validatedParams') as { channelId: string };
     const limit = Number(c.req.query('limit') || String(DEFAULT_QUERY_LIMIT));
 
     const requests = db.getRequestsByChannel(channelId, limit);
@@ -870,8 +870,8 @@ export async function createAPI(
   });
 
   // 根据 ID 获取追踪详情
-  app.get('/api/tracing/traces/:traceId', validateParams(idParamSchema), (c) => {
-    const { id: traceId } = c.get('validatedParams');
+  app.get('/api/tracing/traces/:traceId', validateParams(z.object({ traceId: z.string().min(1) })), (c) => {
+    const { traceId } = c.get('validatedParams') as { traceId: string };
     const spans = tracer.getTraceSpans(traceId);
 
     if (spans.length === 0) {
@@ -882,8 +882,8 @@ export async function createAPI(
   });
 
   // 获取特定 span
-  app.get('/api/tracing/spans/:spanId', validateParams(idParamSchema), (c) => {
-    const { id: spanId } = c.get('validatedParams');
+  app.get('/api/tracing/spans/:spanId', validateParams(z.object({ spanId: z.string().min(1) })), (c) => {
+    const { spanId } = c.get('validatedParams') as { spanId: string };
     const span = tracer.getSpan(spanId);
 
     if (!span) {
@@ -1287,7 +1287,7 @@ export async function createAPI(
   if (oauthService) {
     // 获取支持的 OAuth 提供商
     app.get('/api/oauth/providers', (c) => {
-      const providers = Array.from(oauthService['configs'].keys());
+      const providers = oauthService.getConfiguredProviders();
       return c.json({
         success: true,
         data: providers.map(provider => ({
@@ -1298,19 +1298,20 @@ export async function createAPI(
     });
 
     // 生成授权 URL
+    // state 中编码了 provider 信息，确保 callback 时能正确识别提供商
     app.get('/api/oauth/:provider/authorize', (c) => {
       const provider = c.req.param('provider') as ChannelType;
 
-      // 生成随机 state 用于 CSRF 保护
-      const state = crypto.randomUUID();
+      // nonce 用于 CSRF 防护，provider 信息编码入 state
+      const nonce = crypto.randomUUID();
 
       try {
-        const url = oauthService.generateAuthUrl(provider, state);
+        const url = oauthService.generateAuthUrl(provider, nonce);
         return c.json({
           success: true,
           data: {
             url,
-            state,
+            nonce,
             provider
           }
         });
@@ -1320,10 +1321,10 @@ export async function createAPI(
     });
 
     // 处理 OAuth 回调
+    // provider 通过解码 state 参数获取，不依赖额外 query param（符合 OAuth 规范）
     app.get('/api/oauth/callback', async (c) => {
       const code = c.req.query('code');
       const state = c.req.query('state');
-      const provider = c.req.query('provider') as ChannelType;
       const error = c.req.query('error');
       const errorDescription = c.req.query('error_description');
 
@@ -1334,9 +1335,16 @@ export async function createAPI(
         }, HTTP_STATUS.BAD_REQUEST);
       }
 
-      if (!code || !state || !provider) {
-        throw new ValidationError('Missing required parameters: code, state, provider');
+      if (!code || !state) {
+        throw new ValidationError('Missing required parameters: code, state');
       }
+
+      // 从 state 中解码 provider，避免依赖非标准 query 参数
+      const decoded = OAuthService.decodeState(state);
+      if (!decoded) {
+        throw new ValidationError('Invalid or malformed state parameter');
+      }
+      const { provider } = decoded;
 
       try {
         const session = await oauthService.exchangeCode(provider, code, state);

@@ -4,7 +4,7 @@
  */
 
 import type { Channel, LoadBalanceStrategy, LoadBalancerContext } from '../types';
-import { ServiceUnavailableError } from '../types';
+import { NoAvailableChannelError } from './errors';
 import { LRUCache } from '../utils/lru-cache';
 import { logger, logLoadBalancer } from '../utils/logger';
 
@@ -45,7 +45,7 @@ export class LoadBalancer {
     const available = channels.filter((ch) => ch.status === 'enabled');
 
     if (available.length === 0) {
-      throw new ServiceUnavailableError('No available channels');
+      throw new NoAvailableChannelError();
     }
 
     //// Check session affinity
@@ -94,12 +94,12 @@ export class LoadBalancer {
   }
 
   /**
-   * Priority strategy: select channel with highest priority (lowest number)
+   * Priority strategy: select channel with highest priority (highest number)
    *
    */
   private selectByPriority(channels: Channel[]): Channel {
-    return channels.reduce((highest, current) =>
-      current.priority < highest.priority ? current : highest,
+    return channels.reduce((best, current) =>
+      current.priority > best.priority ? current : best,
     );
   }
 

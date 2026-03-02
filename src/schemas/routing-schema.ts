@@ -10,9 +10,7 @@ import { z } from 'zod';
  * Routing rule type enum
  */
 export const routingRuleTypeSchema = z.enum([
-  'model',
-  'keyword',
-  'pattern',
+  'default',
   'longContext',
   'background',
   'think',
@@ -71,10 +69,13 @@ export const routingConditionSchema = z.object({
   keywords: z.array(z.string()).optional(),
   userPattern: z.string().optional(),
   modelPattern: z.string().optional(),
+  modelPrefix: z.string().optional(),
 
   // 特性检测
   hasTools: z.boolean().optional(),
   hasImages: z.boolean().optional(),
+  hasThinking: z.boolean().optional(),
+  hasWebSearch: z.boolean().optional(),
 
   // 内容分析条件
   contentCategory: contentCategorySchema.optional(),

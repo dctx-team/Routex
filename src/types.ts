@@ -54,6 +54,7 @@ export interface UpdateChannelInput {
   priority?: number;
   weight?: number;
   status?: ChannelStatus;
+  transformers?: TransformerConfig;
 }
 
 //// Load Balancing

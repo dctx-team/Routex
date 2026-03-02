@@ -121,6 +121,19 @@ export class GeminiTransformer extends BaseTransformer {
   private convertMessagesToGemini(messages: any[]): any[] {
     const result: any[] = [];
 
+    // Pre-scan to build tool_use_id → function name mapping
+    // 预扫描构建 tool_use_id → 函数名 映射（tool_result 只有 id 无函数名）
+    const toolUseIdToName = new Map<string, string>();
+    for (const msg of messages) {
+      if (Array.isArray(msg.content)) {
+        for (const block of msg.content) {
+          if (block.type === 'tool_use' && block.id && block.name) {
+            toolUseIdToName.set(block.id, block.name);
+          }
+        }
+      }
+    }
+
     for (const msg of messages) {
       const geminiMsg: any = {
         role: msg.role === 'assistant' ? 'model' : 'user',
@@ -160,9 +173,12 @@ export class GeminiTransformer extends BaseTransformer {
           } else if (block.type === 'tool_result') {
             // Tool results as function responses
             // 工具结果作为函数响应
+            // Gemini requires the function name, not the tool_use_id
+            // 使用预扫描的 map 获取真实函数名；回退到 tool_use_id
+            const functionName = toolUseIdToName.get(block.tool_use_id) || block.tool_use_id;
             geminiMsg.parts.push({
               functionResponse: {
-                name: block.tool_use_id,
+                name: functionName,
                 response: {
                   content: block.content,
                 },

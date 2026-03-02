@@ -15,7 +15,7 @@ export const channelTypeSchema = z.enum([
   'openai',
   'azure',
   'google',
-  'cohere',
+  'zhipu',
   'custom',
 ]);
 
@@ -26,8 +26,8 @@ export const channelTypeSchema = z.enum([
 export const channelStatusSchema = z.enum([
   'enabled',
   'disabled',
-  'circuit_open',
   'rate_limited',
+  'circuit_breaker',
 ]);
 
 /**
@@ -66,7 +66,12 @@ export const createChannelSchema = z.object({
     .default(CHANNEL_WEIGHT.DEFAULT)
     .optional(),
 
-  transformers: z.array(z.string()).optional(),
+  transformers: z.object({
+    use: z.array(z.union([z.string(), z.array(z.any())])).optional(),
+    perModel: z.record(z.string(), z.object({
+      use: z.array(z.union([z.string(), z.array(z.any())])).optional(),
+    })).optional(),
+  }).optional(),
 });
 
 /**
