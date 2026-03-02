@@ -36,6 +36,8 @@ export interface RateLimitStore {
   decrement(key: string): Promise<void>;
   resetKey(key: string): Promise<void>;
   resetAll(): Promise<void>;
+  /** Return the timestamp (ms) when the rate limit window resets for the given key */
+  getResetTime?(key: string): number;
 }
 
 /**
@@ -81,6 +83,12 @@ export class MemoryStore implements RateLimitStore {
 
   async resetAll(): Promise<void> {
     this.hits.clear();
+  }
+
+  getResetTime(key: string): number {
+    const record = this.hits.get(key);
+    // If no record yet, the window hasn't started — first request will open it at now+windowMs
+    return record ? record.resetTime : Date.now() + this.windowMs;
   }
 
   /**
@@ -140,11 +148,11 @@ export function rateLimit(config: RateLimitConfig) {
     // 
     const key = keyGenerator(c);
 
-    // 
+    //
     const hits = await store.increment(key);
 
-    // 
-    const resetTime = Date.now() + windowMs;
+    // 获取本 key 窗口的真实重置时间（优先从 store 读取，否则退回 now+windowMs）
+    const resetTime = store.getResetTime ? store.getResetTime(key) : Date.now() + windowMs;
 
     // 
     if (standardHeaders) {

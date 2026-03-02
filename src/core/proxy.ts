@@ -542,11 +542,10 @@ export class ProxyEngine {
             count: transformerSpecs.length,
             channel: channel.name,
           });
-          // 为响应反转转换器顺序
-          const reversedSpecs = [...transformerSpecs].reverse();
+          // TransformerManager.transformResponse 内部已按逆序应用，直接传原始顺序
           responseBody = await this.transformerManager.transformResponse(
             responseBody,
-            reversedSpecs
+            transformerSpecs
           );
         }
       } catch (error) {

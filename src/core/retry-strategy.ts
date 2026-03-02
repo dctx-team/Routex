@@ -284,7 +284,8 @@ async function executeWithRetry<T>(
   let attempt = 0;
   const maxRetries = strategy.getMaxRetries();
 
-  while (attempt < maxRetries) {
+  // maxRetries 为 "最大尝试次数"：0 或负数时至少执行 1 次（0 重试 = 仅尝试一次）
+  while (attempt < Math.max(maxRetries, 1)) {
     attempt++;
 
     try {
