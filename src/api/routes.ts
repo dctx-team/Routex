@@ -1449,8 +1449,8 @@ export async function createAPI(
     });
 
     // 撤销 OAuth 会话
-    app.delete('/api/oauth/sessions/:sessionId', validateParams(idParamSchema), async (c) => {
-      const { id: sessionId } = c.get('validatedParams');
+    app.delete('/api/oauth/sessions/:sessionId', validateParams(z.object({ sessionId: z.string().min(1) })), async (c) => {
+      const { sessionId } = c.get('validatedParams') as { sessionId: string };
 
       try {
         await oauthService.revokeSession(sessionId);
@@ -1464,8 +1464,8 @@ export async function createAPI(
     });
 
     // 根据频道获取 OAuth 会话
-    app.get('/api/channels/:channelId/oauth', validateParams(idParamSchema), (c) => {
-      const { id: channelId } = c.get('validatedParams');
+    app.get('/api/channels/:channelId/oauth', validateParams(z.object({ channelId: z.string().min(1) })), (c) => {
+      const { channelId } = c.get('validatedParams') as { channelId: string };
       const session = oauthService.getSessionByChannel(channelId);
 
       if (!session) {
