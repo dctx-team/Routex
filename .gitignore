@@ -17,3 +17,7 @@ data/
 .fuse_hidden*
 coverage/
 .nyc_output/
+
+# Claude Code & Ralph runtime files
+.claude/
+memory/
